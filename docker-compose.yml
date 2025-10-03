@@ -11,7 +11,7 @@ services:
     container_name: bookbharat-admin
     restart: unless-stopped
     ports:
-      - "3002:80"
+      - "3001:80"
     environment:
       - NODE_ENV=production
     networks:

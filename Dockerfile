@@ -13,7 +13,7 @@ RUN npm ci --only=production
 COPY . .
 
 # Build the app with production API URL
-ARG REACT_APP_API_URL=http://localhost:8000/api/v1/admin
+ARG REACT_APP_API_URL=https://v2s.bookbharat.com/api/v1/admin
 ENV REACT_APP_API_URL=$REACT_APP_API_URL
 
 # Build the application
