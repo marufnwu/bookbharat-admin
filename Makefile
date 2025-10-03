@@ -1,3 +1,3 @@
 deploy:
-	docker-compose build admin
-	docker-compose up -d admin
+	docker compose build admin
+	docker compose up -d admin
