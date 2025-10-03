@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  admin:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # Change this to your production API URL
+        REACT_APP_API_URL: ${REACT_APP_API_URL:-http://localhost:8000/api/v1/admin}
+    container_name: bookbharat-admin
+    restart: unless-stopped
+    ports:
+      - "3002:80"
+    environment:
+      - NODE_ENV=production
+    networks:
+      - bookbharat-network
+
+networks:
+  bookbharat-network:
+    driver: bridge

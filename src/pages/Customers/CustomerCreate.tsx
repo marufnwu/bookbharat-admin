@@ -1,0 +1,522 @@
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useMutation } from '@tanstack/react-query';
+import { customersApi } from '../../api';
+import { ArrowLeft, Save, User, Mail, Phone, MapPin, Calendar, Shield, Bell } from 'lucide-react';
+import { toast } from 'react-hot-toast';
+
+interface CustomerForm {
+  name: string;
+  email: string;
+  phone: string;
+  password: string;
+  password_confirmation: string;
+  birthday?: string;
+  gender?: string;
+  accepts_marketing: boolean;
+  accepts_sms: boolean;
+  is_vip: boolean;
+  address?: {
+    name: string;
+    phone: string;
+    address_line_1: string;
+    address_line_2?: string;
+    city: string;
+    state: string;
+    country: string;
+    pincode: string;
+    is_default: boolean;
+  };
+}
+
+const CustomerCreate: React.FC = () => {
+  const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState('basic');
+  const [showPassword, setShowPassword] = useState(false);
+
+  const [formData, setFormData] = useState<CustomerForm>({
+    name: '',
+    email: '',
+    phone: '',
+    password: '',
+    password_confirmation: '',
+    accepts_marketing: true,
+    accepts_sms: false,
+    is_vip: false,
+    address: {
+      name: '',
+      phone: '',
+      address_line_1: '',
+      city: '',
+      state: '',
+      country: 'India',
+      pincode: '',
+      is_default: true,
+    },
+  });
+
+  const createMutation = useMutation({
+    mutationFn: async (data: CustomerForm) => {
+      return customersApi.create(data);
+    },
+    onSuccess: (response: any) => {
+      toast.success('Customer created successfully');
+      navigate(`/customers/${response.customer?.id || response.user?.id}`);
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to create customer');
+    },
+  });
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value, type } = e.target;
+
+    if (type === 'checkbox') {
+      const checked = (e.target as HTMLInputElement).checked;
+      setFormData(prev => ({ ...prev, [name]: checked }));
+    } else if (name.startsWith('address.')) {
+      const addressField = name.replace('address.', '');
+      setFormData(prev => ({
+        ...prev,
+        address: {
+          ...prev.address!,
+          [addressField]: value,
+        },
+      }));
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    // Validate required fields
+    if (!formData.name || !formData.email || !formData.password) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
+      toast.error('Please enter a valid email address');
+      return;
+    }
+
+    // Validate password confirmation
+    if (formData.password !== formData.password_confirmation) {
+      toast.error('Passwords do not match');
+      return;
+    }
+
+    // Validate password length
+    if (formData.password.length < 8) {
+      toast.error('Password must be at least 8 characters long');
+      return;
+    }
+
+    // Validate phone number if provided
+    if (formData.phone && !/^\d{10}$/.test(formData.phone.replace(/[^0-9]/g, ''))) {
+      toast.error('Please enter a valid 10-digit phone number');
+      return;
+    }
+
+    createMutation.mutate(formData);
+  };
+
+  const tabs = [
+    { id: 'basic', label: 'Basic Information', icon: User },
+    { id: 'address', label: 'Address', icon: MapPin },
+    { id: 'preferences', label: 'Preferences', icon: Bell },
+    { id: 'security', label: 'Security', icon: Shield },
+  ];
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => navigate('/customers')}
+            className="p-2 hover:bg-gray-100 rounded-lg"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+          <h1 className="text-2xl font-semibold">Create New Customer</h1>
+        </div>
+        <button
+          onClick={handleSubmit}
+          disabled={createMutation.isPending}
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+        >
+          <Save className="h-4 w-4" />
+          {createMutation.isPending ? 'Creating...' : 'Create Customer'}
+        </button>
+      </div>
+
+      <div className="bg-white rounded-lg shadow">
+        <div className="border-b border-gray-200">
+          <nav className="flex -mb-px">
+            {tabs.map(tab => {
+              const Icon = tab.icon;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`py-2 px-6 border-b-2 font-medium text-sm flex items-center gap-2 ${
+                    activeTab === tab.id
+                      ? 'border-blue-500 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  <Icon className="h-4 w-4" />
+                  {tab.label}
+                </button>
+              );
+            })}
+          </nav>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6">
+          {activeTab === 'basic' && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Full Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Email Address <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleInputChange}
+                    className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                    required
+                  />
+                  <Mail className="h-5 w-5 text-gray-400 absolute left-3 top-2.5" />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Phone Number
+                </label>
+                <div className="relative">
+                  <input
+                    type="tel"
+                    name="phone"
+                    value={formData.phone}
+                    onChange={handleInputChange}
+                    placeholder="9876543210"
+                    className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                  />
+                  <Phone className="h-5 w-5 text-gray-400 absolute left-3 top-2.5" />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Date of Birth
+                </label>
+                <div className="relative">
+                  <input
+                    type="date"
+                    name="birthday"
+                    value={formData.birthday || ''}
+                    onChange={handleInputChange}
+                    className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                  />
+                  <Calendar className="h-5 w-5 text-gray-400 absolute left-3 top-2.5" />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Gender
+                </label>
+                <select
+                  name="gender"
+                  value={formData.gender || ''}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="">Select Gender</option>
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                  <option value="other">Other</option>
+                  <option value="prefer_not_to_say">Prefer not to say</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    name="is_vip"
+                    checked={formData.is_vip}
+                    onChange={handleInputChange}
+                    className="rounded text-blue-600 focus:ring-blue-500"
+                  />
+                  <span className="text-sm font-medium text-gray-700">VIP Customer</span>
+                </label>
+                <p className="text-xs text-gray-500 mt-1 ml-6">
+                  VIP customers get special discounts and priority support
+                </p>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'address' && (
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Full Name
+                  </label>
+                  <input
+                    type="text"
+                    name="address.name"
+                    value={formData.address?.name || ''}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Phone Number
+                  </label>
+                  <input
+                    type="tel"
+                    name="address.phone"
+                    value={formData.address?.phone || ''}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Address Line 1
+                  </label>
+                  <input
+                    type="text"
+                    name="address.address_line_1"
+                    value={formData.address?.address_line_1 || ''}
+                    onChange={handleInputChange}
+                    placeholder="House/Flat No., Building Name"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Address Line 2
+                  </label>
+                  <input
+                    type="text"
+                    name="address.address_line_2"
+                    value={formData.address?.address_line_2 || ''}
+                    onChange={handleInputChange}
+                    placeholder="Street, Area, Landmark"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    City
+                  </label>
+                  <input
+                    type="text"
+                    name="address.city"
+                    value={formData.address?.city || ''}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    State
+                  </label>
+                  <input
+                    type="text"
+                    name="address.state"
+                    value={formData.address?.state || ''}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Country
+                  </label>
+                  <input
+                    type="text"
+                    name="address.country"
+                    value={formData.address?.country || ''}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Pincode
+                  </label>
+                  <input
+                    type="text"
+                    name="address.pincode"
+                    value={formData.address?.pincode || ''}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      name="address.is_default"
+                      checked={formData.address?.is_default}
+                      onChange={handleInputChange}
+                      className="rounded text-blue-600 focus:ring-blue-500"
+                    />
+                    <span className="text-sm font-medium text-gray-700">Set as default address</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'preferences' && (
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Communication Preferences</h3>
+                <div className="space-y-4">
+                  <label className="flex items-start gap-3">
+                    <input
+                      type="checkbox"
+                      name="accepts_marketing"
+                      checked={formData.accepts_marketing}
+                      onChange={handleInputChange}
+                      className="rounded text-blue-600 focus:ring-blue-500 mt-1"
+                    />
+                    <div>
+                      <p className="text-sm font-medium text-gray-700">Marketing Emails</p>
+                      <p className="text-xs text-gray-500">
+                        Receive emails about new products, offers, and promotions
+                      </p>
+                    </div>
+                  </label>
+
+                  <label className="flex items-start gap-3">
+                    <input
+                      type="checkbox"
+                      name="accepts_sms"
+                      checked={formData.accepts_sms}
+                      onChange={handleInputChange}
+                      className="rounded text-blue-600 focus:ring-blue-500 mt-1"
+                    />
+                    <div>
+                      <p className="text-sm font-medium text-gray-700">SMS Notifications</p>
+                      <p className="text-xs text-gray-500">
+                        Receive SMS updates about orders and exclusive offers
+                      </p>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              <div className="p-4 bg-blue-50 rounded-lg">
+                <p className="text-sm text-blue-800">
+                  Note: Customers can update their preferences at any time from their account settings.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'security' && (
+            <div className="space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Password <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    name="password"
+                    value={formData.password}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600"
+                  >
+                    {showPassword ? 'Hide' : 'Show'}
+                  </button>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Password must be at least 8 characters long
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Confirm Password <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  name="password_confirmation"
+                  value={formData.password_confirmation}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                  required
+                />
+                {formData.password && formData.password_confirmation && (
+                  <p className={`text-xs mt-1 ${
+                    formData.password === formData.password_confirmation
+                      ? 'text-green-600'
+                      : 'text-red-600'
+                  }`}>
+                    {formData.password === formData.password_confirmation
+                      ? '✓ Passwords match'
+                      : '✗ Passwords do not match'}
+                  </p>
+                )}
+              </div>
+
+              <div className="p-4 bg-yellow-50 rounded-lg">
+                <p className="text-sm text-yellow-800">
+                  Security Note: The customer will receive a welcome email with their login credentials.
+                  They can change their password after logging in.
+                </p>
+              </div>
+            </div>
+          )}
+        </form>
+      </div>
+    </div>
+  );
+};
+
+export default CustomerCreate;

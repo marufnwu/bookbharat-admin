@@ -1,0 +1,32 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm start)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(npm uninstall:*)",
+      "Bash(npm install:*)",
+      "Bash(curl:*)",
+      "Bash(npx kill-port:*)",
+      "Bash(npm ls:*)",
+      "Read(//d/bookbharat-v2/bookbharat-backend/database/seeders/**)",
+      "Bash(php artisan migrate:fresh:*)",
+      "Read(//d/bookbharat-v2/bookbharat-backend/**)",
+      "Bash(php artisan tinker:*)",
+      "Bash(php artisan make:controller:*)",
+      "Bash(python:*)",
+      "Bash(bash:*)",
+      "Bash(npm run build:*)",
+      "Bash(node:*)",
+      "Bash(xargs:*)",
+      "Bash(php artisan:*)",
+      "Bash(PORT=3003 npm start)",
+      "Bash(npm cache clean:*)",
+      "Bash(find:*)",
+      "Read(//d/bookbharat-v2/**)",
+      "Bash(composer show:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
