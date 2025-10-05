@@ -24,6 +24,8 @@ import toast from 'react-hot-toast';
 import PaymentSettings from './PaymentSettings';
 import SiteSettings from './SiteSettings';
 import SystemSettings from './SystemSettings';
+import OrderCharges from './OrderCharges';
+import TaxConfigurations from './TaxConfigurations';
 
 const Settings: React.FC = () => {
   const location = useLocation();
@@ -436,6 +438,8 @@ const Settings: React.FC = () => {
       case 'site': return 'Site Settings';
       case 'payment': return 'Payment Gateways';
       case 'shipping': return 'Shipping Zones';
+      case 'charges': return 'Order Charges';
+      case 'taxes': return 'Tax Configuration';
       case 'email': return 'Email Templates';
       case 'roles': return 'Roles & Permissions';
       case 'system': return 'System Management';
@@ -450,6 +454,8 @@ const Settings: React.FC = () => {
       case 'site': return 'Manage site branding, SEO, and appearance settings';
       case 'payment': return 'Configure payment gateways and payment methods';
       case 'shipping': return 'Manage shipping zones and delivery settings';
+      case 'charges': return 'Manage additional charges like COD fees, handling fees, etc.';
+      case 'taxes': return 'Configure tax settings for GST, IGST, VAT, and other tax types';
       case 'email': return 'Customize email templates and notifications';
       case 'roles': return 'Manage user roles and permissions';
       case 'system': return 'System configuration and maintenance settings';
@@ -470,6 +476,10 @@ const Settings: React.FC = () => {
         return <PaymentSettings />;
       case 'shipping':
         return renderShippingSettings();
+      case 'charges':
+        return <OrderCharges />;
+      case 'taxes':
+        return <TaxConfigurations />;
       case 'email':
         return renderEmailTemplates();
       case 'system':

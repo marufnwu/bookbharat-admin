@@ -132,6 +132,8 @@ const App: React.FC = () => {
               <Route path="settings/shipping" element={<Settings key="settings-shipping" />} />
               <Route path="settings/email" element={<Settings key="settings-email" />} />
               <Route path="settings/roles" element={<Settings key="settings-roles" />} />
+              <Route path="settings/charges" element={<Settings key="settings-charges" />} />
+              <Route path="settings/taxes" element={<Settings key="settings-taxes" />} />
               <Route path="settings/system" element={<Settings key="settings-system" />} />
               <Route path="settings/notifications" element={<Settings key="settings-notifications" />} />
 

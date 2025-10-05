@@ -26,6 +26,8 @@ import {
   Mail,
   Bell,
   Server,
+  DollarSign,
+  Receipt,
 } from 'lucide-react';
 import { Menu, Transition } from '@headlessui/react';
 import { useAuth } from '../auth/useAuth';
@@ -89,6 +91,8 @@ const navigation: NavigationItem[] = [
       { name: 'Site Settings', href: '/settings/site', icon: Globe },
       { name: 'Payment Gateways', href: '/settings/payment', icon: CreditCard },
       { name: 'Shipping Zones', href: '/settings/shipping', icon: Truck },
+      { name: 'Order Charges', href: '/settings/charges', icon: Receipt },
+      { name: 'Tax Configuration', href: '/settings/taxes', icon: DollarSign },
       { name: 'Email Templates', href: '/settings/email', icon: Mail },
       { name: 'Notifications', href: '/settings/notifications', icon: Bell },
     ]

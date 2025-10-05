@@ -344,3 +344,24 @@ export const bundleAnalyticsApi = {
   clearAnalytics: (bundleId?: string) =>
     api.delete('/bundle-analytics/clear', { data: bundleId ? { bundle_id: bundleId } : {} }).then(res => res.data),
 };
+// Order Charges API
+export const orderChargesApi = {
+  getAll: () => api.get('/order-charges').then(res => res.data),
+  getOne: (id: number) => api.get(`/order-charges/${id}`).then(res => res.data),
+  create: (data: any) => api.post('/order-charges', data).then(res => res.data),
+  update: (id: number, data: any) => api.put(`/order-charges/${id}`, data).then(res => res.data),
+  delete: (id: number) => api.delete(`/order-charges/${id}`).then(res => res.data),
+  toggleStatus: (id: number) => api.patch(`/order-charges/${id}/toggle`).then(res => res.data),
+  updatePriority: (charges: Array<{id: number, priority: number}>) => 
+    api.post('/order-charges/update-priority', { charges }).then(res => res.data),
+};
+
+// Tax Configurations API
+export const taxConfigurationsApi = {
+  getAll: () => api.get('/tax-configurations').then(res => res.data),
+  getOne: (id: number) => api.get(`/tax-configurations/${id}`).then(res => res.data),
+  create: (data: any) => api.post('/tax-configurations', data).then(res => res.data),
+  update: (id: number, data: any) => api.put(`/tax-configurations/${id}`, data).then(res => res.data),
+  delete: (id: number) => api.delete(`/tax-configurations/${id}`).then(res => res.data),
+  toggleStatus: (id: number) => api.patch(`/tax-configurations/${id}/toggle`).then(res => res.data),
+};
