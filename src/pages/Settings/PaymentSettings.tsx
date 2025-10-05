@@ -7,6 +7,7 @@ import {
   EyeIcon,
   EyeSlashIcon,
   KeyIcon,
+  CheckCircleIcon as CheckCircle,
 } from '@heroicons/react/24/outline';
 import { Button, LoadingSpinner, Badge } from '../../components';
 import { useNotificationStore } from '../../store/notificationStore';
@@ -40,6 +41,8 @@ interface PaymentSettingsData {
 const PaymentSettings: React.FC = () => {
   const [showSecrets, setShowSecrets] = useState<Record<string, boolean>>({});
   const [editingGateway, setEditingGateway] = useState<PaymentGateway | null>(null);
+  const [paymentFlowType, setPaymentFlowType] = useState<string>('two_tier');
+  const [defaultPaymentType, setDefaultPaymentType] = useState<string>('none');
   const queryClient = useQueryClient();
   const { showSuccess, showError } = useNotificationStore();
 
@@ -48,6 +51,20 @@ const PaymentSettings: React.FC = () => {
     queryKey: ['settings', 'payment'],
     queryFn: settingsApi.getPayment,
   });
+
+  // Fetch payment flow settings from API
+  const { data: flowSettingsData, isLoading: flowSettingsLoading } = useQuery({
+    queryKey: ['settings', 'payment-flow'],
+    queryFn: settingsApi.getPaymentFlowSettings,
+  });
+
+  // Update local state when flow settings are loaded
+  React.useEffect(() => {
+    if (flowSettingsData?.data) {
+      setPaymentFlowType(flowSettingsData.data.flow_type || 'two_tier');
+      setDefaultPaymentType(flowSettingsData.data.default_type || 'none');
+    }
+  }, [flowSettingsData]);
 
   const togglePaymentGatewayMutation = useMutation({
     mutationFn: (gateway: PaymentGateway) => settingsApi.togglePaymentGateway(gateway.id),
@@ -72,6 +89,29 @@ const PaymentSettings: React.FC = () => {
       showError('Failed to update gateway settings', error.message);
     },
   });
+
+  const updatePaymentFlowMutation = useMutation({
+    mutationFn: (settings: { flow_type?: string; default_type?: string }) =>
+      settingsApi.updatePaymentFlowSettings(settings),
+    onSuccess: (data) => {
+      showSuccess('Payment flow settings updated successfully');
+      queryClient.invalidateQueries({ queryKey: ['settings', 'payment-flow'] });
+      queryClient.invalidateQueries({ queryKey: ['settings', 'payment'] });
+    },
+    onError: (error: any) => {
+      showError('Failed to update payment flow settings', error.message);
+    },
+  });
+
+  const handleFlowTypeChange = (newFlowType: string) => {
+    setPaymentFlowType(newFlowType);
+    updatePaymentFlowMutation.mutate({ flow_type: newFlowType });
+  };
+
+  const handleDefaultTypeChange = (newDefaultType: string) => {
+    setDefaultPaymentType(newDefaultType);
+    updatePaymentFlowMutation.mutate({ default_type: newDefaultType });
+  };
 
   const toggleSecretVisibility = (gatewayId: number) => {
     setShowSecrets(prev => ({
@@ -248,6 +288,87 @@ const PaymentSettings: React.FC = () => {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      </div>
+
+      {/* Payment Flow Settings */}
+      <div className="bg-white rounded-lg shadow">
+        <div className="p-6 border-b border-gray-200">
+          <h3 className="text-lg font-medium text-gray-900">Payment Flow Settings</h3>
+          <p className="text-sm text-gray-500 mt-1">Control how payment options are presented to customers</p>
+        </div>
+        <div className="p-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Payment Flow Type */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Payment Flow Type
+              </label>
+              <select
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50"
+                value={paymentFlowType}
+                onChange={(e) => handleFlowTypeChange(e.target.value)}
+                disabled={updatePaymentFlowMutation.isPending}
+              >
+                <option value="two_tier">Two-Tier Selection (Full Payment vs COD)</option>
+                <option value="single_list">Single Gateway List (All options together)</option>
+                <option value="cod_first">COD First (Show COD prominently)</option>
+              </select>
+              <p className="mt-2 text-xs text-gray-500">
+                <strong>Two-Tier:</strong> Shows "Full Payment" vs "COD" choice first<br />
+                <strong>Single List:</strong> All gateways including COD in one list<br />
+                <strong>COD First:</strong> Prominently displays COD option first
+              </p>
+            </div>
+
+            {/* Default Payment Type */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Default Payment Selection
+              </label>
+              <select
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50"
+                value={defaultPaymentType}
+                onChange={(e) => handleDefaultTypeChange(e.target.value)}
+                disabled={updatePaymentFlowMutation.isPending}
+              >
+                <option value="none">No Default (User must choose)</option>
+                <option value="online">Full Payment (Online)</option>
+                <option value="cod">Cash on Delivery</option>
+              </select>
+              <p className="mt-2 text-xs text-gray-500">
+                Pre-select a payment type when customers reach the payment page
+              </p>
+            </div>
+          </div>
+
+          {/* Success Message */}
+          {updatePaymentFlowMutation.isSuccess && (
+            <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+              <div className="flex items-start gap-3">
+                <CheckCircle className="h-5 w-5 text-green-600 mt-0.5" />
+                <div className="text-sm">
+                  <p className="font-medium text-green-900">Settings Saved!</p>
+                  <p className="text-green-700">
+                    Payment flow settings have been updated successfully. Changes will take effect immediately on the customer checkout page.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Info Message */}
+          <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex items-start gap-3">
+              <CogIcon className="h-5 w-5 text-blue-600 mt-0.5" />
+              <div className="text-sm">
+                <p className="font-medium text-blue-900 mb-1">💡 How It Works</p>
+                <p className="text-blue-700">
+                  These settings control the payment selection UI on your checkout page. Changes are saved automatically when you select an option.
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       </div>

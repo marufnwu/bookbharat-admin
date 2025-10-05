@@ -276,6 +276,11 @@ export const settingsApi = {
   getQueueStatus: () => api.get('/system/queue-status').then(res => res.data),
 
   getShipping: () => api.get('/settings/shipping').then(res => res.data),
+
+  // Payment Flow Settings
+  getPaymentFlowSettings: () => api.get('/admin-settings/payment-flow').then(res => res.data),
+  updatePaymentFlowSettings: (settings: { flow_type?: string; default_type?: string }) =>
+    api.put('/admin-settings/payment-flow', settings).then(res => res.data),
 };
 
 // Roles API
