@@ -148,11 +148,20 @@ const Categories: React.FC = () => {
     const data = new FormData();
     data.append('name', formData.name);
     data.append('slug', formData.slug);
-    data.append('description', formData.description || '');
-    data.append('parent_id', formData.parent_id?.toString() || '');
+
+    // Only append optional fields if they have values
+    if (formData.description) {
+      data.append('description', formData.description);
+    }
+
+    if (formData.parent_id) {
+      data.append('parent_id', formData.parent_id.toString());
+    }
+
     data.append('is_active', formData.is_active ? '1' : '0');
 
-    if (formData.image) {
+    // Only append image if it's a File object (not null or undefined)
+    if (formData.image instanceof File) {
       data.append('image', formData.image);
     }
 

@@ -105,8 +105,24 @@ export const categoriesApiExtended = {
 
   // Extended methods
   getAll: () => api.get('/categories?per_page=100').then(res => res.data),
-  create: (data: FormData) => api.post('/categories', data).then(res => res.data),
-  update: (id: number, data: FormData) => api.post(`/categories/${id}`, data).then(res => res.data),
+  create: (data: FormData) => {
+    // Remove Content-Type header to let axios set it with proper boundary
+    const config = {
+      headers: {
+        'Content-Type': undefined, // This tells axios to auto-detect and set multipart boundary
+      },
+    };
+    return api.post('/categories', data, config).then(res => res.data);
+  },
+  update: (id: number, data: FormData) => {
+    // Remove Content-Type header to let axios set it with proper boundary
+    const config = {
+      headers: {
+        'Content-Type': undefined, // This tells axios to auto-detect and set multipart boundary
+      },
+    };
+    return api.post(`/categories/${id}`, data, config).then(res => res.data);
+  },
   delete: (id: number) => api.delete(`/categories/${id}`).then(res => res.data),
 };
 
