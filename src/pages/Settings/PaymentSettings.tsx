@@ -15,26 +15,27 @@ import { settingsApi } from '../../api';
 
 interface PaymentGateway {
   id: number;
-  keyword: string;
-  name: string;
+  payment_method: string;
+  display_name: string;
   description: string;
-  is_active: boolean;
-  is_production: boolean;
-  supported_currencies: string[];
+  is_enabled: boolean;
+  is_production_mode: boolean;
+  is_default: boolean;
+  is_fallback: boolean;
+  is_system: boolean;
   configuration: Record<string, any>;
-  webhook_config: Record<string, any>;
+  restrictions: Record<string, any>;
   priority: number;
   created_at: string;
   updated_at: string;
 }
 
 interface PaymentSettingsData {
-  payment_settings: PaymentGateway[];
-  payment_methods: any[];
+  payment_methods: PaymentGateway[];
   stats: {
-    active_gateways: number;
+    total_methods: number;
     enabled_methods: number;
-    production_gateways: number;
+    system_methods: number;
   };
 }
 
@@ -153,9 +154,9 @@ const PaymentSettings: React.FC = () => {
   if (paymentLoading) return <LoadingSpinner />;
 
   const paymentSettingsData: PaymentSettingsData = paymentData?.data || {};
-  const gateways = paymentSettingsData?.payment_settings || [];
+  const gateways = paymentSettingsData?.payment_methods || [];
   const paymentMethods = paymentSettingsData?.payment_methods || [];
-  const stats = paymentSettingsData?.stats || { active_gateways: 0, enabled_methods: 0, production_gateways: 0 };
+  const stats = paymentSettingsData?.stats || { total_methods: 0, enabled_methods: 0, system_methods: 0 };
 
   // Create a map of payment methods by gateway keyword for easy lookup
   const methodsByGateway = paymentMethods.reduce((acc: any, method: any) => {
@@ -212,8 +213,8 @@ const PaymentSettings: React.FC = () => {
           <div className="flex items-center">
             <CurrencyRupeeIcon className="h-8 w-8 text-green-600" />
             <div className="ml-3">
-              <p className="text-sm font-medium text-gray-500">Active Gateways</p>
-              <p className="text-lg font-semibold text-gray-900">{stats.active_gateways}</p>
+              <p className="text-sm font-medium text-gray-500">Total Gateways</p>
+              <p className="text-lg font-semibold text-gray-900">{stats.total_methods}</p>
             </div>
           </div>
         </div>
@@ -221,8 +222,8 @@ const PaymentSettings: React.FC = () => {
           <div className="flex items-center">
             <ShieldCheckIcon className="h-8 w-8 text-blue-600" />
             <div className="ml-3">
-              <p className="text-sm font-medium text-gray-500">Production Mode</p>
-              <p className="text-lg font-semibold text-gray-900">{stats.production_gateways}</p>
+              <p className="text-sm font-medium text-gray-500">Enabled Methods</p>
+              <p className="text-lg font-semibold text-gray-900">{stats.enabled_methods}</p>
             </div>
           </div>
         </div>
@@ -266,7 +267,7 @@ const PaymentSettings: React.FC = () => {
                         <input
                           type="checkbox"
                           className="sr-only peer"
-                          checked={gateway.is_active}
+                          checked={gateway.is_enabled}
                           onChange={() => togglePaymentGatewayMutation.mutate(gateway)}
                           disabled={togglePaymentGatewayMutation.isPending}
                         />
@@ -275,32 +276,32 @@ const PaymentSettings: React.FC = () => {
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
-                        <span className="text-xl">{getGatewayIcon(gateway.keyword)}</span>
-                        <h4 className="font-medium text-gray-900">{gateway.name}</h4>
+                        <span className="text-xl">{getGatewayIcon(gateway.payment_method)}</span>
+                        <h4 className="font-medium text-gray-900">{gateway.display_name}</h4>
                       </div>
                       <p className="text-sm text-gray-500 mb-2">{gateway.description}</p>
                       <div className="flex items-center gap-2 flex-wrap">
-                        {gateway.is_active ? (
+                        {gateway.is_enabled ? (
                           <Badge variant="success" size="sm">Gateway Active</Badge>
                         ) : (
                           <Badge variant="secondary" size="sm">Gateway Inactive</Badge>
                         )}
-                        {gateway.is_production ? (
+                        {gateway.is_production_mode ? (
                           <Badge variant="danger" size="sm">Production</Badge>
                         ) : (
                           <Badge variant="warning" size="sm">Test Mode</Badge>
                         )}
                         {/* Single Source of Truth: Show if customers can see this */}
                         {(() => {
-                          const linkedMethods = methodsByGateway[gateway.keyword] || [];
+                          const linkedMethods = methodsByGateway[gateway.payment_method] || [];
                           const enabledMethods = linkedMethods.filter((m: any) => m.is_enabled);
-                          const canCustomersSee = gateway.is_active && enabledMethods.length > 0;
+                          const canCustomersSee = gateway.is_enabled && enabledMethods.length > 0;
 
                           if (canCustomersSee) {
                             return <Badge variant="success" size="sm">✓ Visible to Customers</Badge>;
-                          } else if (!gateway.is_active && enabledMethods.length > 0) {
+                          } else if (!gateway.is_enabled && enabledMethods.length > 0) {
                             return <Badge variant="warning" size="sm">⚠ Config Enabled But Gateway Off</Badge>;
-                          } else if (gateway.is_active && enabledMethods.length === 0) {
+                          } else if (gateway.is_enabled && enabledMethods.length === 0) {
                             return <Badge variant="secondary" size="sm">No Payment Methods</Badge>;
                           } else {
                             return <Badge variant="secondary" size="sm">Hidden from Customers</Badge>;
@@ -308,11 +309,9 @@ const PaymentSettings: React.FC = () => {
                         })()}
                         <span className="text-xs text-gray-400">Priority: {gateway.priority}</span>
                         <div className="flex gap-1">
-                          {gateway.supported_currencies.map(currency => (
-                            <span key={currency} className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
-                              {currency}
-                            </span>
-                          ))}
+                          <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
+                            INR
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -340,9 +339,9 @@ const PaymentSettings: React.FC = () => {
                         <strong>Visibility Rule:</strong> Gateway (this toggle) AND Method (configuration) must BOTH be ON
                       </div>
                       {(() => {
-                        const linkedMethods = methodsByGateway[gateway.keyword] || [];
+                        const linkedMethods = methodsByGateway[gateway.payment_method] || [];
                         const enabledMethods = linkedMethods.filter((m: any) => m.is_enabled);
-                        const canCustomersSee = gateway.is_active && enabledMethods.length > 0;
+                        const canCustomersSee = gateway.is_enabled && enabledMethods.length > 0;
 
                         if (canCustomersSee) {
                           return (
@@ -363,7 +362,7 @@ const PaymentSettings: React.FC = () => {
                               </div>
                             </div>
                           );
-                        } else if (!gateway.is_active && enabledMethods.length > 0) {
+                        } else if (!gateway.is_enabled && enabledMethods.length > 0) {
                           return (
                             <div className="space-y-2">
                               <div className="flex items-center gap-2 text-red-700 font-medium">
@@ -385,7 +384,7 @@ const PaymentSettings: React.FC = () => {
                               </div>
                             </div>
                           );
-                        } else if (gateway.is_active && enabledMethods.length === 0) {
+                        } else if (gateway.is_enabled && enabledMethods.length === 0) {
                           return (
                             <div className="space-y-2">
                               <div className="flex items-center gap-2 text-red-700 font-medium">
@@ -661,10 +660,10 @@ const GatewayConfigModal: React.FC<GatewayConfigModalProps> = ({
   onToggleSecrets
 }) => {
   const [formData, setFormData] = useState({
-    name: gateway.name,
+    name: gateway.display_name,
     description: gateway.description,
-    is_active: gateway.is_active,
-    is_production: gateway.is_production,
+    is_enabled: gateway.is_enabled,
+    is_production_mode: gateway.is_production_mode,
     priority: gateway.priority,
     configuration: { ...gateway.configuration },
   });
@@ -680,7 +679,7 @@ const GatewayConfigModal: React.FC<GatewayConfigModalProps> = ({
   };
 
   const renderConfigFields = () => {
-    switch (gateway.keyword) {
+    switch (gateway.payment_method) {
       case 'razorpay':
         return (
           <div className="space-y-4">
@@ -820,7 +819,7 @@ const GatewayConfigModal: React.FC<GatewayConfigModalProps> = ({
         <div className="mt-3">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-medium text-gray-900">
-              Configure {gateway.name}
+              Configure {gateway.display_name}
             </h3>
             <div className="flex items-center gap-2">
               <Button variant="outline" size="sm" onClick={onToggleSecrets}>
@@ -869,8 +868,8 @@ const GatewayConfigModal: React.FC<GatewayConfigModalProps> = ({
                 <input
                   type="checkbox"
                   id="is_active"
-                  checked={formData.is_active}
-                  onChange={(e) => setFormData(prev => ({ ...prev, is_active: e.target.checked }))}
+                  checked={formData.is_enabled}
+                  onChange={(e) => setFormData(prev => ({ ...prev, is_enabled: e.target.checked }))}
                   className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                 />
                 <label htmlFor="is_active" className="ml-2 block text-sm text-gray-900">
@@ -881,8 +880,8 @@ const GatewayConfigModal: React.FC<GatewayConfigModalProps> = ({
                 <input
                   type="checkbox"
                   id="is_production"
-                  checked={formData.is_production}
-                  onChange={(e) => setFormData(prev => ({ ...prev, is_production: e.target.checked }))}
+                  checked={formData.is_production_mode}
+                  onChange={(e) => setFormData(prev => ({ ...prev, is_production_mode: e.target.checked }))}
                   className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                 />
                 <label htmlFor="is_production" className="ml-2 block text-sm text-gray-900">

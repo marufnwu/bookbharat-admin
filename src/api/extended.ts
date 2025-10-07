@@ -256,8 +256,8 @@ export const settingsApi = {
   updateEmailTemplate: (id: number, template: any) => api.put(`/settings/email-templates/${id}`, template).then(res => res.data),
   getPaymentSettings: () => api.get('/settings/payment').then(res => res.data),
   updatePaymentSettings: (settings: any) => api.put('/settings/payment', settings).then(res => res.data),
-  updatePaymentGateway: (id: number, updates: any) => api.put(`/settings/payment-settings/${id}`, updates).then(res => res.data),
-  togglePaymentGateway: (id: number) => api.post(`/settings/payment-settings/${id}/toggle`).then(res => res.data),
+  updatePaymentGateway: (id: number, updates: any) => api.put(`/payment-methods/${id}`, updates).then(res => res.data),
+  togglePaymentGateway: (id: number) => api.post(`/payment-methods/${id}/toggle`).then(res => res.data),
   getShippingSettings: () => api.get('/settings/shipping').then(res => res.data),
   updateShippingSettings: (settings: any) => api.put('/settings/shipping', settings).then(res => res.data),
 
