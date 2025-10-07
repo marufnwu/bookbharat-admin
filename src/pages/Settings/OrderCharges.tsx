@@ -438,6 +438,169 @@ const OrderCharges: React.FC = () => {
                       />
                     </div>
 
+                    {/* COD-Specific Configuration */}
+                    {formData.apply_to === 'cod_only' && (
+                      <div className="border-t border-gray-200 pt-4">
+                        <h4 className="text-md font-semibold text-gray-900 mb-4">COD Configuration</h4>
+
+                        {/* Advance Payment */}
+                        <div className="bg-blue-50 p-4 rounded-lg mb-4">
+                          <label className="flex items-center mb-3">
+                            <input
+                              type="checkbox"
+                              checked={formData.conditions?.advance_payment?.required || false}
+                              onChange={(e) => {
+                                setFormData({
+                                  ...formData,
+                                  conditions: {
+                                    ...formData.conditions,
+                                    advance_payment: {
+                                      ...(formData.conditions?.advance_payment || {}),
+                                      required: e.target.checked,
+                                      type: formData.conditions?.advance_payment?.type || 'percentage',
+                                      value: formData.conditions?.advance_payment?.value || 0
+                                    }
+                                  }
+                                });
+                              }}
+                              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                            />
+                            <span className="ml-2 text-sm font-medium text-gray-900">
+                              Require Advance Payment (Pay Now, Rest on Delivery)
+                            </span>
+                          </label>
+
+                          {formData.conditions?.advance_payment?.required && (
+                            <div className="grid grid-cols-2 gap-4 ml-6">
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                                <select
+                                  value={formData.conditions?.advance_payment?.type || 'percentage'}
+                                  onChange={(e) => {
+                                    setFormData({
+                                      ...formData,
+                                      conditions: {
+                                        ...formData.conditions,
+                                        advance_payment: {
+                                          ...formData.conditions?.advance_payment,
+                                          type: e.target.value
+                                        }
+                                      }
+                                    });
+                                  }}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                >
+                                  <option value="percentage">Percentage (%)</option>
+                                  <option value="fixed">Fixed Amount (₹)</option>
+                                </select>
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                  Value {formData.conditions?.advance_payment?.type === 'percentage' ? '(%)' : '(₹)'}
+                                </label>
+                                <input
+                                  type="number"
+                                  value={formData.conditions?.advance_payment?.value || 0}
+                                  onChange={(e) => {
+                                    setFormData({
+                                      ...formData,
+                                      conditions: {
+                                        ...formData.conditions,
+                                        advance_payment: {
+                                          ...formData.conditions?.advance_payment,
+                                          value: parseFloat(e.target.value) || 0
+                                        }
+                                      }
+                                    });
+                                  }}
+                                  min="0"
+                                  step={formData.conditions?.advance_payment?.type === 'percentage' ? '1' : '10'}
+                                  placeholder={formData.conditions?.advance_payment?.type === 'percentage' ? '30' : '100'}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                />
+                              </div>
+                              <div className="col-span-2">
+                                <p className="text-xs text-gray-600">
+                                  Example: {formData.conditions?.advance_payment?.type === 'percentage' ? `${formData.conditions?.advance_payment?.value}% of order total` : `₹${formData.conditions?.advance_payment?.value} fixed amount`} will be charged online, rest on delivery.
+                                </p>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Order Limits */}
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Min Order Amount (₹)
+                            </label>
+                            <input
+                              type="number"
+                              value={formData.conditions?.min_order_value || ''}
+                              onChange={(e) => {
+                                setFormData({
+                                  ...formData,
+                                  conditions: {
+                                    ...formData.conditions,
+                                    min_order_value: parseFloat(e.target.value) || 0
+                                  }
+                                });
+                              }}
+                              placeholder="100"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">Minimum order value to enable COD</p>
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Max Order Amount (₹)
+                            </label>
+                            <input
+                              type="number"
+                              value={formData.conditions?.max_order_value || ''}
+                              onChange={(e) => {
+                                setFormData({
+                                  ...formData,
+                                  conditions: {
+                                    ...formData.conditions,
+                                    max_order_value: parseFloat(e.target.value) || 0
+                                  }
+                                });
+                              }}
+                              placeholder="50000"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">Maximum order value to enable COD</p>
+                          </div>
+                        </div>
+
+                        {/* Exempt Above Value */}
+                        <div className="mt-4">
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Free COD Above (₹)
+                          </label>
+                          <input
+                            type="number"
+                            value={formData.conditions?.exempt_above_value || ''}
+                            onChange={(e) => {
+                              setFormData({
+                                ...formData,
+                                conditions: {
+                                  ...formData.conditions,
+                                  exempt_above_value: parseFloat(e.target.value) || 0
+                                }
+                              });
+                            }}
+                            placeholder="5000"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                          <p className="text-xs text-gray-500 mt-1">
+                            No COD charges for orders above this value (leave empty to always charge)
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
                     {/* Checkboxes */}
                     <div className="grid grid-cols-2 gap-4">
                       <label className="flex items-center">

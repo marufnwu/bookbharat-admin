@@ -295,8 +295,19 @@ export const settingsApi = {
 
   // Payment Flow Settings
   getPaymentFlowSettings: () => api.get('/admin-settings/payment-flow').then(res => res.data),
-  updatePaymentFlowSettings: (settings: { flow_type?: string; default_type?: string }) =>
+  updatePaymentFlowSettings: (settings: {
+    flow_type?: string;
+    default_type?: string;
+    cod_enabled?: string;
+    online_payment_enabled?: string;
+  }) =>
     api.put('/admin-settings/payment-flow', settings).then(res => res.data),
+
+  // Payment Configuration Management
+  updatePaymentConfiguration: (id: number, updates: any) =>
+    api.put(`/settings/payment-configurations/${id}`, updates).then(res => res.data),
+  togglePaymentConfiguration: (id: number) =>
+    api.post(`/settings/payment-configurations/${id}/toggle`).then(res => res.data),
 };
 
 // Roles API
