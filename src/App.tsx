@@ -35,6 +35,10 @@ import BundleAnalytics from './pages/FrequentlyBoughtTogether/BundleAnalytics';
 import HeroConfig from './pages/HeroConfig';
 import ContentPages from './pages/ContentPages';
 import NavigationMenu from './pages/NavigationMenu';
+import HomepageLayout from './pages/HomepageLayout';
+import MediaLibrary from './pages/MediaLibrary';
+import PromotionalBanners from './pages/PromotionalBanners';
+import Newsletter from './pages/Newsletter';
 
 // Components
 import { ProtectedRoute } from './components';
@@ -117,6 +121,18 @@ const App: React.FC = () => {
 
               {/* Hero Configuration */}
               <Route path="hero-config" element={<HeroConfig />} />
+
+              {/* Homepage Layout */}
+              <Route path="homepage-layout" element={<HomepageLayout />} />
+
+              {/* Media Library */}
+              <Route path="media-library" element={<MediaLibrary />} />
+
+              {/* Promotional Banners */}
+              <Route path="promotional-banners" element={<PromotionalBanners />} />
+
+              {/* Newsletter */}
+              <Route path="newsletter" element={<Newsletter />} />
 
               {/* Content Pages */}
               <Route path="content-pages" element={<ContentPages />} />

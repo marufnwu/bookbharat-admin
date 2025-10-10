@@ -61,6 +61,9 @@ const HeroConfig: React.FC = () => {
     backgroundImage: '',
     videoUrl: '',
     is_active: false,
+    stats: [] as Array<{ label: string; value: string; icon: string }>,
+    features: [] as Array<{ title: string; description: string; icon: string }>,
+    testimonials: [] as Array<{ text: string; author: string; rating: number }>,
   });
 
   const queryClient = useQueryClient();
@@ -147,6 +150,9 @@ const HeroConfig: React.FC = () => {
       backgroundImage: formData.backgroundImage || null,
       videoUrl: formData.videoUrl || null,
       is_active: formData.is_active,
+      stats: formData.stats.length > 0 ? formData.stats : null,
+      features: formData.features.length > 0 ? formData.features : null,
+      testimonials: formData.testimonials.length > 0 ? formData.testimonials : null,
     };
 
     if (formData.primaryCta_text && formData.primaryCta_href) {
@@ -179,6 +185,9 @@ const HeroConfig: React.FC = () => {
       backgroundImage: config.backgroundImage || '',
       videoUrl: config.videoUrl || '',
       is_active: config.is_active,
+      stats: config.stats || [],
+      features: config.features || [],
+      testimonials: config.testimonials || [],
     });
     setShowModal(true);
   };
@@ -213,6 +222,9 @@ const HeroConfig: React.FC = () => {
       backgroundImage: '',
       videoUrl: '',
       is_active: false,
+      stats: [],
+      features: [],
+      testimonials: [],
     });
   };
 
@@ -613,12 +625,226 @@ const HeroConfig: React.FC = () => {
                     />
                   </div>
 
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <p className="text-sm text-blue-800">
-                      <strong>Note:</strong> Advanced features (categories, features, stats, testimonials)
-                      can be configured through the API or database directly. This form covers basic fields
-                      only.
-                    </p>
+                  {/* Stats Editor */}
+                  <div className="space-y-3 pt-4 border-t">
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-medium text-gray-900">Statistics</h4>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFormData(prev => ({
+                            ...prev,
+                            stats: [...prev.stats, { label: '', value: '', icon: 'trending-up' }]
+                          }));
+                        }}
+                        className="flex items-center gap-1 px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+                      >
+                        <Plus className="h-4 w-4" />
+                        Add Stat
+                      </button>
+                    </div>
+                    {formData.stats.map((stat, index) => (
+                      <div key={index} className="bg-gray-50 rounded-lg p-3 space-y-2">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-medium text-gray-700">Stat #{index + 1}</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setFormData(prev => ({
+                                ...prev,
+                                stats: prev.stats.filter((_, i) => i !== index)
+                              }));
+                            }}
+                            className="text-red-600 hover:bg-red-50 p-1 rounded"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2">
+                          <input
+                            type="text"
+                            value={stat.value}
+                            onChange={(e) => {
+                              const newStats = [...formData.stats];
+                              newStats[index].value = e.target.value;
+                              setFormData(prev => ({ ...prev, stats: newStats }));
+                            }}
+                            placeholder="100+"
+                            className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                          />
+                          <input
+                            type="text"
+                            value={stat.label}
+                            onChange={(e) => {
+                              const newStats = [...formData.stats];
+                              newStats[index].label = e.target.value;
+                              setFormData(prev => ({ ...prev, stats: newStats }));
+                            }}
+                            placeholder="Books Sold"
+                            className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                          />
+                          <input
+                            type="text"
+                            value={stat.icon}
+                            onChange={(e) => {
+                              const newStats = [...formData.stats];
+                              newStats[index].icon = e.target.value;
+                              setFormData(prev => ({ ...prev, stats: newStats }));
+                            }}
+                            placeholder="trending-up"
+                            className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Features Editor */}
+                  <div className="space-y-3 pt-4 border-t">
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-medium text-gray-900">Features</h4>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFormData(prev => ({
+                            ...prev,
+                            features: [...prev.features, { title: '', description: '', icon: 'star' }]
+                          }));
+                        }}
+                        className="flex items-center gap-1 px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+                      >
+                        <Plus className="h-4 w-4" />
+                        Add Feature
+                      </button>
+                    </div>
+                    {formData.features.map((feature, index) => (
+                      <div key={index} className="bg-gray-50 rounded-lg p-3 space-y-2">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-medium text-gray-700">Feature #{index + 1}</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setFormData(prev => ({
+                                ...prev,
+                                features: prev.features.filter((_, i) => i !== index)
+                              }));
+                            }}
+                            className="text-red-600 hover:bg-red-50 p-1 rounded"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                        <input
+                          type="text"
+                          value={feature.title}
+                          onChange={(e) => {
+                            const newFeatures = [...formData.features];
+                            newFeatures[index].title = e.target.value;
+                            setFormData(prev => ({ ...prev, features: newFeatures }));
+                          }}
+                          placeholder="Free Shipping"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                        />
+                        <textarea
+                          value={feature.description}
+                          onChange={(e) => {
+                            const newFeatures = [...formData.features];
+                            newFeatures[index].description = e.target.value;
+                            setFormData(prev => ({ ...prev, features: newFeatures }));
+                          }}
+                          placeholder="On orders over $50"
+                          rows={2}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                        />
+                        <input
+                          type="text"
+                          value={feature.icon}
+                          onChange={(e) => {
+                            const newFeatures = [...formData.features];
+                            newFeatures[index].icon = e.target.value;
+                            setFormData(prev => ({ ...prev, features: newFeatures }));
+                          }}
+                          placeholder="star"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                        />
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Testimonials Editor */}
+                  <div className="space-y-3 pt-4 border-t">
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-medium text-gray-900">Testimonials</h4>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFormData(prev => ({
+                            ...prev,
+                            testimonials: [...prev.testimonials, { text: '', author: '', rating: 5 }]
+                          }));
+                        }}
+                        className="flex items-center gap-1 px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+                      >
+                        <Plus className="h-4 w-4" />
+                        Add Testimonial
+                      </button>
+                    </div>
+                    {formData.testimonials.map((testimonial, index) => (
+                      <div key={index} className="bg-gray-50 rounded-lg p-3 space-y-2">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-medium text-gray-700">Testimonial #{index + 1}</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setFormData(prev => ({
+                                ...prev,
+                                testimonials: prev.testimonials.filter((_, i) => i !== index)
+                              }));
+                            }}
+                            className="text-red-600 hover:bg-red-50 p-1 rounded"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                        <textarea
+                          value={testimonial.text}
+                          onChange={(e) => {
+                            const newTestimonials = [...formData.testimonials];
+                            newTestimonials[index].text = e.target.value;
+                            setFormData(prev => ({ ...prev, testimonials: newTestimonials }));
+                          }}
+                          placeholder="Great selection of books! Fast delivery and excellent prices."
+                          rows={3}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                        />
+                        <div className="grid grid-cols-2 gap-2">
+                          <input
+                            type="text"
+                            value={testimonial.author}
+                            onChange={(e) => {
+                              const newTestimonials = [...formData.testimonials];
+                              newTestimonials[index].author = e.target.value;
+                              setFormData(prev => ({ ...prev, testimonials: newTestimonials }));
+                            }}
+                            placeholder="John Doe"
+                            className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                          />
+                          <input
+                            type="number"
+                            min="1"
+                            max="5"
+                            value={testimonial.rating}
+                            onChange={(e) => {
+                              const newTestimonials = [...formData.testimonials];
+                              newTestimonials[index].rating = parseInt(e.target.value) || 5;
+                              setFormData(prev => ({ ...prev, testimonials: newTestimonials }));
+                            }}
+                            placeholder="5"
+                            className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                          />
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </>
               )}

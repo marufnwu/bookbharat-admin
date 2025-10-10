@@ -28,6 +28,9 @@ import {
   Server,
   DollarSign,
   Receipt,
+  Image,
+  Tag,
+  Newspaper,
 } from 'lucide-react';
 import { Menu, Transition } from '@headlessui/react';
 import { useAuth } from '../auth/useAuth';
@@ -76,10 +79,16 @@ const navigation: NavigationItem[] = [
     icon: FileText,
     children: [
       { name: 'Hero Section', href: '/hero-config', icon: Layout },
+      { name: 'Homepage Layout', href: '/homepage-layout', icon: Layers },
+      { name: 'Promotional Banners', href: '/promotional-banners', icon: Tag },
       { name: 'Navigation Menu', href: '/navigation-menu', icon: Navigation },
       { name: 'Content Pages', href: '/content-pages', icon: FileText },
+      { name: 'Media Library', href: '/media-library', icon: Image },
     ]
   },
+
+  // Newsletter
+  { name: 'Newsletter', href: '/newsletter', icon: Newspaper },
 
   // Settings & Configuration
   {
