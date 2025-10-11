@@ -22,7 +22,13 @@ import {
   Activity,
   Zap,
   MapPin,
-  CreditCard
+  CreditCard,
+  Edit,
+  Save,
+  X,
+  Key,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 
 interface CarrierConfig {
@@ -48,6 +54,20 @@ interface CarrierConfig {
   average_delivery_time?: number;
   total_shipments?: number;
   webhook_url?: string;
+  // Credential fields
+  api_endpoint?: string;
+  api_key?: string;
+  api_secret?: string;
+  api_token?: string;
+  license_key?: string;
+  login_id?: string;
+  access_token?: string;
+  customer_code?: string;
+  username?: string;
+  password?: string;
+  email?: string;
+  account_id?: string;
+  client_name?: string;
 }
 
 interface TestResult {
@@ -66,6 +86,14 @@ const CarrierConfiguration: React.FC = () => {
   const queryClient = useQueryClient();
   const [testingCarrier, setTestingCarrier] = useState<number | null>(null);
   const [expandedCarrier, setExpandedCarrier] = useState<number | null>(null);
+  const [editingCarrier, setEditingCarrier] = useState<CarrierConfig | null>(null);
+  const [showPassword, setShowPassword] = useState<Record<string, boolean>>({});
+  const [validatingCredentials, setValidatingCredentials] = useState(false);
+  const [validationResult, setValidationResult] = useState<{
+    success: boolean;
+    message: string;
+    details?: any;
+  } | null>(null);
 
   // Fetch carriers
   const { data: carriers, isLoading, refetch } = useQuery({
@@ -138,6 +166,68 @@ const CarrierConfiguration: React.FC = () => {
     }
   });
 
+  // Update carrier credentials
+  const updateCredentialsMutation = useMutation({
+    mutationFn: async ({ carrierId, credentials }: { carrierId: number; credentials: any }) => {
+      return api.put(`/shipping/multi-carrier/carriers/${carrierId}/config`, credentials);
+    },
+    onSuccess: (data, variables) => {
+      // Update the carriers query cache immediately with the new data
+      queryClient.setQueryData(['carriers'], (oldData: any) => {
+        if (!oldData) return oldData;
+        return oldData.map((carrier: any) => {
+          if (carrier.id === variables.carrierId) {
+            // Update the carrier with the new credentials
+            return { ...carrier, ...variables.credentials };
+          }
+          return carrier;
+        });
+      });
+
+      // Also invalidate to ensure fresh data from server
+      queryClient.invalidateQueries({ queryKey: ['carriers'] });
+
+      toast.success('Carrier credentials updated successfully');
+      setEditingCarrier(null);
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to update carrier credentials');
+    }
+  });
+
+  // Validate carrier credentials
+  const validateCredentialsMutation = useMutation({
+    mutationFn: async ({ carrierId, credentials }: { carrierId: number; credentials: any }) => {
+      return api.post(`/shipping/multi-carrier/carriers/${carrierId}/validate-credentials`, credentials);
+    },
+    onSuccess: (response) => {
+      const data = response.data;
+      if (data.success) {
+        setValidationResult({
+          success: true,
+          message: 'Credentials validated successfully!',
+          details: data.data
+        });
+        toast.success('Credentials validation successful');
+      } else {
+        setValidationResult({
+          success: false,
+          message: data.message || 'Credentials validation failed',
+          details: data.details
+        });
+        toast.error(data.message || 'Credentials validation failed');
+      }
+    },
+    onError: (error: any) => {
+      setValidationResult({
+        success: false,
+        message: 'Validation request failed',
+        details: error.response?.data
+      });
+      toast.error(error.response?.data?.message || 'Credentials validation failed');
+    }
+  });
+
   const handleToggleCarrier = (carrierId: number) => {
     toggleCarrierMutation.mutate(carrierId);
   };
@@ -154,6 +244,107 @@ const CarrierConfiguration: React.FC = () => {
 
   const handleSyncCarriers = () => {
     syncCarriersMutation.mutate();
+  };
+
+  const handleEditCredentials = (carrier: CarrierConfig) => {
+    // Get the most current carrier data from the carriers array
+    const currentCarrier = carriers?.find((c: CarrierConfig) => c.id === carrier.id) || carrier;
+    setEditingCarrier(currentCarrier);
+  };
+
+  const handleSaveCredentials = (credentials: any) => {
+    if (editingCarrier) {
+      updateCredentialsMutation.mutate({
+        carrierId: editingCarrier.id,
+        credentials
+      });
+    }
+  };
+
+  const handleValidateCredentials = (credentials: any) => {
+    if (editingCarrier) {
+      setValidatingCredentials(true);
+      setValidationResult(null);
+      validateCredentialsMutation.mutate({
+        carrierId: editingCarrier.id,
+        credentials
+      }, {
+        onSettled: () => setValidatingCredentials(false)
+      });
+    }
+  };
+
+  const togglePasswordVisibility = (field: string) => {
+    setShowPassword(prev => ({
+      ...prev,
+      [field]: !prev[field]
+    }));
+  };
+
+  // Get credential fields based on carrier
+  const getCredentialFields = (carrier: CarrierConfig) => {
+    const baseFields = [
+      { key: 'api_endpoint', label: 'API Endpoint', type: 'text', required: true },
+      // webhook_url is developer-configured and not editable by admin
+    ];
+
+    switch (carrier.code) {
+      case 'DELHIVERY':
+        return [
+          ...baseFields,
+          { key: 'api_key', label: 'API Key', type: 'password', required: true },
+          { key: 'client_name', label: 'Client Name', type: 'text', required: true },
+        ];
+
+      case 'BLUEDART':
+        return [
+          ...baseFields,
+          { key: 'license_key', label: 'License Key', type: 'password', required: true },
+          { key: 'login_id', label: 'Login ID', type: 'password', required: true },
+        ];
+
+      case 'XPRESSBEES':
+        return [
+          ...baseFields,
+          { key: 'email', label: 'Email', type: 'email', required: true },
+          { key: 'password', label: 'Password', type: 'password', required: true },
+          { key: 'account_id', label: 'Account ID', type: 'text', required: true },
+        ];
+
+      case 'DTDC':
+        return [
+          ...baseFields,
+          { key: 'access_token', label: 'Access Token', type: 'password', required: true },
+          { key: 'customer_code', label: 'Customer Code', type: 'text', required: true },
+        ];
+
+      case 'ECOM_EXPRESS':
+        return [
+          ...baseFields,
+          { key: 'username', label: 'Username', type: 'text', required: true },
+          { key: 'password', label: 'Password', type: 'password', required: true },
+        ];
+
+      case 'SHADOWFAX':
+        return [
+          ...baseFields,
+          { key: 'api_token', label: 'API Token', type: 'password', required: true },
+        ];
+
+      case 'SHIPROCKET':
+        return [
+          ...baseFields,
+          { key: 'email', label: 'Email', type: 'email', required: true },
+          { key: 'password', label: 'Password', type: 'password', required: true },
+        ];
+
+      default:
+        return [
+          ...baseFields,
+          { key: 'api_key', label: 'API Key', type: 'password', required: true },
+          { key: 'api_secret', label: 'API Secret', type: 'password', required: false },
+        ];
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -335,6 +526,14 @@ const CarrierConfiguration: React.FC = () => {
                   </button>
 
                   <button
+                    onClick={() => handleEditCredentials(carrier)}
+                    className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                    title="Edit Credentials"
+                  >
+                    <Key className="h-5 w-5" />
+                  </button>
+
+                  <button
                     onClick={() => setExpandedCarrier(expandedCarrier === carrier.id ? null : carrier.id)}
                     className="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-50 rounded-lg transition-colors"
                     title="View Details"
@@ -437,14 +636,15 @@ const CarrierConfiguration: React.FC = () => {
                           <dt className="text-gray-500">Mode:</dt>
                           <dd className="text-gray-700 capitalize">{carrier.api_mode}</dd>
                         </div>
-                        {carrier.webhook_url && (
-                          <div className="flex justify-between">
-                            <dt className="text-gray-500">Webhook:</dt>
-                            <dd className="text-gray-700 truncate text-xs" title={carrier.webhook_url}>
-                              {carrier.webhook_url}
-                            </dd>
-                          </div>
-                        )}
+                        <div className="flex justify-between">
+                          <dt className="text-gray-500">Webhook:</dt>
+                          <dd className="text-gray-700 text-xs font-mono bg-gray-100 px-2 py-1 rounded truncate" title={carrier.webhook_url || 'Not configured'}>
+                            {carrier.webhook_url || 'Not configured'}
+                          </dd>
+                        </div>
+                        <div className="text-xs text-gray-500 mt-2 italic">
+                          Webhook URLs are developer-configured and cannot be edited here.
+                        </div>
                       </dl>
                     </div>
                   </div>
@@ -453,7 +653,8 @@ const CarrierConfiguration: React.FC = () => {
                   <div className="mt-4 p-3 bg-gray-50 rounded-lg">
                     <p className="text-xs text-gray-600">
                       <Info className="h-3 w-3 inline mr-1" />
-                      To modify carrier settings, update the configuration file and environment variables, then click "Sync from Config".
+                      Carrier credentials can be edited here. Webhook URLs and other system settings are developer-configured.
+                      Use "Sync from Config" after updating the configuration files.
                     </p>
                   </div>
                 </div>
@@ -482,7 +683,239 @@ const CarrierConfiguration: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Credential Editing Modal */}
+      {editingCarrier && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50" onClick={() => setEditingCarrier(null)}>
+          <div className="relative top-20 mx-auto p-5 border w-11/12 max-w-2xl shadow-lg rounded-md bg-white" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-medium text-gray-900">
+                Edit {editingCarrier.display_name || editingCarrier.name} Credentials
+              </h3>
+              <button
+                onClick={() => setEditingCarrier(null)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+
+            <CredentialForm
+              carrier={editingCarrier}
+              fields={getCredentialFields(editingCarrier)}
+              onSave={handleSaveCredentials}
+              onValidate={handleValidateCredentials}
+              onCancel={() => setEditingCarrier(null)}
+              showPassword={showPassword}
+              onTogglePassword={togglePasswordVisibility}
+              isLoading={updateCredentialsMutation.isPending}
+              isValidating={validatingCredentials}
+              validationResult={validationResult}
+            />
+          </div>
+        </div>
+      )}
     </div>
+  );
+};
+
+// Credential Form Component
+interface CredentialFormProps {
+  carrier: CarrierConfig;
+  fields: Array<{ key: string; label: string; type: string; required: boolean }>;
+  onSave: (credentials: any) => void;
+  onValidate: (credentials: any) => void;
+  onCancel: () => void;
+  showPassword: Record<string, boolean>;
+  onTogglePassword: (field: string) => void;
+  isLoading: boolean;
+  isValidating: boolean;
+  validationResult: {
+    success: boolean;
+    message: string;
+    details?: any;
+  } | null;
+}
+
+const CredentialForm: React.FC<CredentialFormProps> = ({
+  carrier,
+  fields,
+  onSave,
+  onValidate,
+  onCancel,
+  showPassword,
+  onTogglePassword,
+  isLoading,
+  isValidating,
+  validationResult
+}) => {
+  const [formData, setFormData] = useState<Record<string, string>>(() => {
+    const initialData: Record<string, string> = {};
+    fields.forEach(field => {
+      // Try to get existing value from carrier data
+      const carrierData = (carrier as any);
+      initialData[field.key] = carrierData[field.key] || '';
+    });
+    return initialData;
+  });
+
+  // Update form data when carrier changes
+  React.useEffect(() => {
+    const updatedData: Record<string, string> = {};
+    fields.forEach(field => {
+      const carrierData = (carrier as any);
+      updatedData[field.key] = carrierData[field.key] || '';
+    });
+    setFormData(updatedData);
+  }, [carrier, fields]);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSave(formData);
+  };
+
+  const handleInputChange = (field: string, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+        <div className="flex">
+          <Info className="h-5 w-5 text-blue-400 mt-0.5" />
+          <div className="ml-3">
+            <h4 className="text-sm font-medium text-blue-800">Security Notice</h4>
+            <p className="mt-1 text-sm text-blue-700">
+              Credentials are stored securely and encrypted. Test mode credentials are separate from live mode.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Validation Result */}
+      {validationResult && (
+        <div className={`border rounded-lg p-4 mb-4 ${
+          validationResult.success
+            ? 'bg-green-50 border-green-200'
+            : 'bg-red-50 border-red-200'
+        }`}>
+          <div className="flex">
+            {validationResult.success ? (
+              <CheckCircle className="h-5 w-5 text-green-400 mt-0.5" />
+            ) : (
+              <XCircle className="h-5 w-5 text-red-400 mt-0.5" />
+            )}
+            <div className="ml-3">
+              <h4 className={`text-sm font-medium ${
+                validationResult.success ? 'text-green-800' : 'text-red-800'
+              }`}>
+                {validationResult.success ? 'Validation Successful' : 'Validation Failed'}
+              </h4>
+              <p className={`mt-1 text-sm ${
+                validationResult.success ? 'text-green-700' : 'text-red-700'
+              }`}>
+                {validationResult.message}
+              </p>
+              {validationResult.details && (
+                <details className="mt-2">
+                  <summary className="text-xs cursor-pointer hover:underline">
+                    View Details
+                  </summary>
+                  <pre className="mt-1 text-xs bg-gray-100 p-2 rounded overflow-auto">
+                    {JSON.stringify(validationResult.details, null, 2)}
+                  </pre>
+                </details>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 gap-4">
+        {fields.map(field => (
+          <div key={field.key}>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              {field.label}
+              {field.required && <span className="text-red-500 ml-1">*</span>}
+            </label>
+
+            <div className="relative">
+              <input
+                type={field.type === 'password' && !showPassword[field.key] ? 'password' : 'text'}
+                value={formData[field.key] || ''}
+                onChange={(e) => handleInputChange(field.key, e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                placeholder={`Enter ${field.label.toLowerCase()}`}
+                required={field.required}
+              />
+
+              {field.type === 'password' && (
+                <button
+                  type="button"
+                  onClick={() => onTogglePassword(field.key)}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                >
+                  {showPassword[field.key] ? (
+                    <EyeOff className="h-4 w-4 text-gray-400" />
+                  ) : (
+                    <Eye className="h-4 w-4 text-gray-400" />
+                  )}
+                </button>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="flex justify-end space-x-3 pt-4 border-t">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+          disabled={isLoading || isValidating}
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          onClick={() => onValidate(formData)}
+          className="px-4 py-2 border border-orange-300 bg-orange-50 text-orange-700 rounded-md text-sm font-medium hover:bg-orange-100 disabled:opacity-50 flex items-center"
+          disabled={isLoading || isValidating}
+        >
+          {isValidating ? (
+            <>
+              <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+              Validating...
+            </>
+          ) : (
+            <>
+              <TestTube className="h-4 w-4 mr-2" />
+              Validate Credentials
+            </>
+          )}
+        </button>
+        <button
+          type="submit"
+          className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 disabled:opacity-50 flex items-center"
+          disabled={isLoading || isValidating}
+        >
+          {isLoading ? (
+            <>
+              <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+              Saving...
+            </>
+          ) : (
+            <>
+              <Save className="h-4 w-4 mr-2" />
+              Save Credentials
+            </>
+          )}
+        </button>
+      </div>
+    </form>
   );
 };
 
