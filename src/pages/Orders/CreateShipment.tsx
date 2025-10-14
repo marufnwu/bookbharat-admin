@@ -79,6 +79,7 @@ const CreateShipment: React.FC = () => {
   const navigate = useNavigate();
 
   const [selectedCarrier, setSelectedCarrier] = useState<CarrierRate | null>(null);
+  const [selectedWarehouse, setSelectedWarehouse] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState({
     maxPrice: null as number | null,
@@ -101,7 +102,56 @@ const CreateShipment: React.FC = () => {
 
   const order = orderResponse?.order;
 
-  // Fetch pickup location configuration
+  // Fetch warehouses
+  const { data: warehousesData } = useQuery({
+    queryKey: ['warehouses'],
+    queryFn: async () => {
+      const response = await api.get('/warehouses');
+      return response.data?.data || response.data || [];
+    }
+  });
+
+  const warehouses = warehousesData || [];
+
+  // Fetch carrier-specific warehouse mappings when carrier is selected
+  const { data: carrierWarehousesData } = useQuery({
+    queryKey: ['carrier-warehouses', selectedCarrier?.carrier_id],
+    queryFn: async () => {
+      if (!selectedCarrier?.carrier_id) return [];
+      const response = await api.get(`/shipping/multi-carrier/carriers/${selectedCarrier.carrier_id}/warehouses`);
+      return response.data?.data || response.data || [];
+    },
+    enabled: !!selectedCarrier
+  });
+
+  const carrierWarehouses = carrierWarehousesData || [];
+
+  // Auto-select warehouse when carrier is selected
+  React.useEffect(() => {
+    if (selectedCarrier && !selectedWarehouse && carrierWarehouses.length > 0) {
+      // First priority: registered warehouses (carrier-approved pickup locations)
+      const registeredWarehouses = carrierWarehouses.filter((w: any) => w.is_registered);
+      if (registeredWarehouses.length > 0) {
+        // Auto-select the first registered warehouse (typically the only one)
+        setSelectedWarehouse(registeredWarehouses[0].id || registeredWarehouses[0].name);
+        return;
+      }
+
+      // Second priority: default site warehouse
+      const defaultWh = carrierWarehouses.find((w: any) => w.is_default);
+      if (defaultWh) {
+        setSelectedWarehouse(defaultWh.id || defaultWh.name);
+        return;
+      }
+
+      // Third priority: if only one warehouse available, select it
+      if (carrierWarehouses.length === 1) {
+        setSelectedWarehouse(carrierWarehouses[0].id || carrierWarehouses[0].name);
+      }
+    }
+  }, [selectedCarrier, carrierWarehouses, selectedWarehouse]);
+
+  // Fetch pickup location configuration (fallback)
   const { data: pickupLocation } = useQuery({
     queryKey: ['pickup-location'],
     queryFn: async () => {
@@ -141,9 +191,14 @@ const CreateShipment: React.FC = () => {
           value: parseFloat(item.unit_price)
         }))
       });
-      return response.data;
+      // Backend returns { success, message, data }
+      // We need to return data.data to get the actual rates
+      return response.data?.data || response.data;
     },
-    enabled: !!order && !!pickupLocation
+    enabled: !!order && !!pickupLocation,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    staleTime: 5 * 60 * 1000 // 5 minutes
   });
 
   // Create shipment mutation
@@ -242,12 +297,18 @@ const CreateShipment: React.FC = () => {
       return;
     }
 
+    if (!selectedWarehouse) {
+      toast.error('Please select a pickup warehouse');
+      return;
+    }
+
     const shipmentData = {
       order_id: orderId,
       carrier_id: selectedCarrier.carrier_id,
       service_code: selectedCarrier.service_code,
       shipping_cost: selectedCarrier.total_charge,
       expected_delivery_date: selectedCarrier.expected_delivery_date,
+      warehouse_id: selectedWarehouse,
       schedule_pickup: true
     };
 
@@ -335,19 +396,83 @@ const CreateShipment: React.FC = () => {
 
             {/* Selected Carrier */}
             {selectedCarrier && (
-              <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-                <h3 className="font-medium text-blue-900 mb-2">Selected Carrier</h3>
-                <div className="text-sm">
-                  <p className="font-medium">{selectedCarrier.carrier_name}</p>
-                  <p className="text-gray-600">{selectedCarrier.service_name}</p>
-                  <p className="text-lg font-bold text-blue-600 mt-2">
-                    ₹{selectedCarrier.total_charge}
-                  </p>
+              <div className="mt-6 p-4 bg-blue-50 rounded-lg space-y-4">
+                <div>
+                  <h3 className="font-medium text-blue-900 mb-2">Selected Carrier</h3>
+                  <div className="text-sm">
+                    <p className="font-medium">{selectedCarrier.carrier_name}</p>
+                    <p className="text-gray-600">{selectedCarrier.service_name}</p>
+                    <p className="text-lg font-bold text-blue-600 mt-2">
+                      ₹{selectedCarrier.total_charge}
+                    </p>
+                  </div>
                 </div>
+
+                {/* Warehouse Selection */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <MapPin className="h-4 w-4 inline mr-1" />
+                    Pickup Warehouse
+                  </label>
+                  {carrierWarehouses.length > 0 ? (
+                    <select
+                      value={selectedWarehouse || ''}
+                      onChange={(e) => setSelectedWarehouse(e.target.value)}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-white"
+                    >
+                      <option value="">Select warehouse...</option>
+                      {carrierWarehouses.map((wh: any) => (
+                        <option key={wh.id || wh.name} value={wh.id || wh.name}>
+                          {wh.name}
+                          {wh.carrier_warehouse_name && wh.carrier_warehouse_name !== wh.name && ` → ${wh.carrier_warehouse_name}`}
+                          {wh.is_registered && ' (Registered)'}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <div className="text-sm text-gray-500 bg-gray-50 rounded-md p-2 border border-gray-200">
+                      <Info className="h-4 w-4 inline mr-1" />
+                      Loading warehouses...
+                    </div>
+                  )}
+                  {selectedWarehouse && carrierWarehouses.length > 0 && (
+                    <div className="mt-2 text-xs text-gray-600">
+                      {(() => {
+                        const wh = carrierWarehouses.find((w: any) => (w.id || w.name) === selectedWarehouse);
+                        return wh ? (
+                          <div className="bg-white rounded-md p-2 border border-gray-200">
+                            <div className="flex items-center gap-2 mb-1">
+                              <p className="font-medium">{wh.name}</p>
+                              {wh.is_registered && (
+                                <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
+                                  Carrier Registered
+                                </span>
+                              )}
+                            </div>
+                            {wh.carrier_warehouse_name && wh.carrier_warehouse_name !== wh.name && (
+                              <p className="text-blue-600 text-sm">Carrier Alias: {wh.carrier_warehouse_name}</p>
+                            )}
+                            {(wh.address || wh.city) && (
+                              <p className="text-sm text-gray-600">
+                                {wh.address && `${wh.address}, `}
+                                {wh.city && `${wh.city}`}
+                                {wh.pincode && ` - ${wh.pincode}`}
+                              </p>
+                            )}
+                            {wh.phone && (
+                              <p className="text-sm text-gray-600">Phone: {wh.phone}</p>
+                            )}
+                          </div>
+                        ) : null;
+                      })()}
+                    </div>
+                  )}
+                </div>
+
                 <button
                   onClick={handleCreateShipment}
-                  disabled={createShipmentMutation.isPending}
-                  className="w-full mt-4 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 flex items-center justify-center"
+                  disabled={createShipmentMutation.isPending || !selectedWarehouse}
+                  className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 flex items-center justify-center"
                 >
                   {createShipmentMutation.isPending ? (
                     <>

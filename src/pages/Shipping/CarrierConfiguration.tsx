@@ -28,7 +28,13 @@ import {
   X,
   Key,
   Eye,
-  EyeOff
+  EyeOff,
+  ChevronUp,
+  ChevronDown,
+  Warehouse,
+  Plus,
+  Trash2,
+  Download
 } from 'lucide-react';
 
 interface CarrierConfig {
@@ -41,6 +47,7 @@ interface CarrierConfig {
   is_active: boolean;
   is_primary: boolean;
   status: 'active' | 'inactive' | 'testing';
+  priority?: number;
   features?: string[];
   services?: Record<string, string>;
   max_weight?: number;
@@ -171,18 +178,22 @@ const CarrierConfiguration: React.FC = () => {
     mutationFn: async ({ carrierId, credentials }: { carrierId: number; credentials: any }) => {
       return api.put(`/shipping/multi-carrier/carriers/${carrierId}/config`, credentials);
     },
-    onSuccess: (data, variables) => {
-      // Update the carriers query cache immediately with the new data
-      queryClient.setQueryData(['carriers'], (oldData: any) => {
-        if (!oldData) return oldData;
-        return oldData.map((carrier: any) => {
-          if (carrier.id === variables.carrierId) {
-            // Update the carrier with the new credentials
-            return { ...carrier, ...variables.credentials };
-          }
-          return carrier;
+    onSuccess: (response, variables) => {
+      // Update the carriers query cache with fresh data from backend response
+      const updatedCarrier = response.data?.data;
+      
+      if (updatedCarrier) {
+        queryClient.setQueryData(['carriers'], (oldData: any) => {
+          if (!oldData) return oldData;
+          return oldData.map((carrier: any) => {
+            if (carrier.id === variables.carrierId) {
+              // Use the carrier data from backend response, not just the credentials sent
+              return { ...carrier, ...updatedCarrier };
+            }
+            return carrier;
+          });
         });
-      });
+      }
 
       // Also invalidate to ensure fresh data from server
       queryClient.invalidateQueries({ queryKey: ['carriers'] });
@@ -281,70 +292,22 @@ const CarrierConfiguration: React.FC = () => {
     }));
   };
 
-  // Get credential fields based on carrier
+  // Get credential fields from carrier configuration
+  // The structure is predefined by the backend seeder and admin can only update values
+  // API Endpoint and webhook_url are developer-configured and not editable by admin
   const getCredentialFields = (carrier: CarrierConfig) => {
-    const baseFields = [
-      { key: 'api_endpoint', label: 'API Endpoint', type: 'text', required: true },
-      // webhook_url is developer-configured and not editable by admin
-    ];
-
-    switch (carrier.code) {
-      case 'DELHIVERY':
-        return [
-          ...baseFields,
-          { key: 'api_key', label: 'API Key', type: 'password', required: true },
-          { key: 'client_name', label: 'Client Name', type: 'text', required: true },
-        ];
-
-      case 'BLUEDART':
-        return [
-          ...baseFields,
-          { key: 'license_key', label: 'License Key', type: 'password', required: true },
-          { key: 'login_id', label: 'Login ID', type: 'password', required: true },
-        ];
-
-      case 'XPRESSBEES':
-        return [
-          ...baseFields,
-          { key: 'email', label: 'Email', type: 'email', required: true },
-          { key: 'password', label: 'Password', type: 'password', required: true },
-          { key: 'account_id', label: 'Account ID', type: 'text', required: true },
-        ];
-
-      case 'DTDC':
-        return [
-          ...baseFields,
-          { key: 'access_token', label: 'Access Token', type: 'password', required: true },
-          { key: 'customer_code', label: 'Customer Code', type: 'text', required: true },
-        ];
-
-      case 'ECOM_EXPRESS':
-        return [
-          ...baseFields,
-          { key: 'username', label: 'Username', type: 'text', required: true },
-          { key: 'password', label: 'Password', type: 'password', required: true },
-        ];
-
-      case 'SHADOWFAX':
-        return [
-          ...baseFields,
-          { key: 'api_token', label: 'API Token', type: 'password', required: true },
-        ];
-
-      case 'SHIPROCKET':
-        return [
-          ...baseFields,
-          { key: 'email', label: 'Email', type: 'email', required: true },
-          { key: 'password', label: 'Password', type: 'password', required: true },
-        ];
-
-      default:
-        return [
-          ...baseFields,
-          { key: 'api_key', label: 'API Key', type: 'password', required: true },
-          { key: 'api_secret', label: 'API Secret', type: 'password', required: false },
-        ];
+    // Use credential_fields from backend if available
+    const credentialFields = (carrier as any).credential_fields || [];
+    
+    if (credentialFields.length > 0) {
+      return credentialFields;
     }
+
+    // Fallback to default fields (for backward compatibility)
+    return [
+      { key: 'api_key', label: 'API Key', type: 'password', required: true },
+      { key: 'api_secret', label: 'API Secret', type: 'password', required: false },
+    ];
   };
 
   const getStatusColor = (status: string) => {
@@ -527,10 +490,11 @@ const CarrierConfiguration: React.FC = () => {
 
                   <button
                     onClick={() => handleEditCredentials(carrier)}
-                    className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                    title="Edit Credentials"
+                    className="px-3 py-1.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors flex items-center"
+                    title="Configure Carrier"
                   >
-                    <Key className="h-5 w-5" />
+                    <Settings className="h-4 w-4 mr-1" />
+                    Configure
                   </button>
 
                   <button
@@ -538,7 +502,11 @@ const CarrierConfiguration: React.FC = () => {
                     className="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-50 rounded-lg transition-colors"
                     title="View Details"
                   >
-                    <Settings className="h-5 w-5" />
+                    {expandedCarrier === carrier.id ? (
+                      <ChevronUp className="h-5 w-5" />
+                    ) : (
+                      <ChevronDown className="h-5 w-5" />
+                    )}
                   </button>
                 </div>
               </div>
@@ -684,14 +652,19 @@ const CarrierConfiguration: React.FC = () => {
         </div>
       )}
 
-      {/* Credential Editing Modal */}
+      {/* Carrier Configuration Modal */}
       {editingCarrier && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50" onClick={() => setEditingCarrier(null)}>
-          <div className="relative top-20 mx-auto p-5 border w-11/12 max-w-2xl shadow-lg rounded-md bg-white" onClick={e => e.stopPropagation()}>
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-medium text-gray-900">
-                Edit {editingCarrier.display_name || editingCarrier.name} Credentials
-              </h3>
+          <div className="relative top-20 mx-auto p-6 border w-11/12 max-w-4xl shadow-lg rounded-md bg-white" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-6">
+              <div>
+                <h3 className="text-xl font-semibold text-gray-900">
+                  Configure {editingCarrier.display_name || editingCarrier.name}
+                </h3>
+                <p className="mt-1 text-sm text-gray-500">
+                  Update carrier settings, credentials, and operational parameters
+                </p>
+              </div>
               <button
                 onClick={() => setEditingCarrier(null)}
                 className="text-gray-400 hover:text-gray-600"
@@ -700,7 +673,7 @@ const CarrierConfiguration: React.FC = () => {
               </button>
             </div>
 
-            <CredentialForm
+            <EnhancedCarrierConfigForm
               carrier={editingCarrier}
               fields={getCredentialFields(editingCarrier)}
               onSave={handleSaveCredentials}
@@ -719,7 +692,819 @@ const CarrierConfiguration: React.FC = () => {
   );
 };
 
-// Credential Form Component
+// Warehouse Management Tab Component
+interface WarehouseManagementTabProps {
+  carrier: CarrierConfig;
+}
+
+interface WarehouseData {
+  id: number;
+  name: string;
+  code: string;
+  contact_person: string;
+  phone: string;
+  email?: string;
+  address_line_1: string;
+  address_line_2?: string;
+  city: string;
+  state: string;
+  pincode: string;
+  country: string;
+  is_active: boolean;
+  is_default: boolean;
+  carrier_mapping?: {
+    carrier_warehouse_name: string;
+    carrier_warehouse_id?: string;
+    is_enabled: boolean;
+  };
+}
+
+const WarehouseManagementTab: React.FC<WarehouseManagementTabProps> = ({ carrier }) => {
+  const [loadingAddresses, setLoadingAddresses] = useState(false);
+  const [registeredAddresses, setRegisteredAddresses] = useState<any[]>([]);
+  const [warehouses, setWarehouses] = useState<WarehouseData[]>([]);
+  const [selectedWarehouse, setSelectedWarehouse] = useState<number | null>(null);
+  const [warehouseAlias, setWarehouseAlias] = useState('');
+  const queryClient = useQueryClient();
+
+  // Fetch warehouses from database
+  const { data: warehousesData, isLoading: warehousesLoading } = useQuery({
+    queryKey: ['warehouses'],
+    queryFn: async () => {
+      const response = await api.get('/warehouses');
+      return response.data?.data || response.data;
+    }
+  });
+
+  // Fetch carrier-specific warehouse mappings
+  const { data: mappingsData } = useQuery({
+    queryKey: ['carrier-warehouse-mappings', carrier.id],
+    queryFn: async () => {
+      const response = await api.get(`/shipping/multi-carrier/carriers/${carrier.id}/warehouses`);
+      return response.data?.data || response.data;
+    }
+  });
+
+  // Fetch registered addresses from carrier (Ekart, Delhivery, etc.)
+  const fetchRegisteredAddresses = async () => {
+    if (carrier.code !== 'EKART' && carrier.code !== 'DELHIVERY') {
+      toast.error('Address fetching is currently only supported for Ekart and Delhivery');
+      return;
+    }
+
+    setLoadingAddresses(true);
+    try {
+      const response = await api.get(`/shipping/multi-carrier/carriers/${carrier.id}/registered-addresses`);
+      if (response.data?.success) {
+        const addresses = response.data.addresses || response.data.warehouses || [];
+        setRegisteredAddresses(addresses);
+        
+        if (addresses.length > 0) {
+          toast.success(`Found ${addresses.length} registered address(es)`);
+        } else {
+          toast(response.data.note || response.data.message || 'No addresses found', {
+            icon: 'ℹ️',
+          });
+        }
+      } else {
+        toast.error(response.data?.message || 'Failed to fetch registered addresses');
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to fetch addresses');
+    } finally {
+      setLoadingAddresses(false);
+    }
+  };
+
+  // Update warehouse mapping
+  const updateMappingMutation = useMutation({
+    mutationFn: async (data: { warehouse_id: number; alias: string }) => {
+      return api.put(`/shipping/multi-carrier/carriers/${carrier.id}/warehouses/${data.warehouse_id}`, {
+        carrier_warehouse_name: data.alias
+      });
+    },
+    onSuccess: () => {
+      toast.success('Warehouse mapping updated successfully');
+      queryClient.invalidateQueries({ queryKey: ['carrier-warehouse-mappings', carrier.id] });
+      setSelectedWarehouse(null);
+      setWarehouseAlias('');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to update mapping');
+    }
+  });
+
+  React.useEffect(() => {
+    if (warehousesData) {
+      setWarehouses(warehousesData);
+    }
+  }, [warehousesData]);
+
+  return (
+    <div className="space-y-6">
+      {/* Info Banner */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div className="flex">
+          <Info className="h-5 w-5 text-blue-400 mt-0.5 flex-shrink-0" />
+          <div className="ml-3">
+            <h4 className="text-sm font-medium text-blue-800">Warehouse Configuration</h4>
+            <p className="mt-1 text-sm text-blue-700">
+              Map your local warehouses to carrier-registered pickup locations. Some carriers like Ekart require pre-registered warehouse names (aliases).
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Fetch Registered Addresses (Ekart & Delhivery) */}
+      {(carrier.code === 'EKART' || carrier.code === 'DELHIVERY') && (
+        <div className="bg-white border border-gray-200 rounded-lg p-4">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center">
+              <Download className="h-5 w-5 text-gray-400 mr-2" />
+              <h3 className="text-sm font-medium text-gray-900">
+                Registered Addresses in {carrier.name}
+              </h3>
+            </div>
+            <button
+              type="button"
+              onClick={fetchRegisteredAddresses}
+              disabled={loadingAddresses}
+              className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 flex items-center"
+            >
+              {loadingAddresses ? (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-1.5 animate-spin" />
+                  Loading...
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-1.5" />
+                  Fetch from {carrier.name}
+                </>
+              )}
+            </button>
+          </div>
+
+          {registeredAddresses.length > 0 && (
+            <div className="space-y-2">
+              {registeredAddresses.map((addr, index) => (
+                <div key={index} className="bg-gray-50 rounded-md p-3 text-sm">
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1">
+                      {carrier.code === 'EKART' ? (
+                        <>
+                          <p className="font-medium text-gray-900">Alias: {addr.alias}</p>
+                          <p className="text-gray-600 mt-1">{addr.address_line1}</p>
+                          <p className="text-gray-500 text-xs mt-1">
+                            {addr.city}, {addr.state} - {addr.pincode} | Phone: {addr.phone}
+                          </p>
+                        </>
+                      ) : carrier.code === 'DELHIVERY' ? (
+                        <>
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium text-gray-900">{addr.name}</p>
+                            {addr.note && (
+                              <span className="px-2 py-0.5 text-xs bg-blue-100 text-blue-800 rounded">
+                                {addr.note}
+                              </span>
+                            )}
+                          </div>
+                          {addr.client_name && (
+                            <p className="text-gray-600 mt-1 text-xs">
+                              Client: {addr.client_name}
+                            </p>
+                          )}
+                          {addr.phone && (
+                            <p className="text-gray-500 text-xs mt-0.5">
+                              Phone: {addr.phone} {addr.email && `| Email: ${addr.email}`}
+                            </p>
+                          )}
+                        </>
+                      ) : (
+                        <>
+                          <p className="font-medium text-gray-900">{addr.name}</p>
+                          {addr.address && <p className="text-gray-600 mt-1">{addr.address}</p>}
+                          {addr.phone && <p className="text-gray-500 text-xs mt-1">Phone: {addr.phone}</p>}
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          
+          {registeredAddresses.length === 0 && loadingAddresses === false && (
+            <div className="text-center py-4">
+              <p className="text-sm text-gray-500 mb-2">
+                No registered addresses found. Click "Fetch" to check.
+              </p>
+              {carrier.code === 'DELHIVERY' && (
+                <a
+                  href="https://one.delhivery.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-blue-600 hover:text-blue-700 underline"
+                >
+                  View warehouses in Delhivery Portal →
+                </a>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Warehouse Mappings */}
+      <div className="bg-white border border-gray-200 rounded-lg p-4">
+        <div className="flex items-center mb-4">
+          <MapPin className="h-5 w-5 text-gray-400 mr-2" />
+          <h3 className="text-sm font-medium text-gray-900">Warehouse Mappings</h3>
+        </div>
+
+        {warehousesLoading ? (
+          <div className="text-center py-8 text-gray-500">
+            <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-2" />
+            <p>Loading warehouses...</p>
+          </div>
+        ) : warehouses.length === 0 ? (
+          <div className="text-center py-8 text-gray-500">
+            <Warehouse className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+            <p className="text-sm">No warehouses configured</p>
+            <p className="text-xs mt-1">Create a warehouse first to map it to this carrier</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {warehouses.map((warehouse) => {
+              const mapping = mappingsData?.find((m: any) => m.warehouse_id === warehouse.id);
+              const isEditing = selectedWarehouse === warehouse.id;
+
+              return (
+                <div key={warehouse.id} className="border border-gray-200 rounded-lg p-4">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center">
+                        <Warehouse className="h-4 w-4 text-gray-400 mr-2" />
+                        <h4 className="font-medium text-gray-900">{warehouse.name}</h4>
+                        {warehouse.is_default && (
+                          <span className="ml-2 px-2 py-0.5 text-xs bg-blue-100 text-blue-800 rounded">Default</span>
+                        )}
+                      </div>
+                      <p className="text-sm text-gray-600 mt-1">{warehouse.address_line_1}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        {warehouse.city}, {warehouse.state} - {warehouse.pincode}
+                      </p>
+
+                      {/* Current Mapping */}
+                      <div className="mt-3 pt-3 border-t border-gray-100">
+                        {mapping ? (
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="text-xs text-gray-500">Carrier Warehouse Name:</p>
+                              <p className="text-sm font-medium text-gray-900">
+                                {mapping.carrier_warehouse_name || 'Not set'}
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedWarehouse(warehouse.id);
+                                setWarehouseAlias(mapping.carrier_warehouse_name || '');
+                              }}
+                              className="text-sm text-blue-600 hover:text-blue-700"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => setSelectedWarehouse(warehouse.id)}
+                            className="text-sm text-blue-600 hover:text-blue-700 flex items-center"
+                          >
+                            <Plus className="h-4 w-4 mr-1" />
+                            Map to {carrier.name}
+                          </button>
+                        )}
+
+                        {/* Edit Form */}
+                        {isEditing && (
+                          <div className="mt-3 space-y-2">
+                            <label className="block text-xs font-medium text-gray-700">
+                              Carrier Warehouse Name/Alias:
+                            </label>
+                            <input
+                              type="text"
+                              value={warehouseAlias}
+                              onChange={(e) => setWarehouseAlias(e.target.value)}
+                              placeholder="Enter warehouse name as registered with carrier"
+                              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                            />
+                            <p className="text-xs text-gray-500">
+                              {carrier.code === 'EKART' ? (
+                                <>For Ekart, use the exact "alias" from their registered addresses above</>
+                              ) : (
+                                <>Enter the warehouse name/ID as registered with {carrier.name}</>
+                              )}
+                            </p>
+                            <div className="flex space-x-2 mt-2">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (!warehouseAlias.trim()) {
+                                    toast.error('Please enter a warehouse name');
+                                    return;
+                                  }
+                                  updateMappingMutation.mutate({
+                                    warehouse_id: warehouse.id,
+                                    alias: warehouseAlias.trim()
+                                  });
+                                }}
+                                disabled={updateMappingMutation.isPending}
+                                className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400"
+                              >
+                                {updateMappingMutation.isPending ? 'Saving...' : 'Save'}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedWarehouse(null);
+                                  setWarehouseAlias('');
+                                }}
+                                className="px-3 py-1.5 text-sm border border-gray-300 rounded-md hover:bg-gray-50"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Help Text */}
+      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+        <div className="flex">
+          <AlertCircle className="h-5 w-5 text-yellow-400 mt-0.5 flex-shrink-0" />
+          <div className="ml-3">
+            <h4 className="text-sm font-medium text-yellow-800">Important Notes</h4>
+            <ul className="mt-2 text-sm text-yellow-700 space-y-1 list-disc list-inside">
+              <li>Warehouses must be pre-registered with the carrier before shipment creation</li>
+              {carrier.code === 'EKART' && (
+                <>
+                  <li>Use the "Fetch from Ekart" button to see registered warehouse aliases</li>
+                  <li>The warehouse alias must exactly match (case-sensitive)</li>
+                  <li>Ekart uses aliases like "Main_Warehouse" to identify pickup locations</li>
+                </>
+              )}
+              {carrier.code === 'DELHIVERY' && (
+                <>
+                  <li>Delhivery uses warehouse names (not aliases)</li>
+                  <li>View all warehouses at: <a href="https://one.delhivery.com" target="_blank" rel="noopener noreferrer" className="underline">one.delhivery.com</a></li>
+                  <li>The warehouse name must exactly match what's registered with Delhivery</li>
+                  <li>Create warehouses via API or email: lastmile-integration@delhivery.com</li>
+                </>
+              )}
+              {carrier.code !== 'EKART' && carrier.code !== 'DELHIVERY' && (
+                <>
+                  <li>The warehouse name/ID must exactly match what's registered with the carrier</li>
+                  <li>Contact carrier support to register new warehouses</li>
+                </>
+              )}
+              <li>Changes take effect immediately for new shipments</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Enhanced Carrier Configuration Form with Tabs
+interface EnhancedCarrierConfigFormProps {
+  carrier: CarrierConfig;
+  fields: Array<{ key: string; label: string; type: string; required: boolean }>;
+  onSave: (config: any) => void;
+  onValidate: (credentials: any) => void;
+  onCancel: () => void;
+  showPassword: Record<string, boolean>;
+  onTogglePassword: (field: string) => void;
+  isLoading: boolean;
+  isValidating: boolean;
+  validationResult: {
+    success: boolean;
+    message: string;
+    details?: any;
+  } | null;
+}
+
+const EnhancedCarrierConfigForm: React.FC<EnhancedCarrierConfigFormProps> = ({
+  carrier,
+  fields,
+  onSave,
+  onValidate,
+  onCancel,
+  showPassword,
+  onTogglePassword,
+  isLoading,
+  isValidating,
+  validationResult
+}) => {
+  const [activeTab, setActiveTab] = useState<'credentials' | 'settings' | 'limits' | 'warehouse'>('credentials');
+  const [formData, setFormData] = useState<Record<string, any>>(() => {
+    const initialData: Record<string, any> = {};
+    
+    // Credentials
+    fields.forEach(field => {
+      const carrierData = (carrier as any);
+      initialData[field.key] = carrierData[field.key] || '';
+    });
+    
+    // Settings
+    initialData.test_mode = carrier.api_mode === 'test';
+    initialData.priority = carrier.priority || 100;
+    initialData.cutoff_time = carrier.cutoff_time || '17:00';
+    
+    // Limits
+    initialData.max_weight = carrier.max_weight || 50;
+    initialData.max_insurance_value = carrier.max_insurance_value || 50000;
+    
+    return initialData;
+  });
+
+  // Update form data when carrier changes
+  React.useEffect(() => {
+    const updatedData: Record<string, any> = {};
+    fields.forEach(field => {
+      const carrierData = (carrier as any);
+      updatedData[field.key] = carrierData[field.key] || '';
+    });
+    updatedData.test_mode = carrier.api_mode === 'test';
+    updatedData.priority = carrier.priority || 100;
+    updatedData.cutoff_time = carrier.cutoff_time || '17:00';
+    updatedData.max_weight = carrier.max_weight || 50;
+    updatedData.max_insurance_value = carrier.max_insurance_value || 50000;
+    setFormData(updatedData);
+  }, [carrier, fields]);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSave(formData);
+  };
+
+  const handleInputChange = (field: string, value: any) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handleValidate = () => {
+    const credentialData: Record<string, string> = {};
+    fields.forEach(field => {
+      if (field.key !== 'api_endpoint') {
+        credentialData[field.key] = formData[field.key] || '';
+      }
+    });
+    onValidate(credentialData);
+  };
+
+  const tabs = [
+    { id: 'credentials', label: 'Credentials', icon: Key },
+    { id: 'settings', label: 'Settings', icon: Settings },
+    { id: 'limits', label: 'Limits & Rules', icon: Shield },
+    { id: 'warehouse', label: 'Warehouse', icon: Warehouse },
+  ];
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-6">
+      {/* Tabs */}
+      <div className="border-b border-gray-200">
+        <nav className="-mb-px flex space-x-8">
+          {tabs.map(tab => {
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id as any)}
+                className={`
+                  group inline-flex items-center py-4 px-1 border-b-2 font-medium text-sm
+                  ${activeTab === tab.id
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }
+                `}
+              >
+                <Icon className={`-ml-0.5 mr-2 h-5 w-5 ${activeTab === tab.id ? 'text-blue-500' : 'text-gray-400'}`} />
+                {tab.label}
+              </button>
+            );
+          })}
+        </nav>
+      </div>
+
+      {/* Tab Content */}
+      <div className="min-h-[400px]">
+        {/* Credentials Tab */}
+        {activeTab === 'credentials' && (
+          <div className="space-y-4">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="flex">
+                <Info className="h-5 w-5 text-blue-400 mt-0.5" />
+                <div className="ml-3">
+                  <h4 className="text-sm font-medium text-blue-800">Security Notice</h4>
+                  <p className="mt-1 text-sm text-blue-700">
+                    Credentials are stored securely. Test mode credentials are separate from live mode.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {fields.map(field => (
+              <div key={field.key}>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {field.label} {field.required && <span className="text-red-500">*</span>}
+                </label>
+                {field.type === 'password' ? (
+                  <div className="relative">
+                    <input
+                      type={showPassword[field.key] ? 'text' : 'password'}
+                      value={formData[field.key] || ''}
+                      onChange={(e) => handleInputChange(field.key, e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      placeholder={`Enter ${field.label.toLowerCase()}`}
+                      required={field.required}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => onTogglePassword(field.key)}
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                    >
+                      {showPassword[field.key] ? (
+                        <EyeOff className="h-5 w-5 text-gray-400" />
+                      ) : (
+                        <Eye className="h-5 w-5 text-gray-400" />
+                      )}
+                    </button>
+                  </div>
+                ) : (
+                  <input
+                    type={field.type}
+                    value={formData[field.key] || ''}
+                    onChange={(e) => handleInputChange(field.key, e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    placeholder={`Enter ${field.label.toLowerCase()}`}
+                    required={field.required}
+                  />
+                )}
+              </div>
+            ))}
+
+            {/* Validation Result */}
+            {validationResult && (
+              <div className={`p-4 rounded-md ${validationResult.success ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
+                <div className="flex">
+                  {validationResult.success ? (
+                    <CheckCircle className="h-5 w-5 text-green-400" />
+                  ) : (
+                    <XCircle className="h-5 w-5 text-red-400" />
+                  )}
+                  <div className="ml-3">
+                    <h3 className={`text-sm font-medium ${validationResult.success ? 'text-green-800' : 'text-red-800'}`}>
+                      {validationResult.message}
+                    </h3>
+                    {validationResult.details && (
+                      <div className="mt-2 text-sm text-gray-600">
+                        <pre className="whitespace-pre-wrap">{JSON.stringify(validationResult.details, null, 2)}</pre>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={handleValidate}
+              disabled={isValidating}
+              className="w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+            >
+              {isValidating ? (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  Validating...
+                </>
+              ) : (
+                <>
+                  <TestTube className="h-4 w-4 mr-2" />
+                  Validate Credentials
+                </>
+              )}
+            </button>
+          </div>
+        )}
+
+        {/* Settings Tab */}
+        {activeTab === 'settings' && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  API Mode
+                </label>
+                <select
+                  value={formData.test_mode ? 'test' : 'live'}
+                  onChange={(e) => handleInputChange('test_mode', e.target.value === 'test')}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="test">Test Mode</option>
+                  <option value="live">Live Mode</option>
+                </select>
+                <p className="mt-1 text-xs text-gray-500">Switch between test and production API</p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Priority
+                </label>
+                <input
+                  type="number"
+                  value={formData.priority}
+                  onChange={(e) => handleInputChange('priority', parseInt(e.target.value))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  min="0"
+                  max="1000"
+                />
+                <p className="mt-1 text-xs text-gray-500">Higher priority carriers are checked first</p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Cutoff Time
+                </label>
+                <input
+                  type="time"
+                  value={formData.cutoff_time}
+                  onChange={(e) => handleInputChange('cutoff_time', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                />
+                <p className="mt-1 text-xs text-gray-500">Last time to schedule pickup for same day</p>
+              </div>
+            </div>
+
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-4">
+              <div className="flex">
+                <AlertCircle className="h-5 w-5 text-yellow-400 mt-0.5" />
+                <div className="ml-3">
+                  <h4 className="text-sm font-medium text-yellow-800">Configuration Notice</h4>
+                  <p className="mt-1 text-sm text-yellow-700">
+                    These settings affect how and when this carrier is used for shipments. Changes take effect immediately.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Limits Tab */}
+        {activeTab === 'limits' && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Maximum Weight (kg)
+                </label>
+                <input
+                  type="number"
+                  value={formData.max_weight}
+                  onChange={(e) => handleInputChange('max_weight', parseFloat(e.target.value))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  step="0.01"
+                  min="0"
+                />
+                <p className="mt-1 text-xs text-gray-500">Maximum package weight this carrier accepts</p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Maximum Insurance Value (₹)
+                </label>
+                <input
+                  type="number"
+                  value={formData.max_insurance_value}
+                  onChange={(e) => handleInputChange('max_insurance_value', parseFloat(e.target.value))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  step="100"
+                  min="0"
+                />
+                <p className="mt-1 text-xs text-gray-500">Maximum value that can be insured</p>
+              </div>
+            </div>
+
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4">
+              <div className="flex">
+                <Info className="h-5 w-5 text-blue-400 mt-0.5" />
+                <div className="ml-3">
+                  <h4 className="text-sm font-medium text-blue-800">Operational Limits</h4>
+                  <p className="mt-1 text-sm text-blue-700">
+                    These limits are used to filter suitable carriers for each shipment based on weight and insurance requirements.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Warehouse Tab */}
+        {activeTab === 'warehouse' && (
+          <WarehouseManagementTab carrier={carrier} />
+        )}
+      </div>
+
+      {/* Action Buttons */}
+      <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
+        <button
+          type="button"
+          onClick={onCancel}
+          disabled={isLoading}
+          className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+        >
+          Cancel
+        </button>
+
+        {activeTab === 'credentials' && (
+          <button
+            type="button"
+            onClick={handleValidate}
+            disabled={isValidating || isLoading}
+            className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+          >
+            {isValidating ? (
+              <>
+                <RefreshCw className="h-4 w-4 mr-2 animate-spin inline" />
+                Validating...
+              </>
+            ) : (
+              <>
+                <TestTube className="h-4 w-4 mr-2 inline" />
+                Validate Credentials
+              </>
+            )}
+          </button>
+        )}
+
+        <button
+          type="submit"
+          disabled={isLoading}
+          className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
+        >
+          {isLoading ? (
+            <>
+              <RefreshCw className="h-4 w-4 mr-2 animate-spin inline" />
+              Saving...
+            </>
+          ) : (
+            <>
+              <Save className="h-4 w-4 mr-2 inline" />
+              Save Configuration
+            </>
+          )}
+        </button>
+      </div>
+
+      {/* Validation Result */}
+      {validationResult && activeTab === 'credentials' && (
+        <div className={`p-4 rounded-md ${validationResult.success ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
+          <div className="flex">
+            {validationResult.success ? (
+              <CheckCircle className="h-5 w-5 text-green-400" />
+            ) : (
+              <XCircle className="h-5 w-5 text-red-400" />
+            )}
+            <div className="ml-3">
+              <h3 className={`text-sm font-medium ${validationResult.success ? 'text-green-800' : 'text-red-800'}`}>
+                {validationResult.message}
+              </h3>
+              {validationResult.details && (
+                <div className="mt-2 text-sm">
+                  <pre className="whitespace-pre-wrap text-xs bg-white p-2 rounded border">{JSON.stringify(validationResult.details, null, 2)}</pre>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </form>
+  );
+};
+
+// Credential Form Component (Legacy - kept for reference)
 interface CredentialFormProps {
   carrier: CarrierConfig;
   fields: Array<{ key: string; label: string; type: string; required: boolean }>;
