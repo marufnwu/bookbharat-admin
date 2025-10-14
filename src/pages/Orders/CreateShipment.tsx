@@ -83,11 +83,21 @@ const CreateShipment: React.FC = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState({
     maxPrice: null as number | null,
+    minPrice: null as number | null,
     maxDays: null as number | null,
+    minDays: null as number | null,
+    minRating: null as number | null,
+    minSuccessRate: null as number | null,
     features: [] as string[],
-    carrierTypes: [] as string[]
+    carrierTypes: [] as string[],
+    deliverySpeed: '' as '' | 'express' | 'standard' | 'economy',
+    showCheapestOnly: false,
+    showFastestOnly: false,
+    excludeSlowCarriers: false,
+    excludeExpensiveCarriers: false,
   });
   const [sortBy, setSortBy] = useState<'price' | 'time' | 'rating' | 'recommended'>('recommended');
+  const [filterPreset, setFilterPreset] = useState<'all' | 'budget' | 'fast' | 'premium' | 'balanced'>('all');
   const [showComparison, setShowComparison] = useState(false);
   const [comparisonCarriers, setComparisonCarriers] = useState<CarrierRate[]>([]);
 
@@ -114,17 +124,34 @@ const CreateShipment: React.FC = () => {
   const warehouses = warehousesData || [];
 
   // Fetch carrier-specific warehouse mappings when carrier is selected
-  const { data: carrierWarehousesData } = useQuery({
+  const { data: carrierWarehousesResponse, isLoading: warehousesLoading } = useQuery({
     queryKey: ['carrier-warehouses', selectedCarrier?.carrier_id],
     queryFn: async () => {
-      if (!selectedCarrier?.carrier_id) return [];
+      if (!selectedCarrier?.carrier_id) return null;
       const response = await api.get(`/shipping/multi-carrier/carriers/${selectedCarrier.carrier_id}/warehouses`);
-      return response.data?.data || response.data || [];
+      console.log('Warehouse API Response:', response.data);
+      return response.data || null;
     },
     enabled: !!selectedCarrier
   });
 
-  const carrierWarehouses = carrierWarehousesData || [];
+  const carrierWarehouses = carrierWarehousesResponse?.data || [];
+  const warehouseMetadata = {
+    requirementType: carrierWarehousesResponse?.requirement_type,
+    source: carrierWarehousesResponse?.source,
+    note: carrierWarehousesResponse?.note,
+    carrierCode: carrierWarehousesResponse?.carrier_code
+  };
+  
+  // Log for debugging
+  React.useEffect(() => {
+    if (selectedCarrier) {
+      console.log('Carrier selected:', selectedCarrier.carrier_name);
+      console.log('Warehouses loaded:', carrierWarehouses.length);
+      console.log('Warehouse data:', carrierWarehouses);
+      console.log('Metadata:', warehouseMetadata);
+    }
+  }, [selectedCarrier, carrierWarehouses]);
 
   // Auto-select warehouse when carrier is selected
   React.useEffect(() => {
@@ -224,30 +251,174 @@ const CreateShipment: React.FC = () => {
     }, 0);
   };
 
+  // Apply filter presets
+  const applyFilterPreset = (preset: typeof filterPreset) => {
+    setFilterPreset(preset);
+    
+    switch (preset) {
+      case 'budget':
+        setFilters({
+          ...filters,
+          maxPrice: 100,
+          minPrice: null,
+          maxDays: null,
+          minDays: null,
+          minRating: null,
+          minSuccessRate: null,
+          deliverySpeed: '',
+          showCheapestOnly: true,
+          showFastestOnly: false,
+          excludeSlowCarriers: false,
+          excludeExpensiveCarriers: true
+        });
+        setSortBy('price');
+        break;
+      
+      case 'fast':
+        setFilters({
+          ...filters,
+          maxPrice: null,
+          minPrice: null,
+          maxDays: 3,
+          minDays: null,
+          minRating: null,
+          minSuccessRate: null,
+          deliverySpeed: 'express',
+          showCheapestOnly: false,
+          showFastestOnly: true,
+          excludeSlowCarriers: true,
+          excludeExpensiveCarriers: false
+        });
+        setSortBy('time');
+        break;
+      
+      case 'premium':
+        setFilters({
+          ...filters,
+          maxPrice: null,
+          minPrice: null,
+          maxDays: null,
+          minDays: null,
+          minRating: 4.0,
+          minSuccessRate: 95,
+          deliverySpeed: '',
+          showCheapestOnly: false,
+          showFastestOnly: false,
+          excludeSlowCarriers: false,
+          excludeExpensiveCarriers: false
+        });
+        setSortBy('rating');
+        break;
+      
+      case 'balanced':
+        setFilters({
+          ...filters,
+          maxPrice: 150,
+          minPrice: null,
+          maxDays: 5,
+          minDays: null,
+          minRating: 3.5,
+          minSuccessRate: 90,
+          deliverySpeed: '',
+          showCheapestOnly: false,
+          showFastestOnly: false,
+          excludeSlowCarriers: false,
+          excludeExpensiveCarriers: false
+        });
+        setSortBy('recommended');
+        break;
+      
+      case 'all':
+      default:
+        setFilters({
+          maxPrice: null,
+          minPrice: null,
+          maxDays: null,
+          minDays: null,
+          minRating: null,
+          minSuccessRate: null,
+          features: [],
+          carrierTypes: [],
+          deliverySpeed: '',
+          showCheapestOnly: false,
+          showFastestOnly: false,
+          excludeSlowCarriers: false,
+          excludeExpensiveCarriers: false
+        });
+        setSortBy('recommended');
+        break;
+    }
+  };
+
   // Filter and sort carriers
   const getFilteredAndSortedCarriers = () => {
     if (!ratesData?.rates) return [];
 
     let filtered = [...ratesData.rates];
 
-    // Apply filters
+    // Apply price filters
     if (filters.maxPrice !== null) {
-      const maxPrice = filters.maxPrice;
-      filtered = filtered.filter(c => c.total_charge <= maxPrice);
+      filtered = filtered.filter(c => c.total_charge <= filters.maxPrice!);
     }
+    if (filters.minPrice !== null) {
+      filtered = filtered.filter(c => c.total_charge >= filters.minPrice!);
+    }
+    
+    // Apply delivery time filters
     if (filters.maxDays !== null) {
-      const maxDays = filters.maxDays;
-      filtered = filtered.filter(c => c.delivery_days <= maxDays);
+      filtered = filtered.filter(c => c.delivery_days <= filters.maxDays!);
     }
+    if (filters.minDays !== null) {
+      filtered = filtered.filter(c => c.delivery_days >= filters.minDays!);
+    }
+    
+    // Apply rating filters
+    if (filters.minRating !== null) {
+      filtered = filtered.filter(c => c.rating >= filters.minRating!);
+    }
+    if (filters.minSuccessRate !== null) {
+      filtered = filtered.filter(c => c.success_rate >= filters.minSuccessRate!);
+    }
+    
+    // Apply feature filters
     if (filters.features.length > 0) {
       filtered = filtered.filter(c =>
         filters.features.every(f => c.features.includes(f))
       );
     }
+    
+    // Apply carrier type filters
     if (filters.carrierTypes.length > 0) {
       filtered = filtered.filter(c =>
         filters.carrierTypes.includes(c.carrier_code)
       );
+    }
+    
+    // Apply delivery speed filter
+    if (filters.deliverySpeed === 'express') {
+      filtered = filtered.filter(c => c.delivery_days <= 2);
+    } else if (filters.deliverySpeed === 'standard') {
+      filtered = filtered.filter(c => c.delivery_days > 2 && c.delivery_days <= 5);
+    } else if (filters.deliverySpeed === 'economy') {
+      filtered = filtered.filter(c => c.delivery_days > 5);
+    }
+    
+    // Apply boolean filters
+    if (filters.showCheapestOnly) {
+      const cheapest = Math.min(...filtered.map(c => c.total_charge));
+      filtered = filtered.filter(c => c.total_charge === cheapest);
+    }
+    if (filters.showFastestOnly) {
+      const fastest = Math.min(...filtered.map(c => c.delivery_days));
+      filtered = filtered.filter(c => c.delivery_days === fastest);
+    }
+    if (filters.excludeSlowCarriers) {
+      const avgDays = filtered.reduce((sum, c) => sum + c.delivery_days, 0) / filtered.length;
+      filtered = filtered.filter(c => c.delivery_days <= avgDays);
+    }
+    if (filters.excludeExpensiveCarriers) {
+      const avgPrice = filtered.reduce((sum, c) => sum + c.total_charge, 0) / filtered.length;
+      filtered = filtered.filter(c => c.total_charge <= avgPrice);
     }
 
     // Sort
@@ -305,10 +476,10 @@ const CreateShipment: React.FC = () => {
     const shipmentData = {
       order_id: orderId,
       carrier_id: selectedCarrier.carrier_id,
-      service_code: selectedCarrier.service_code,
+      service_code: String(selectedCarrier.service_code), // Ensure string
       shipping_cost: selectedCarrier.total_charge,
       expected_delivery_date: selectedCarrier.expected_delivery_date,
-      warehouse_id: selectedWarehouse,
+      warehouse_id: String(selectedWarehouse), // Ensure string
       schedule_pickup: true
     };
 
@@ -337,7 +508,7 @@ const CreateShipment: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Order Details Card */}
         <div className="lg:col-span-1">
-          <div className="bg-white rounded-lg shadow-md p-6 sticky top-6">
+          <div className="bg-white rounded-lg shadow-md p-6 sticky top-6 max-h-[calc(100vh-8rem)] overflow-y-auto">
             <h2 className="text-lg font-semibold mb-4">Order Details</h2>
 
             {/* Addresses */}
@@ -414,7 +585,35 @@ const CreateShipment: React.FC = () => {
                     <MapPin className="h-4 w-4 inline mr-1" />
                     Pickup Warehouse
                   </label>
-                  {carrierWarehouses.length > 0 ? (
+                  
+                  {/* Warehouse Type Indicator */}
+                  {warehouseMetadata.note && (
+                    <div className={`mb-2 p-2 rounded-md border text-xs flex items-start gap-2 ${
+                      warehouseMetadata.source === 'carrier_api' 
+                        ? 'bg-blue-50 border-blue-200' 
+                        : 'bg-green-50 border-green-200'
+                    }`}>
+                      <Info className={`h-3 w-3 mt-0.5 flex-shrink-0 ${
+                        warehouseMetadata.source === 'carrier_api' 
+                          ? 'text-blue-600' 
+                          : 'text-green-600'
+                      }`} />
+                      <span className={
+                        warehouseMetadata.source === 'carrier_api' 
+                          ? 'text-blue-800' 
+                          : 'text-green-800'
+                      }>
+                        {warehouseMetadata.note}
+                      </span>
+                    </div>
+                  )}
+                  
+                  {warehousesLoading ? (
+                    <div className="text-sm text-gray-500 bg-gray-50 rounded-md p-2 border border-gray-200 flex items-center gap-2">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                      Loading warehouses...
+                    </div>
+                  ) : carrierWarehouses.length > 0 ? (
                     <select
                       value={selectedWarehouse || ''}
                       onChange={(e) => setSelectedWarehouse(e.target.value)}
@@ -424,15 +623,22 @@ const CreateShipment: React.FC = () => {
                       {carrierWarehouses.map((wh: any) => (
                         <option key={wh.id || wh.name} value={wh.id || wh.name}>
                           {wh.name}
+                          {wh.id && wh.id !== wh.name && ` [ID: ${wh.id}]`}
+                          {wh.pincode && ` - ${wh.pincode}`}
                           {wh.carrier_warehouse_name && wh.carrier_warehouse_name !== wh.name && ` → ${wh.carrier_warehouse_name}`}
-                          {wh.is_registered && ' (Registered)'}
+                          {wh.is_registered && ' ✓'}
                         </option>
                       ))}
                     </select>
+                  ) : selectedCarrier ? (
+                    <div className="text-sm text-gray-500 bg-yellow-50 rounded-md p-2 border border-yellow-200">
+                      <Info className="h-4 w-4 inline mr-1" />
+                      No warehouses available for {selectedCarrier.carrier_name}. Please check carrier configuration.
+                    </div>
                   ) : (
                     <div className="text-sm text-gray-500 bg-gray-50 rounded-md p-2 border border-gray-200">
                       <Info className="h-4 w-4 inline mr-1" />
-                      Loading warehouses...
+                      Select a carrier first
                     </div>
                   )}
                   {selectedWarehouse && carrierWarehouses.length > 0 && (
@@ -495,6 +701,34 @@ const CreateShipment: React.FC = () => {
         <div className="lg:col-span-2">
           {/* Filters and Sorting */}
           <div className="bg-white rounded-lg shadow-md p-4 mb-6">
+            {/* Filter Presets */}
+            <div className="mb-4 flex items-center gap-2 flex-wrap">
+              <span className="text-sm text-gray-600 mr-2">Quick Filters:</span>
+              {[
+                { value: 'all', label: 'All Options', icon: Filter },
+                { value: 'budget', label: 'Budget', icon: DollarSign },
+                { value: 'fast', label: 'Fast Delivery', icon: Zap },
+                { value: 'premium', label: 'Premium', icon: Award },
+                { value: 'balanced', label: 'Balanced', icon: TrendingUp }
+              ].map((preset) => {
+                const Icon = preset.icon;
+                return (
+                  <button
+                    key={preset.value}
+                    onClick={() => applyFilterPreset(preset.value as any)}
+                    className={`flex items-center px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                      filterPreset === preset.value
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    <Icon className="h-3 w-3 mr-1.5" />
+                    {preset.label}
+                  </button>
+                );
+              })}
+            </div>
+
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-4">
                 <button
@@ -502,20 +736,26 @@ const CreateShipment: React.FC = () => {
                   className="flex items-center px-3 py-1.5 border border-gray-300 rounded-md hover:bg-gray-50"
                 >
                   <Filter className="h-4 w-4 mr-2" />
-                  Filters
+                  Advanced Filters
                   {showFilters ? <ChevronUp className="h-4 w-4 ml-1" /> : <ChevronDown className="h-4 w-4 ml-1" />}
                 </button>
 
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value as any)}
-                  className="px-3 py-1.5 border border-gray-300 rounded-md"
+                  className="px-3 py-1.5 border border-gray-300 rounded-md text-sm"
                 >
-                  <option value="recommended">Recommended</option>
-                  <option value="price">Price: Low to High</option>
-                  <option value="time">Delivery Time</option>
-                  <option value="rating">Rating</option>
+                  <option value="recommended">Sort: Recommended</option>
+                  <option value="price">Sort: Price (Low to High)</option>
+                  <option value="time">Sort: Delivery Time</option>
+                  <option value="rating">Sort: Rating</option>
                 </select>
+
+                {carriers.length > 0 && (
+                  <span className="text-sm text-gray-600">
+                    Showing {carriers.length} of {ratesData?.rates?.length || 0} options
+                  </span>
+                )}
               </div>
 
               <button
@@ -523,75 +763,231 @@ const CreateShipment: React.FC = () => {
                 className="flex items-center px-3 py-1.5 text-blue-600 hover:bg-blue-50 rounded-md"
               >
                 <RefreshCw className="h-4 w-4 mr-2" />
-                Refresh Rates
+                Refresh
               </button>
             </div>
 
-            {/* Filter Options */}
+            {/* Advanced Filter Options */}
             {showFilters && (
-              <div className="border-t pt-4 grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="border-t pt-4 space-y-4">
+                {/* Price Range */}
                 <div>
-                  <label className="text-sm text-gray-600">Max Price (₹)</label>
-                  <input
-                    type="number"
-                    value={filters.maxPrice || ''}
-                    onChange={(e) => setFilters({ ...filters, maxPrice: e.target.value ? Number(e.target.value) : null })}
-                    className="w-full mt-1 px-2 py-1 border border-gray-300 rounded"
-                    placeholder="Any"
-                  />
+                  <label className="text-sm font-medium text-gray-700 mb-2 block">Price Range (₹)</label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <input
+                        type="number"
+                        value={filters.minPrice || ''}
+                        onChange={(e) => setFilters({ ...filters, minPrice: e.target.value ? Number(e.target.value) : null })}
+                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md"
+                        placeholder="Min price"
+                      />
+                    </div>
+                    <div>
+                      <input
+                        type="number"
+                        value={filters.maxPrice || ''}
+                        onChange={(e) => setFilters({ ...filters, maxPrice: e.target.value ? Number(e.target.value) : null })}
+                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md"
+                        placeholder="Max price"
+                      />
+                    </div>
+                  </div>
                 </div>
+
+                {/* Delivery Time Range */}
                 <div>
-                  <label className="text-sm text-gray-600">Max Days</label>
-                  <input
-                    type="number"
-                    value={filters.maxDays || ''}
-                    onChange={(e) => setFilters({ ...filters, maxDays: e.target.value ? Number(e.target.value) : null })}
-                    className="w-full mt-1 px-2 py-1 border border-gray-300 rounded"
-                    placeholder="Any"
-                  />
+                  <label className="text-sm font-medium text-gray-700 mb-2 block">Delivery Time (days)</label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <input
+                        type="number"
+                        value={filters.minDays || ''}
+                        onChange={(e) => setFilters({ ...filters, minDays: e.target.value ? Number(e.target.value) : null })}
+                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md"
+                        placeholder="Min days"
+                      />
+                    </div>
+                    <div>
+                      <input
+                        type="number"
+                        value={filters.maxDays || ''}
+                        onChange={(e) => setFilters({ ...filters, maxDays: e.target.value ? Number(e.target.value) : null })}
+                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md"
+                        placeholder="Max days"
+                      />
+                    </div>
+                  </div>
                 </div>
+
+                {/* Quality Filters */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 mb-2 block">Min Rating</label>
+                    <select
+                      value={filters.minRating || ''}
+                      onChange={(e) => setFilters({ ...filters, minRating: e.target.value ? Number(e.target.value) : null })}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md"
+                    >
+                      <option value="">Any Rating</option>
+                      <option value="3.0">3.0+ ⭐⭐⭐</option>
+                      <option value="3.5">3.5+ ⭐⭐⭐+</option>
+                      <option value="4.0">4.0+ ⭐⭐⭐⭐</option>
+                      <option value="4.5">4.5+ ⭐⭐⭐⭐+</option>
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 mb-2 block">Min Success Rate</label>
+                    <select
+                      value={filters.minSuccessRate || ''}
+                      onChange={(e) => setFilters({ ...filters, minSuccessRate: e.target.value ? Number(e.target.value) : null })}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md"
+                    >
+                      <option value="">Any Success Rate</option>
+                      <option value="85">85%+</option>
+                      <option value="90">90%+</option>
+                      <option value="95">95%+</option>
+                      <option value="98">98%+</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Delivery Speed */}
                 <div>
-                  <label className="text-sm text-gray-600">Features</label>
-                  <div className="mt-1 space-y-1">
-                    <label className="flex items-center text-sm">
+                  <label className="text-sm font-medium text-gray-700 mb-2 block">Delivery Speed</label>
+                  <select
+                    value={filters.deliverySpeed}
+                    onChange={(e) => setFilters({ ...filters, deliverySpeed: e.target.value as any })}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md"
+                  >
+                    <option value="">All Speeds</option>
+                    <option value="express">Express (≤2 days)</option>
+                    <option value="standard">Standard (3-5 days)</option>
+                    <option value="economy">Economy (&gt;5 days)</option>
+                  </select>
+                </div>
+
+                {/* Quick Toggle Filters */}
+                <div>
+                  <label className="text-sm font-medium text-gray-700 mb-2 block">Quick Filters</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <label className="flex items-center text-sm p-2 border border-gray-200 rounded-md hover:bg-gray-50 cursor-pointer">
                       <input
                         type="checkbox"
-                        checked={filters.features.includes('tracking')}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setFilters({ ...filters, features: [...filters.features, 'tracking'] });
-                          } else {
-                            setFilters({ ...filters, features: filters.features.filter(f => f !== 'tracking') });
-                          }
-                        }}
+                        checked={filters.showCheapestOnly}
+                        onChange={(e) => setFilters({ ...filters, showCheapestOnly: e.target.checked })}
                         className="mr-2"
                       />
-                      Tracking
+                      Cheapest only
                     </label>
-                    <label className="flex items-center text-sm">
+                    <label className="flex items-center text-sm p-2 border border-gray-200 rounded-md hover:bg-gray-50 cursor-pointer">
                       <input
                         type="checkbox"
-                        checked={filters.features.includes('insurance')}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setFilters({ ...filters, features: [...filters.features, 'insurance'] });
-                          } else {
-                            setFilters({ ...filters, features: filters.features.filter(f => f !== 'insurance') });
-                          }
-                        }}
+                        checked={filters.showFastestOnly}
+                        onChange={(e) => setFilters({ ...filters, showFastestOnly: e.target.checked })}
                         className="mr-2"
                       />
-                      Insurance
+                      Fastest only
+                    </label>
+                    <label className="flex items-center text-sm p-2 border border-gray-200 rounded-md hover:bg-gray-50 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={filters.excludeSlowCarriers}
+                        onChange={(e) => setFilters({ ...filters, excludeSlowCarriers: e.target.checked })}
+                        className="mr-2"
+                      />
+                      Exclude slow
+                    </label>
+                    <label className="flex items-center text-sm p-2 border border-gray-200 rounded-md hover:bg-gray-50 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={filters.excludeExpensiveCarriers}
+                        onChange={(e) => setFilters({ ...filters, excludeExpensiveCarriers: e.target.checked })}
+                        className="mr-2"
+                      />
+                      Exclude expensive
                     </label>
                   </div>
                 </div>
+
+                {/* Features */}
                 <div>
-                  <label className="text-sm text-gray-600">Actions</label>
+                  <label className="text-sm font-medium text-gray-700 mb-2 block">Required Features</label>
+                  <div className="space-y-2">
+                    {['tracking', 'insurance', 'cod', 'doorstep_delivery', 'priority_handling'].map(feature => (
+                      <label key={feature} className="flex items-center text-sm">
+                        <input
+                          type="checkbox"
+                          checked={filters.features.includes(feature)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setFilters({ ...filters, features: [...filters.features, feature] });
+                            } else {
+                              setFilters({ ...filters, features: filters.features.filter(f => f !== feature) });
+                            }
+                          }}
+                          className="mr-2"
+                        />
+                        <span className="capitalize">{feature.replace('_', ' ')}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Carrier Selection */}
+                {ratesData?.rates && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 mb-2 block">Specific Carriers</label>
+                    <div className="space-y-2">
+                      {Array.from(new Set<string>(ratesData.rates.map((r: CarrierRate) => r.carrier_code))).map((code) => {
+                        const carrier = ratesData.rates.find((r: CarrierRate) => r.carrier_code === code);
+                        return (
+                          <label key={code} className="flex items-center text-sm">
+                            <input
+                              type="checkbox"
+                              checked={filters.carrierTypes.includes(code)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setFilters({ ...filters, carrierTypes: [...filters.carrierTypes, code] });
+                                } else {
+                                  setFilters({ ...filters, carrierTypes: filters.carrierTypes.filter(c => c !== code) });
+                                }
+                              }}
+                              className="mr-2"
+                            />
+                            {carrier?.carrier_name}
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Clear All Filters */}
+                <div className="col-span-full flex justify-end pt-3 border-t">
                   <button
-                    onClick={() => setFilters({ maxPrice: null, maxDays: null, features: [], carrierTypes: [] })}
-                    className="mt-1 w-full px-2 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded"
+                    onClick={() => {
+                      setFilters({
+                        maxPrice: null,
+                        minPrice: null,
+                        maxDays: null,
+                        minDays: null,
+                        minRating: null,
+                        minSuccessRate: null,
+                        features: [],
+                        carrierTypes: [],
+                        deliverySpeed: '',
+                        showCheapestOnly: false,
+                        showFastestOnly: false,
+                        excludeSlowCarriers: false,
+                        excludeExpensiveCarriers: false
+                      });
+                      setFilterPreset('all');
+                    }}
+                    className="px-4 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-md"
                   >
-                    Clear Filters
+                    Clear All Filters
                   </button>
                 </div>
               </div>

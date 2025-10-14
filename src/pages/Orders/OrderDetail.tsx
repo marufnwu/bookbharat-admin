@@ -22,9 +22,13 @@ import {
   Printer,
   RefreshCw,
   ChevronRight,
-  Send
+  Send,
+  Trash2,
+  ExternalLink,
+  Info
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { api } from '../../api/axios';
 
 interface OrderStatus {
   value: string;
@@ -59,6 +63,25 @@ const OrderDetail: React.FC = () => {
 
   const order = orderResponse?.order;
 
+  // Fetch shipment details for this order
+  const { data: shipmentResponse, refetch: refetchShipment } = useQuery({
+    queryKey: ['shipment', id],
+    queryFn: async () => {
+      try {
+        const response = await api.get(`/orders/${id}/shipment`);
+        return response.data;
+      } catch (error: any) {
+        if (error.response?.status === 404) {
+          return null; // No shipment exists
+        }
+        throw error;
+      }
+    },
+    enabled: !!id,
+  });
+
+  const shipment = shipmentResponse?.shipment;
+
   // Update status mutation
   const updateStatusMutation = useMutation({
     mutationFn: async ({ status, note }: { status: string; note: string }) => {
@@ -71,6 +94,22 @@ const OrderDetail: React.FC = () => {
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.message || 'Failed to update status');
+    },
+  });
+
+  // Cancel shipment mutation
+  const cancelShipmentMutation = useMutation({
+    mutationFn: async () => {
+      const response = await api.delete(`/orders/${id}/shipment`);
+      return response.data;
+    },
+    onSuccess: () => {
+      toast.success('Shipment cancelled successfully');
+      refetch();
+      refetchShipment();
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to cancel shipment');
     },
   });
 
@@ -95,6 +134,28 @@ const OrderDetail: React.FC = () => {
     if (window.confirm('Are you sure you want to refund this order?')) {
       updateStatusMutation.mutate({ status: 'refunded', note: 'Order refunded by admin' });
     }
+  };
+
+  const handleCancelShipment = () => {
+    if (window.confirm('Are you sure you want to cancel this shipment? This may incur cancellation charges from the carrier.')) {
+      cancelShipmentMutation.mutate();
+    }
+  };
+
+  const getShipmentStatusColor = (status: string) => {
+    const colors: Record<string, string> = {
+      'pending': 'yellow',
+      'confirmed': 'blue',
+      'pickup_scheduled': 'indigo',
+      'picked_up': 'purple',
+      'in_transit': 'orange',
+      'out_for_delivery': 'teal',
+      'delivered': 'green',
+      'cancelled': 'red',
+      'returned': 'gray',
+      'failed': 'red'
+    };
+    return colors[status] || 'gray';
   };
 
   const getStatusColor = (status: string) => {
@@ -173,13 +234,32 @@ const OrderDetail: React.FC = () => {
             <Download className="h-4 w-4" />
             Download
           </button>
-          {(order.status === 'confirmed' || order.status === 'processing') && !order.tracking_number && (
+          {!shipment && (order.status === 'confirmed' || order.status === 'processing') && (
             <button
               onClick={() => navigate(`/orders/${id}/create-shipment`)}
               className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
             >
               <Send className="h-4 w-4" />
               Create Shipment
+            </button>
+          )}
+          {shipment && shipment.status === 'cancelled' && (
+            <button
+              onClick={() => navigate(`/orders/${id}/create-shipment`)}
+              className="flex items-center gap-2 px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700"
+            >
+              <Send className="h-4 w-4" />
+              Create New Shipment
+            </button>
+          )}
+          {shipment && shipment.status !== 'cancelled' && shipment.status !== 'delivered' && (
+            <button
+              onClick={handleCancelShipment}
+              disabled={cancelShipmentMutation.isPending}
+              className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
+            >
+              <Trash2 className="h-4 w-4" />
+              {cancelShipmentMutation.isPending ? 'Cancelling...' : 'Cancel Shipment'}
             </button>
           )}
           {order.status !== 'refunded' && order.status !== 'cancelled' && (
@@ -326,58 +406,278 @@ const OrderDetail: React.FC = () => {
             </div>
           </div>
 
-          {/* Shipping Information */}
+          {/* Shipment Information */}
           <div className="bg-white rounded-lg shadow">
             <div className="p-6 border-b border-gray-200">
               <h2 className="text-lg font-semibold flex items-center gap-2">
                 <Truck className="h-5 w-5" />
-                Shipping Information
+                Shipment Information
               </h2>
             </div>
             <div className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-gray-500 mb-1">Courier Partner</p>
-                  <p className="font-medium">{order.courier_partner || 'Not assigned'}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500 mb-1">Tracking Number</p>
-                  <p className="font-medium">{order.tracking_number || 'Not available'}</p>
-                </div>
-                {order.estimated_delivery_date && (
-                  <div>
-                    <p className="text-sm text-gray-500 mb-1">Est. Delivery</p>
-                    <p className="font-medium">{formatDate(order.estimated_delivery_date)}</p>
-                  </div>
-                )}
-                {order.shipping_zone && (
-                  <div>
-                    <p className="text-sm text-gray-500 mb-1">Shipping Zone</p>
-                    <p className="font-medium">{order.shipping_zone}</p>
-                  </div>
-                )}
-                <div className="md:col-span-2">
-                  <p className="text-sm text-gray-500 mb-1">Shipping Address</p>
-                  <div className="flex items-start gap-2">
-                    <MapPin className="h-4 w-4 text-gray-400 mt-1" />
-                    <div>
-                      <p className="font-medium">
-                        {order.shipping_address?.first_name} {order.shipping_address?.last_name}
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        {order.shipping_address?.address_line_1}
-                        {order.shipping_address?.address_line_2 && (
-                          <>, {order.shipping_address.address_line_2}</>
-                        )}
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        {order.shipping_address?.city}, {order.shipping_address?.state} {order.shipping_address?.pincode}
-                      </p>
-                      <p className="text-sm text-gray-600">{order.shipping_address?.country}</p>
-                      {order.shipping_address?.phone && (
-                        <p className="text-sm text-gray-600">Phone: {order.shipping_address.phone}</p>
+              {shipment ? (
+                <div className="space-y-4">
+                  {/* Shipment Status Banner */}
+                  <div className={`p-4 rounded-lg border-2 bg-${getShipmentStatusColor(shipment.status)}-50 border-${getShipmentStatusColor(shipment.status)}-200`}>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Package className={`h-8 w-8 text-${getShipmentStatusColor(shipment.status)}-600`} />
+                        <div>
+                          <p className="font-semibold text-lg capitalize">{shipment.status.replace('_', ' ')}</p>
+                          <p className="text-sm text-gray-600">Shipment ID: #{shipment.id}</p>
+                        </div>
+                      </div>
+                      {shipment.status !== 'cancelled' && shipment.status !== 'delivered' && (
+                        <button
+                          onClick={handleCancelShipment}
+                          disabled={cancelShipmentMutation.isPending}
+                          className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          {cancelShipmentMutation.isPending ? 'Cancelling...' : 'Cancel Shipment'}
+                        </button>
                       )}
                     </div>
+                  </div>
+
+                  {/* Tracking Information */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="col-span-2 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                      <p className="text-sm text-gray-600 mb-1">Tracking Number</p>
+                      <div className="flex items-center justify-between">
+                        <p className="text-lg font-mono font-bold text-blue-900">{shipment.tracking_number}</p>
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(shipment.tracking_number);
+                            toast.success('Tracking number copied!');
+                          }}
+                          className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+                        >
+                          Copy
+                        </button>
+                      </div>
+                      {shipment.carrier_tracking_id && shipment.carrier_tracking_id !== shipment.tracking_number && (
+                        <p className="text-xs text-gray-500 mt-1">Carrier Ref: {shipment.carrier_tracking_id}</p>
+                      )}
+                    </div>
+
+                    <div>
+                      <p className="text-sm text-gray-500 mb-1">Courier Partner</p>
+                      <p className="font-medium">{shipment.carrier?.name || 'N/A'}</p>
+                      {(shipment.service_name || shipment.service_code) && (
+                        <p className="text-xs text-gray-500">
+                          Service: {shipment.service_name || shipment.service_code}
+                        </p>
+                      )}
+                    </div>
+
+                    <div>
+                      <p className="text-sm text-gray-500 mb-1">Shipping Cost</p>
+                      <p className="font-medium">{formatCurrency(shipment.shipping_cost || 0)}</p>
+                    </div>
+
+                    {shipment.expected_delivery_date && (
+                      <div>
+                        <p className="text-sm text-gray-500 mb-1">Expected Delivery</p>
+                        <p className="font-medium">{formatDate(shipment.expected_delivery_date)}</p>
+                      </div>
+                    )}
+
+                    {shipment.actual_delivery_date && (
+                      <div>
+                        <p className="text-sm text-gray-500 mb-1">Actual Delivery</p>
+                        <p className="font-medium">{formatDate(shipment.actual_delivery_date)}</p>
+                      </div>
+                    )}
+
+                    {shipment.pickup_date && (
+                      <div>
+                        <p className="text-sm text-gray-500 mb-1">Pickup Date</p>
+                        <p className="font-medium">{formatDate(shipment.pickup_date)}</p>
+                      </div>
+                    )}
+
+                    {shipment.weight && (
+                      <div>
+                        <p className="text-sm text-gray-500 mb-1">Weight</p>
+                        <p className="font-medium">{shipment.weight} kg</p>
+                      </div>
+                    )}
+
+                    {shipment.label_url && (
+                      <div className="col-span-2">
+                        <a
+                          href={shipment.label_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 w-fit"
+                        >
+                          <Download className="h-4 w-4" />
+                          Download Shipping Label
+                          <ExternalLink className="h-3 w-3" />
+                        </a>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Live Tracking Timeline from Carrier */}
+                  {shipment.tracking && shipment.status !== 'cancelled' && (
+                    <div className="pt-4 border-t">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-medium text-gray-700">Live Tracking Timeline</p>
+                          <button
+                            onClick={() => refetchShipment()}
+                            className="p-1 hover:bg-gray-100 rounded text-gray-500 hover:text-gray-700"
+                            title="Refresh tracking"
+                          >
+                            <RefreshCw className="h-3 w-3" />
+                          </button>
+                        </div>
+                        {shipment.tracking.current_location && (
+                          <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded-full">
+                            📍 {shipment.tracking.current_location}
+                          </span>
+                        )}
+                      </div>
+                      
+                      {shipment.tracking.status_description && (
+                        <div className="mb-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                          <p className="text-sm font-medium text-blue-900">{shipment.tracking.status_description}</p>
+                        </div>
+                      )}
+
+                      {shipment.tracking.events && shipment.tracking.events.length > 0 ? (
+                        <div className="space-y-3">
+                          {shipment.tracking.events.map((event: any, index: number) => (
+                            <div key={index} className="flex gap-3">
+                              <div className="flex flex-col items-center">
+                                <div className={`w-3 h-3 rounded-full ${
+                                  index === 0 ? 'bg-blue-600' : 'bg-gray-400'
+                                }`}></div>
+                                {index !== shipment.tracking.events.length - 1 && (
+                                  <div className="w-0.5 flex-1 bg-gray-300 mt-1"></div>
+                                )}
+                              </div>
+                              <div className="flex-1 pb-4">
+                                <p className={`text-sm font-medium ${
+                                  index === 0 ? 'text-blue-900' : 'text-gray-900'
+                                }`}>
+                                  {event.status || event.activity || event.description}
+                                </p>
+                                {event.location && (
+                                  <p className="text-xs text-gray-600 mt-0.5">
+                                    📍 {event.location}
+                                  </p>
+                                )}
+                                <p className="text-xs text-gray-500 mt-1">
+                                  {event.timestamp ? formatDate(event.timestamp) : event.date ? formatDate(event.date) : 'N/A'}
+                                </p>
+                                {event.remarks && (
+                                  <p className="text-xs text-gray-600 mt-1 italic">{event.remarks}</p>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 text-center">
+                          <Clock className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                          <p className="text-sm text-gray-600">No tracking events yet</p>
+                          <p className="text-xs text-gray-500 mt-1">
+                            Tracking updates will appear here as the shipment moves through the carrier network.
+                            Click the refresh button to check for updates.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Shipment Timeline (System) */}
+                  {shipment.created_at && (
+                    <div className="pt-4 border-t">
+                      <p className="text-sm font-medium text-gray-700 mb-2">Shipment System Timeline</p>
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Created:</span>
+                          <span className="font-medium">{formatDate(shipment.created_at)}</span>
+                        </div>
+                        {shipment.updated_at && shipment.updated_at !== shipment.created_at && (
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Last Updated:</span>
+                            <span className="font-medium">{formatDate(shipment.updated_at)}</span>
+                          </div>
+                        )}
+                        {shipment.cancelled_at && (
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Cancelled:</span>
+                            <span className="font-medium text-red-600">{formatDate(shipment.cancelled_at)}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Cancel and Recreate Option */}
+                  {shipment.status === 'cancelled' && (
+                    <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                      <div className="flex items-start gap-3">
+                        <Info className="h-5 w-5 text-yellow-600 mt-0.5" />
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-yellow-900">Shipment Cancelled</p>
+                          <p className="text-xs text-yellow-700 mt-1">
+                            You can create a new shipment with a different carrier.
+                          </p>
+                          <button
+                            onClick={() => navigate(`/orders/${id}/create-shipment`)}
+                            className="mt-3 flex items-center gap-2 px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700"
+                          >
+                            <Send className="h-4 w-4" />
+                            Create New Shipment
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <Package className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+                  <p className="text-gray-500 mb-4">No shipment created yet</p>
+                  {(order.status === 'confirmed' || order.status === 'processing') && (
+                    <button
+                      onClick={() => navigate(`/orders/${id}/create-shipment`)}
+                      className="inline-flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                    >
+                      <Send className="h-5 w-5" />
+                      Create Shipment
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {/* Shipping Address */}
+              <div className="mt-6 pt-6 border-t">
+                <p className="text-sm font-medium text-gray-700 mb-3">Shipping Address</p>
+                <div className="flex items-start gap-2">
+                  <MapPin className="h-4 w-4 text-gray-400 mt-1" />
+                  <div>
+                    <p className="font-medium">
+                      {order.shipping_address?.first_name} {order.shipping_address?.last_name}
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      {order.shipping_address?.address_line_1}
+                      {order.shipping_address?.address_line_2 && (
+                        <>, {order.shipping_address.address_line_2}</>
+                      )}
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      {order.shipping_address?.city}, {order.shipping_address?.state} {order.shipping_address?.pincode}
+                    </p>
+                    <p className="text-sm text-gray-600">{order.shipping_address?.country}</p>
+                    {order.shipping_address?.phone && (
+                      <p className="text-sm text-gray-600">Phone: {order.shipping_address.phone}</p>
+                    )}
                   </div>
                 </div>
               </div>
