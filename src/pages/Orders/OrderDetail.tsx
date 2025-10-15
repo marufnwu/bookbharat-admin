@@ -103,8 +103,24 @@ const OrderDetail: React.FC = () => {
       const response = await api.delete(`/orders/${id}/shipment`);
       return response.data;
     },
-    onSuccess: () => {
-      toast.success('Shipment cancelled successfully');
+    onSuccess: (data: any) => {
+      if (data.warning) {
+        // Cancelled locally but carrier API had issues
+        toast.success('Shipment cancelled in system', {
+          duration: 4000,
+        });
+        toast(data.warning, {
+          icon: '⚠️',
+          duration: 6000,
+        });
+      } else {
+        toast.success('Shipment cancelled successfully');
+      }
+      
+      if (data.cancellation_note) {
+        console.log('Cancellation note:', data.cancellation_note);
+      }
+      
       refetch();
       refetchShipment();
     },
@@ -625,6 +641,11 @@ const OrderDetail: React.FC = () => {
                         <Info className="h-5 w-5 text-yellow-600 mt-0.5" />
                         <div className="flex-1">
                           <p className="text-sm font-medium text-yellow-900">Shipment Cancelled</p>
+                          {shipment.cancellation_reason && (
+                            <p className="text-xs text-yellow-700 mt-1 italic">
+                              Reason: {shipment.cancellation_reason}
+                            </p>
+                          )}
                           <p className="text-xs text-yellow-700 mt-1">
                             You can create a new shipment with a different carrier.
                           </p>
