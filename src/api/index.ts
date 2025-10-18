@@ -715,6 +715,9 @@ export {
   bundleAnalyticsApi,
 };
 
+// Export Hero Config API
+export { heroConfigApi } from './extended';
+
 // Export all APIs
 export default {
   auth: authApi,

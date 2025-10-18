@@ -1,56 +1,37 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '../../api/axios';
+import { heroConfigApi } from '../../api';
 import toast from 'react-hot-toast';
+import { HeroConfig, HeroFormData, HeroFormTab } from '../../types/hero';
+import { validateField, validateForm } from './validation';
+import HeroConfigTable from './HeroConfigTable';
+import ImageUploader from '../../components/ImageUploader';
+import ProductPicker from '../../components/ProductPicker';
+import IconPicker from '../../components/IconPicker';
+import CategoryPicker from '../../components/CategoryPicker';
+import HeroPreview from '../../components/HeroPreview';
 import {
   Plus,
-  Edit,
   Trash2,
   Eye,
-  CheckCircle,
-  XCircle,
-  Layout,
-  Image as ImageIcon,
-  Video,
-  Star,
-  Award,
-  TrendingUp,
   X,
-  Upload
+  Layout,
+  CheckCircle,
+  TrendingUp,
 } from 'lucide-react';
 
-interface HeroConfig {
-  id: number;
-  variant: string;
-  title: string;
-  subtitle: string | null;
-  primaryCta: { text: string; href: string } | null;
-  secondaryCta: { text: string; href: string } | null;
-  discountBadge: { text: string; color: string } | null;
-  trustBadges: string[] | null;
-  backgroundImage: string | null;
-  testimonials: Array<{ text: string; author: string; rating: number }> | null;
-  campaignData: { title: string; offer: string; countdown: string } | null;
-  categories: Array<{ id: string; name: string; image: string; href: string }> | null;
-  features: Array<{ title: string; description: string; icon: string }> | null;
-  stats: Array<{ label: string; value: string; icon: string }> | null;
-  featuredProducts: any[] | null;
-  videoUrl: string | null;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
-}
-
-const HeroConfig: React.FC = () => {
+const HeroConfigPage: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [editingConfig, setEditingConfig] = useState<HeroConfig | null>(null);
   const [selectedConfig, setSelectedConfig] = useState<HeroConfig | null>(null);
-  const [activeTab, setActiveTab] = useState<'basic' | 'content' | 'advanced'>('basic');
+  const [activeTab, setActiveTab] = useState<HeroFormTab>('basic');
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [previewMode, setPreviewMode] = useState<'desktop' | 'mobile'>('desktop');
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<HeroFormData>({
     variant: '',
     title: '',
     subtitle: '',
@@ -61,9 +42,11 @@ const HeroConfig: React.FC = () => {
     backgroundImage: '',
     videoUrl: '',
     is_active: false,
-    stats: [] as Array<{ label: string; value: string; icon: string }>,
-    features: [] as Array<{ title: string; description: string; icon: string }>,
-    testimonials: [] as Array<{ text: string; author: string; rating: number }>,
+    stats: [],
+    features: [],
+    testimonials: [],
+    featuredProducts: [],
+    categories: [],
   });
 
   const queryClient = useQueryClient();
@@ -71,10 +54,7 @@ const HeroConfig: React.FC = () => {
   // Fetch all configs
   const { data: configsResponse, isLoading } = useQuery({
     queryKey: ['hero-configs'],
-    queryFn: async () => {
-      const response = await api.get('/hero-config');
-      return response.data;
-    },
+    queryFn: heroConfigApi.getAll,
   });
 
   const configs: HeroConfig[] = configsResponse?.data || [];
@@ -82,10 +62,7 @@ const HeroConfig: React.FC = () => {
 
   // Set active mutation
   const setActiveMutation = useMutation({
-    mutationFn: async (variant: string) => {
-      const response = await api.post('/hero-config/set-active', { variant });
-      return response.data;
-    },
+    mutationFn: heroConfigApi.setActive,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['hero-configs'] });
       toast.success('Active variant updated successfully');
@@ -97,10 +74,7 @@ const HeroConfig: React.FC = () => {
 
   // Delete mutation
   const deleteMutation = useMutation({
-    mutationFn: async (variant: string) => {
-      const response = await api.delete(`/hero-config/${variant}`);
-      return response.data;
-    },
+    mutationFn: heroConfigApi.delete,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['hero-configs'] });
       toast.success('Hero configuration deleted successfully');
@@ -114,11 +88,9 @@ const HeroConfig: React.FC = () => {
   const saveMutation = useMutation({
     mutationFn: async (data: any) => {
       if (editingConfig) {
-        const response = await api.put(`/hero-config/${editingConfig.variant}`, data);
-        return response.data;
+        return heroConfigApi.update(editingConfig.variant, data);
       } else {
-        const response = await api.post('/hero-config', data);
-        return response.data;
+        return heroConfigApi.create(data);
       }
     },
     onSuccess: () => {
@@ -131,17 +103,54 @@ const HeroConfig: React.FC = () => {
     },
   });
 
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
     const checked = (e.target as HTMLInputElement).checked;
+    const newValue = type === 'checkbox' ? checked : value;
+    
     setFormData(prev => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : value
+      [name]: newValue
     }));
+
+    // Clear validation error when user starts typing
+    if (validationErrors[name]) {
+      setValidationErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[name];
+        return newErrors;
+      });
+    }
+  };
+
+  const handleBlur = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    const error = validateField(name, value);
+    
+    if (error) {
+      setValidationErrors(prev => ({ ...prev, [name]: error }));
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Validate all required fields
+    const errors = validateForm(formData);
+
+    if (Object.keys(errors).length > 0) {
+      setValidationErrors(errors);
+      toast.error('Please fix validation errors before submitting');
+      return;
+    }
+
+    // Check for duplicate variant
+    const exists = configs.find(c => c.variant === formData.variant && c.id !== editingConfig?.id);
+    if (exists) {
+      toast.error('Variant name already exists. Please choose a different name.');
+      return;
+    }
 
     const submitData: any = {
       variant: formData.variant,
@@ -153,6 +162,8 @@ const HeroConfig: React.FC = () => {
       stats: formData.stats.length > 0 ? formData.stats : null,
       features: formData.features.length > 0 ? formData.features : null,
       testimonials: formData.testimonials.length > 0 ? formData.testimonials : null,
+      featuredProducts: formData.featuredProducts.length > 0 ? formData.featuredProducts : null,
+      categories: formData.categories.length > 0 ? formData.categories : null,
     };
 
     if (formData.primaryCta_text && formData.primaryCta_href) {
@@ -188,6 +199,8 @@ const HeroConfig: React.FC = () => {
       stats: config.stats || [],
       features: config.features || [],
       testimonials: config.testimonials || [],
+      featuredProducts: config.featuredProducts || [],
+      categories: config.categories || [],
     });
     setShowModal(true);
   };
@@ -211,6 +224,9 @@ const HeroConfig: React.FC = () => {
     setShowModal(false);
     setEditingConfig(null);
     setActiveTab('basic');
+    setImagePreview(null);
+    setImageFile(null);
+    setValidationErrors({});
     setFormData({
       variant: '',
       title: '',
@@ -225,6 +241,8 @@ const HeroConfig: React.FC = () => {
       stats: [],
       features: [],
       testimonials: [],
+      featuredProducts: [],
+      categories: [],
     });
   };
 
@@ -296,147 +314,15 @@ const HeroConfig: React.FC = () => {
 
       {/* Configs Table */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
-        {isLoading ? (
-          <div className="flex items-center justify-center h-64">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          </div>
-        ) : configs.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Variant
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Title
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Features
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {configs.map((config) => (
-                  <tr key={config.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div>
-                        <p className="font-mono font-semibold text-gray-900">{config.variant}</p>
-                        <p className="text-xs text-gray-500">
-                          Updated {new Date(config.updated_at).toLocaleDateString()}
-                        </p>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="max-w-xs">
-                        <p className="font-medium text-gray-900 truncate">{config.title}</p>
-                        {config.subtitle && (
-                          <p className="text-sm text-gray-500 truncate">{config.subtitle}</p>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center gap-2">
-                        {config.backgroundImage && (
-                          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs bg-purple-100 text-purple-800">
-                            <ImageIcon className="h-3 w-3" />
-                            Image
-                          </span>
-                        )}
-                        {config.videoUrl && (
-                          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800">
-                            <Video className="h-3 w-3" />
-                            Video
-                          </span>
-                        )}
-                        {config.features && config.features.length > 0 && (
-                          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">
-                            <Star className="h-3 w-3" />
-                            {config.features.length} Features
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span
-                        className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
-                          config.is_active
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-gray-100 text-gray-800'
-                        }`}
-                      >
-                        {config.is_active ? (
-                          <>
-                            <CheckCircle className="h-3 w-3" />
-                            Active
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="h-3 w-3" />
-                            Inactive
-                          </>
-                        )}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => handlePreview(config)}
-                          className="p-1 text-purple-600 hover:bg-purple-50 rounded"
-                          title="Preview"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => handleEdit(config)}
-                          className="p-1 text-blue-600 hover:bg-blue-50 rounded"
-                          title="Edit"
-                        >
-                          <Edit className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => setActiveMutation.mutate(config.variant)}
-                          className={`p-1 ${
-                            config.is_active
-                              ? 'text-gray-400 cursor-not-allowed'
-                              : 'text-green-600 hover:bg-green-50'
-                          } rounded`}
-                          title={config.is_active ? 'Already Active' : 'Set as Active'}
-                          disabled={config.is_active}
-                        >
-                          <CheckCircle className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(config)}
-                          className={`p-1 ${
-                            config.is_active
-                              ? 'text-gray-400 cursor-not-allowed'
-                              : 'text-red-600 hover:bg-red-50'
-                          } rounded`}
-                          title="Delete"
-                          disabled={config.is_active}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <div className="text-center py-12">
-            <Layout className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-500">No hero configurations found</p>
-          </div>
-        )}
+        <HeroConfigTable
+          configs={configs}
+          isLoading={isLoading}
+          activeConfig={activeConfig}
+          setActiveMutation={setActiveMutation}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+          onPreview={handlePreview}
+        />
       </div>
 
       {/* Create/Edit Modal */}
@@ -483,11 +369,19 @@ const HeroConfig: React.FC = () => {
                         name="variant"
                         value={formData.variant}
                         onChange={handleInputChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                        onBlur={handleBlur}
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-blue-500 ${
+                          validationErrors.variant
+                            ? 'border-red-500 focus:border-red-500'
+                            : 'border-gray-300 focus:border-blue-500'
+                        }`}
                         placeholder="e.g., minimal-product"
                         required
                         disabled={!!editingConfig}
                       />
+                      {validationErrors.variant && (
+                        <p className="mt-1 text-sm text-red-600">{validationErrors.variant}</p>
+                      )}
                     </div>
 
                     <div className="flex items-end">
@@ -507,16 +401,29 @@ const HeroConfig: React.FC = () => {
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Title <span className="text-red-500">*</span>
+                      {formData.title && (
+                        <span className="ml-2 text-xs text-gray-500">
+                          {formData.title.length}/255
+                        </span>
+                      )}
                     </label>
                     <input
                       type="text"
                       name="title"
                       value={formData.title}
                       onChange={handleInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                      onBlur={handleBlur}
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-blue-500 ${
+                        validationErrors.title
+                          ? 'border-red-500 focus:border-red-500'
+                          : 'border-gray-300 focus:border-blue-500'
+                      }`}
                       placeholder="Premium Books at Unbeatable Prices"
                       required
                     />
+                    {validationErrors.title && (
+                      <p className="mt-1 text-sm text-red-600">{validationErrors.title}</p>
+                    )}
                   </div>
 
                   <div>
@@ -599,19 +506,12 @@ const HeroConfig: React.FC = () => {
 
               {activeTab === 'advanced' && (
                 <>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Background Image URL
-                    </label>
-                    <input
-                      type="text"
-                      name="backgroundImage"
-                      value={formData.backgroundImage}
-                      onChange={handleInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="/images/hero-bg.jpg"
-                    />
-                  </div>
+                  <ImageUploader
+                    label="Background Image"
+                    value={formData.backgroundImage || null}
+                    onChange={(url) => setFormData(prev => ({ ...prev, backgroundImage: url || '' }))}
+                    maxSizeMB={5}
+                  />
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Video URL</label>
@@ -624,6 +524,20 @@ const HeroConfig: React.FC = () => {
                       placeholder="/videos/hero.mp4"
                     />
                   </div>
+
+                  <ProductPicker
+                    label="Featured Products"
+                    selected={formData.featuredProducts}
+                    onChange={(productIds) => setFormData(prev => ({ ...prev, featuredProducts: productIds }))}
+                    max={20}
+                  />
+
+                  <CategoryPicker
+                    label="Categories (for category-grid variant)"
+                    selected={formData.categories}
+                    onChange={(categories) => setFormData(prev => ({ ...prev, categories }))}
+                    max={8}
+                  />
 
                   {/* Stats Editor */}
                   <div className="space-y-3 pt-4 border-t">
@@ -683,17 +597,17 @@ const HeroConfig: React.FC = () => {
                             placeholder="Books Sold"
                             className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
                           />
-                          <input
-                            type="text"
-                            value={stat.icon}
-                            onChange={(e) => {
-                              const newStats = [...formData.stats];
-                              newStats[index].icon = e.target.value;
-                              setFormData(prev => ({ ...prev, stats: newStats }));
-                            }}
-                            placeholder="trending-up"
-                            className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                          />
+                          <div className="col-span-1">
+                            <IconPicker
+                              value={stat.icon}
+                              onChange={(iconName) => {
+                                const newStats = [...formData.stats];
+                                newStats[index].icon = iconName;
+                                setFormData(prev => ({ ...prev, stats: newStats }));
+                              }}
+                              label=""
+                            />
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -756,16 +670,14 @@ const HeroConfig: React.FC = () => {
                           rows={2}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
                         />
-                        <input
-                          type="text"
+                        <IconPicker
                           value={feature.icon}
-                          onChange={(e) => {
+                          onChange={(iconName) => {
                             const newFeatures = [...formData.features];
-                            newFeatures[index].icon = e.target.value;
+                            newFeatures[index].icon = iconName;
                             setFormData(prev => ({ ...prev, features: newFeatures }));
                           }}
-                          placeholder="star"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                          label="Icon"
                         />
                       </div>
                     ))}
@@ -872,164 +784,85 @@ const HeroConfig: React.FC = () => {
 
       {/* Preview Modal */}
       {showPreviewModal && selectedConfig && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b">
               <h3 className="text-lg font-semibold">Preview: {selectedConfig.variant}</h3>
-              <button
-                onClick={() => setShowPreviewModal(false)}
-                className="p-1 hover:bg-gray-100 rounded"
-              >
-                <X className="h-5 w-5" />
-              </button>
+              <div className="flex items-center gap-2">
+                <div className="flex bg-gray-100 rounded-lg p-1">
+                  <button
+                    onClick={() => setPreviewMode('desktop')}
+                    className={`px-3 py-1 text-xs font-medium rounded ${
+                      previewMode === 'desktop'
+                        ? 'bg-white text-gray-900 shadow-sm'
+                        : 'text-gray-600'
+                    }`}
+                  >
+                    Desktop
+                  </button>
+                  <button
+                    onClick={() => setPreviewMode('mobile')}
+                    className={`px-3 py-1 text-xs font-medium rounded ${
+                      previewMode === 'mobile'
+                        ? 'bg-white text-gray-900 shadow-sm'
+                        : 'text-gray-600'
+                    }`}
+                  >
+                    Mobile
+                  </button>
+                </div>
+                <button
+                  onClick={() => setShowPreviewModal(false)}
+                  className="p-1 hover:bg-gray-100 rounded"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
             </div>
 
-            <div className="space-y-4">
-              {/* Basic Info */}
-              <div className="bg-gray-50 rounded-lg p-4">
-                <h4 className="font-medium text-gray-900 mb-2">Basic Information</h4>
-                <div className="space-y-2 text-sm">
+            <div className="flex-1 overflow-y-auto bg-gray-100 p-6">
+              <div className="mb-4 text-center">
+                <span className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 rounded-lg text-sm">
+                  <Eye className="h-4 w-4" />
+                  Live Preview - {previewMode === 'desktop' ? 'Desktop View' : 'Mobile View (375px)'}
+                </span>
+              </div>
+              
+              <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+                <HeroPreview config={selectedConfig} viewMode={previewMode} />
+              </div>
+
+              {/* Configuration Details */}
+              <div className="mt-6 bg-white rounded-lg p-4">
+                <h4 className="font-medium text-gray-900 mb-3">Configuration Details</h4>
+                <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
-                    <span className="font-medium">Variant:</span> {selectedConfig.variant}
+                    <span className="text-gray-600">Variant:</span>
+                    <span className="ml-2 font-medium">{selectedConfig.variant}</span>
                   </div>
                   <div>
-                    <span className="font-medium">Title:</span> {selectedConfig.title}
-                  </div>
-                  {selectedConfig.subtitle && (
-                    <div>
-                      <span className="font-medium">Subtitle:</span> {selectedConfig.subtitle}
-                    </div>
-                  )}
-                  <div>
-                    <span className="font-medium">Status:</span>{' '}
-                    <span
-                      className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs ${
-                        selectedConfig.is_active
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-gray-100 text-gray-800'
-                      }`}
-                    >
+                    <span className="text-gray-600">Status:</span>
+                    <span className={`ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs ${
+                      selectedConfig.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                    }`}>
                       {selectedConfig.is_active ? 'Active' : 'Inactive'}
                     </span>
                   </div>
+                  {selectedConfig.backgroundImage && (
+                    <div className="col-span-2">
+                      <span className="text-gray-600">Background Image:</span>
+                      <span className="ml-2 text-xs text-gray-500 truncate block">{selectedConfig.backgroundImage}</span>
+                    </div>
+                  )}
+                  {selectedConfig.primaryCta && (
+                    <div className="col-span-2">
+                      <span className="text-gray-600">Primary CTA:</span>
+                      <span className="ml-2 font-medium">{selectedConfig.primaryCta.text}</span>
+                      <span className="text-gray-500 text-xs ml-2">→ {selectedConfig.primaryCta.href}</span>
+                    </div>
+                  )}
                 </div>
               </div>
-
-              {/* CTAs */}
-              {(selectedConfig.primaryCta || selectedConfig.secondaryCta) && (
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <h4 className="font-medium text-gray-900 mb-2">Call-to-Actions</h4>
-                  <div className="space-y-2 text-sm">
-                    {selectedConfig.primaryCta && (
-                      <div>
-                        <span className="font-medium">Primary:</span> {selectedConfig.primaryCta.text} →{' '}
-                        {selectedConfig.primaryCta.href}
-                      </div>
-                    )}
-                    {selectedConfig.secondaryCta && (
-                      <div>
-                        <span className="font-medium">Secondary:</span>{' '}
-                        {selectedConfig.secondaryCta.text} → {selectedConfig.secondaryCta.href}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Media */}
-              {(selectedConfig.backgroundImage || selectedConfig.videoUrl) && (
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <h4 className="font-medium text-gray-900 mb-2">Media</h4>
-                  <div className="space-y-2 text-sm">
-                    {selectedConfig.backgroundImage && (
-                      <div>
-                        <span className="font-medium">Background Image:</span>{' '}
-                        {selectedConfig.backgroundImage}
-                      </div>
-                    )}
-                    {selectedConfig.videoUrl && (
-                      <div>
-                        <span className="font-medium">Video:</span> {selectedConfig.videoUrl}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Features */}
-              {selectedConfig.features && selectedConfig.features.length > 0 && (
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <h4 className="font-medium text-gray-900 mb-2">Features</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {selectedConfig.features.map((feature, idx) => (
-                      <div key={idx} className="bg-white rounded p-3">
-                        <div className="flex items-start gap-2">
-                          <Award className="h-4 w-4 text-blue-600 mt-0.5" />
-                          <div>
-                            <p className="font-medium text-sm">{feature.title}</p>
-                            <p className="text-xs text-gray-600">{feature.description}</p>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Stats */}
-              {selectedConfig.stats && selectedConfig.stats.length > 0 && (
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <h4 className="font-medium text-gray-900 mb-2">Statistics</h4>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    {selectedConfig.stats.map((stat, idx) => (
-                      <div key={idx} className="bg-white rounded p-3 text-center">
-                        <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
-                        <p className="text-xs text-gray-600">{stat.label}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Trust Badges */}
-              {selectedConfig.trustBadges && selectedConfig.trustBadges.length > 0 && (
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <h4 className="font-medium text-gray-900 mb-2">Trust Badges</h4>
-                  <div className="flex flex-wrap gap-2">
-                    {selectedConfig.trustBadges.map((badge, idx) => (
-                      <span
-                        key={idx}
-                        className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs bg-blue-100 text-blue-800"
-                      >
-                        <Award className="h-3 w-3" />
-                        {badge}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Testimonials */}
-              {selectedConfig.testimonials && selectedConfig.testimonials.length > 0 && (
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <h4 className="font-medium text-gray-900 mb-2">Testimonials</h4>
-                  <div className="space-y-3">
-                    {selectedConfig.testimonials.map((testimonial, idx) => (
-                      <div key={idx} className="bg-white rounded p-3">
-                        <p className="text-sm text-gray-700 italic">"{testimonial.text}"</p>
-                        <div className="flex items-center justify-between mt-2">
-                          <p className="text-xs text-gray-600">— {testimonial.author}</p>
-                          <div className="flex items-center gap-1">
-                            {Array.from({ length: testimonial.rating }).map((_, i) => (
-                              <Star key={i} className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
 
             <div className="flex justify-end gap-3 pt-4 border-t mt-4">
@@ -1047,4 +880,4 @@ const HeroConfig: React.FC = () => {
   );
 };
 
-export default HeroConfig;
+export default HeroConfigPage;

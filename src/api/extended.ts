@@ -398,3 +398,14 @@ export const taxConfigurationsApi = {
   delete: (id: number) => api.delete(`/tax-configurations/${id}`).then(res => res.data),
   toggleStatus: (id: number) => api.patch(`/tax-configurations/${id}/toggle`).then(res => res.data),
 };
+
+// Hero Configuration API
+export const heroConfigApi = {
+  getAll: () => api.get('/hero-config').then(res => res.data),
+  getActive: () => api.get('/hero-config/active').then(res => res.data),
+  getOne: (variant: string) => api.get(`/hero-config/${variant}`).then(res => res.data),
+  create: (data: any) => api.post('/hero-config', data).then(res => res.data),
+  update: (variant: string, data: any) => api.put(`/hero-config/${variant}`, data).then(res => res.data),
+  delete: (variant: string) => api.delete(`/hero-config/${variant}`).then(res => res.data),
+  setActive: (variant: string) => api.post('/hero-config/set-active', { variant }).then(res => res.data),
+};
