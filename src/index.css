@@ -15,3 +15,102 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
+
+/* Admin Product Description HTML Rendering Styles */
+.admin-product-description {
+  @apply leading-relaxed;
+}
+
+.admin-product-description h1 {
+  @apply text-2xl font-bold mt-4 mb-3;
+}
+
+.admin-product-description h2 {
+  @apply text-xl font-bold mt-4 mb-2;
+}
+
+.admin-product-description h3 {
+  @apply text-lg font-semibold mt-3 mb-2;
+}
+
+.admin-product-description h4,
+.admin-product-description h5,
+.admin-product-description h6 {
+  @apply text-base font-semibold mt-2 mb-2;
+}
+
+.admin-product-description p {
+  @apply mb-3;
+}
+
+.admin-product-description ul,
+.admin-product-description ol {
+  @apply pl-6 mb-3 space-y-1;
+}
+
+.admin-product-description ul {
+  @apply list-disc;
+}
+
+.admin-product-description ol {
+  @apply list-decimal;
+}
+
+.admin-product-description li {
+  @apply leading-relaxed;
+}
+
+.admin-product-description a {
+  @apply text-blue-600 underline hover:text-blue-800 transition-colors;
+}
+
+.admin-product-description strong,
+.admin-product-description b {
+  @apply font-bold;
+}
+
+.admin-product-description em,
+.admin-product-description i {
+  @apply italic;
+}
+
+.admin-product-description u {
+  @apply underline;
+}
+
+.admin-product-description blockquote {
+  @apply border-l-4 border-gray-400 pl-4 py-2 my-3 italic text-gray-600;
+}
+
+.admin-product-description code {
+  @apply bg-gray-100 px-2 py-1 rounded text-sm font-mono;
+}
+
+.admin-product-description pre {
+  @apply bg-gray-800 text-gray-100 p-4 rounded-lg overflow-x-auto my-3;
+}
+
+.admin-product-description pre code {
+  @apply bg-transparent p-0;
+}
+
+.admin-product-description img {
+  @apply max-w-full h-auto rounded-lg my-3;
+}
+
+.admin-product-description table {
+  @apply w-full border-collapse my-3;
+}
+
+.admin-product-description table th,
+.admin-product-description table td {
+  @apply border border-gray-300 px-4 py-2;
+}
+
+.admin-product-description table th {
+  @apply bg-gray-100 font-semibold text-left;
+}
+
+.admin-product-description table tr:hover {
+  @apply bg-gray-50;
+}

@@ -200,9 +200,12 @@ const ProductDetail: React.FC = () => {
             {/* Description */}
             <div>
               <h3 className="text-lg font-medium text-gray-900 mb-4">Description</h3>
-              <p className="text-sm text-gray-700 whitespace-pre-wrap">
-                {product.description || 'No description available'}
-              </p>
+              <div 
+                className="text-sm text-gray-700 prose prose-sm max-w-none admin-product-description"
+                dangerouslySetInnerHTML={{
+                  __html: product.description || 'No description available'
+                }}
+              />
             </div>
 
             {/* Pricing */}

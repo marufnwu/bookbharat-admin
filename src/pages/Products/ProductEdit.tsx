@@ -4,6 +4,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { productsApi, categoriesApi, publishersApi, authorsApi } from '../../api';
 import { Upload, X, Save, ArrowLeft, Loader2 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import RichTextEditor from '../../components/RichTextEditor';
 
 interface ProductForm {
   name: string;
@@ -388,13 +389,10 @@ const ProductEdit: React.FC = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Description <span className="text-red-500">*</span>
                 </label>
-                <textarea
-                  name="description"
+                <RichTextEditor
                   value={formData.description}
-                  onChange={handleInputChange}
-                  rows={4}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                  required
+                  onChange={(value) => setFormData(prev => ({ ...prev, description: value }))}
+                  placeholder="Enter detailed product description..."
                 />
               </div>
 

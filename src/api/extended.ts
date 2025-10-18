@@ -78,8 +78,9 @@ export const categoriesApiExtended = {
   deleteCategory: (id: number) => api.delete(`/categories/${id}`).then(res => res.data),
   getCategoryTree: () => {
     // Use public API endpoint for category tree since it doesn't require admin auth
+    const publicBaseURL = process.env.REACT_APP_API_URL || process.env.REACT_APP_ADMIN_API_URL?.replace('/admin', '') || 'http://localhost:8000/api/v1';
     const publicApi = axios.create({
-      baseURL: 'http://localhost:8000/api/v1',
+      baseURL: publicBaseURL,
       timeout: 30000,
       headers: {
         'Content-Type': 'application/json',
