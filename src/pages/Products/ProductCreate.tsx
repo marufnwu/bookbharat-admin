@@ -5,6 +5,7 @@ import { productsApi, categoriesApi, publishersApi, authorsApi } from '../../api
 import { Upload, X, Plus, Save, ArrowLeft } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import RichTextEditor from '../../components/RichTextEditor';
+import BundleVariantManager from '../../components/BundleVariantManager';
 
 interface ProductForm {
   name: string;
@@ -238,6 +239,9 @@ const ProductCreate: React.FC = () => {
     { id: 'images', label: 'Images' },
     { id: 'seo', label: 'SEO' },
   ];
+
+  // Note: Bundle Variants tab is not shown on create page
+  // Bundle variants can only be created after the product is saved
 
   return (
     <div className="space-y-6">

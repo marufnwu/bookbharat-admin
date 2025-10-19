@@ -5,6 +5,7 @@ import { productsApi, categoriesApi, publishersApi, authorsApi } from '../../api
 import { Upload, X, Save, ArrowLeft, Loader2 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import RichTextEditor from '../../components/RichTextEditor';
+import BundleVariantManager from '../../components/BundleVariantManager';
 
 interface ProductForm {
   name: string;
@@ -258,6 +259,7 @@ const ProductEdit: React.FC = () => {
     { id: 'basic', label: 'Basic Information' },
     { id: 'details', label: 'Product Details' },
     { id: 'pricing', label: 'Pricing & Inventory' },
+    { id: 'bundle-variants', label: 'Bundle Variants' },
     { id: 'images', label: 'Images' },
     { id: 'seo', label: 'SEO' },
   ];
@@ -311,8 +313,16 @@ const ProductEdit: React.FC = () => {
           </nav>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6">
-          {activeTab === 'basic' && (
+        <div className="p-6">
+          {activeTab === 'bundle-variants' ? (
+            <BundleVariantManager
+              productId={Number(id)}
+              productPrice={formData.price}
+              productStock={formData.stock_quantity}
+            />
+          ) : (
+            <form onSubmit={handleSubmit}>
+              {activeTab === 'basic' && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -749,7 +759,9 @@ const ProductEdit: React.FC = () => {
               </div>
             </div>
           )}
-        </form>
+            </form>
+          )}
+        </div>
       </div>
     </div>
   );

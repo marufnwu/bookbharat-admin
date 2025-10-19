@@ -33,6 +33,7 @@ import {
   productAssociationsApi,
   bundleDiscountRulesApi,
   bundleAnalyticsApi,
+  bundleVariantsApi,
 } from './extended';
 
 // Auth API (base)
@@ -713,6 +714,7 @@ export {
   productAssociationsApi,
   bundleDiscountRulesApi,
   bundleAnalyticsApi,
+  bundleVariantsApi,
 };
 
 // Export Hero Config API
@@ -736,6 +738,7 @@ export default {
   content: contentApi,
   reports: reportsApi,
   productAssociations: productAssociationsApi,
+  bundleVariants: bundleVariantsApi,
   bundleDiscountRules: bundleDiscountRulesApi,
   bundleAnalytics: bundleAnalyticsApi,
 };

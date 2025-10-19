@@ -62,27 +62,38 @@ export interface AuthResponse {
 // Product Types
 export interface Product {
   id: number;
-  title: string;
+  title?: string; // For backwards compatibility
+  name?: string; // Primary field used by backend
   slug: string;
   description: string;
   short_description: string;
   sku: string;
   price: number;
   sale_price: number | null;
+  compare_price?: number | null;
+  cost_price?: number | null;
   status: 'active' | 'inactive' | 'draft';
   stock_quantity: number;
   manage_stock: boolean;
-  featured: boolean;
+  is_active?: boolean;
+  is_featured?: boolean;
+  featured?: boolean;
   weight: number | null;
   dimensions: string | null;
   category_id: number;
   brand_id: number | null;
+  author?: string;
+  publisher?: string;
+  isbn?: string;
+  language?: string;
+  pages?: number;
   created_at: string;
   updated_at: string;
   category?: Category;
   brand?: Brand;
   images?: ProductImage[];
   variants?: ProductVariant[];
+  bundle_variants?: ProductBundleVariant[];
 }
 
 export interface ProductImage {
@@ -103,6 +114,27 @@ export interface ProductVariant {
   sale_price: number | null;
   stock_quantity: number;
   attributes: Record<string, string>;
+}
+
+export interface ProductBundleVariant {
+  id?: number;
+  product_id: number;
+  name: string;
+  sku: string;
+  quantity: number;
+  pricing_type: 'percentage_discount' | 'fixed_price' | 'fixed_discount';
+  discount_percentage?: number;
+  fixed_price?: number;
+  fixed_discount?: number;
+  compare_price?: number;
+  stock_management_type: 'use_main_product' | 'separate_stock';
+  stock_quantity?: number;
+  is_active: boolean;
+  sort_order: number;
+  calculated_price?: number;
+  savings_amount?: number;
+  savings_percentage?: number;
+  metadata?: Record<string, any>;
 }
 
 export interface Category {

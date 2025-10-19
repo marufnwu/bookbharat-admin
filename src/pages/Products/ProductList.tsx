@@ -156,7 +156,7 @@ const ProductList: React.FC = () => {
             {record.images && record.images.length > 0 ? (
               <img
                 src={record.images[0].image_url || record.images[0].image_path}
-                alt={record.images[0].alt_text || record.title}
+                alt={record.images[0].alt_text || record.name || record.title}
                 className="h-10 w-10 rounded-md object-cover"
               />
             ) : (
@@ -164,7 +164,7 @@ const ProductList: React.FC = () => {
             )}
           </div>
           <div>
-            <div className="font-medium text-gray-900">{value}</div>
+            <div className="font-medium text-gray-900">{record.name || value}</div>
             <div className="text-sm text-gray-500">{record.sku}</div>
           </div>
         </div>

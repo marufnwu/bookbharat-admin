@@ -11,11 +11,13 @@ import {
   ChartBarIcon,
   StarIcon,
   PhotoIcon,
+  Squares2X2Icon,
 } from '@heroicons/react/24/outline';
-import { productsApi } from '../../api';
+import { productsApi, bundleVariantsApi } from '../../api';
 import { Button, Badge, LoadingSpinner } from '../../components';
 import { useNotificationStore } from '../../store/notificationStore';
 import { format } from 'date-fns';
+import { ProductBundleVariant } from '../../types';
 
 const ProductDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -28,6 +30,13 @@ const ProductDetail: React.FC = () => {
   const { data: productResponse, isLoading } = useQuery({
     queryKey: ['product', id],
     queryFn: () => productsApi.getProduct(Number(id)),
+    enabled: !!id,
+  });
+
+  // Fetch bundle variants
+  const { data: bundleVariantsData } = useQuery({
+    queryKey: ['bundleVariants', id],
+    queryFn: () => bundleVariantsApi.getAll(Number(id)),
     enabled: !!id,
   });
 
@@ -49,6 +58,13 @@ const ProductDetail: React.FC = () => {
     }
   };
 
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+    }).format(amount);
+  };
+
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -59,6 +75,7 @@ const ProductDetail: React.FC = () => {
 
   const product = productResponse?.product;
   const analytics = productResponse?.analytics;
+  const bundleVariants = bundleVariantsData?.bundle_variants || [];
 
   if (!product) {
     return (
@@ -71,13 +88,6 @@ const ProductDetail: React.FC = () => {
     );
   }
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-    }).format(amount);
-  };
-
   const getStockBadge = () => {
     if (!product.manage_stock) return <Badge variant="info">Stock Not Managed</Badge>;
     if (product.stock_quantity === 0) return <Badge variant="error">Out of Stock</Badge>;
@@ -88,6 +98,7 @@ const ProductDetail: React.FC = () => {
   const tabs = [
     { id: 'details', name: 'Details', icon: TagIcon },
     { id: 'inventory', name: 'Inventory', icon: CubeIcon },
+    { id: 'bundle-variants', name: 'Bundle Variants', icon: Squares2X2Icon },
     { id: 'analytics', name: 'Analytics', icon: ChartBarIcon },
     { id: 'reviews', name: 'Reviews', icon: StarIcon },
     { id: 'images', name: 'Images', icon: PhotoIcon },
@@ -338,6 +349,152 @@ const ProductDetail: React.FC = () => {
                       ))}
                     </tbody>
                   </table>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'bundle-variants' && (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-lg font-medium text-gray-900">Bundle Variants</h3>
+                <p className="text-sm text-gray-500 mt-1">
+                  Quantity-based bundle options for this product
+                </p>
+              </div>
+              <Link to={`/products/${id}/edit`}>
+                <Button variant="outline">
+                  <PencilIcon className="h-4 w-4 mr-2" />
+                  Manage Bundles
+                </Button>
+              </Link>
+            </div>
+
+            {bundleVariants.length > 0 ? (
+              <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Bundle
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Quantity
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Pricing
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Price
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Savings
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Stock
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Status
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {bundleVariants.map((variant: ProductBundleVariant) => {
+                      const originalPrice = parseFloat(product.price) * variant.quantity;
+                      const bundlePrice = variant.calculated_price || 0;
+                      const savings = originalPrice - bundlePrice;
+                      const savingsPercent = originalPrice > 0 ? Math.round((savings / originalPrice) * 100) : 0;
+                      
+                      return (
+                        <tr key={variant.id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div>
+                              <div className="text-sm font-medium text-gray-900">{variant.name}</div>
+                              <div className="text-xs text-gray-500">{variant.sku}</div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {variant.quantity} items
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-800">
+                              {variant.pricing_type === 'percentage_discount' && `${variant.discount_percentage}% off`}
+                              {variant.pricing_type === 'fixed_price' && 'Fixed Price'}
+                              {variant.pricing_type === 'fixed_discount' && `₹${variant.fixed_discount} off`}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div>
+                              <div className="text-sm font-semibold text-gray-900">
+                                {formatCurrency(bundlePrice)}
+                              </div>
+                              <div className="text-xs text-gray-500 line-through">
+                                {formatCurrency(originalPrice)}
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                              {savingsPercent}% off
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {variant.stock_management_type === 'use_main_product'
+                              ? `Uses main stock`
+                              : `${variant.stock_quantity} bundles`}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <Badge variant={variant.is_active ? 'success' : 'default'}>
+                              {variant.is_active ? 'Active' : 'Inactive'}
+                            </Badge>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="text-center py-12 bg-gray-50 rounded-lg">
+                <Squares2X2Icon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-500 mb-2">No bundle variants created</p>
+                <p className="text-sm text-gray-400 mb-4">
+                  Create quantity-based bundles to offer special pricing
+                </p>
+                <Link to={`/products/${id}/edit`}>
+                  <Button>
+                    <PencilIcon className="h-4 w-4 mr-2" />
+                    Add Bundle Variants
+                  </Button>
+                </Link>
+              </div>
+            )}
+
+            {/* Info box */}
+            {bundleVariants.length > 0 && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h4 className="text-sm font-semibold text-blue-900 mb-2">Bundle Variants Summary</h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-blue-800">
+                  <div>
+                    <span className="font-medium">Total Bundles:</span>
+                    <span className="ml-2">{bundleVariants.length}</span>
+                  </div>
+                  <div>
+                    <span className="font-medium">Active Bundles:</span>
+                    <span className="ml-2">{bundleVariants.filter((v: ProductBundleVariant) => v.is_active).length}</span>
+                  </div>
+                  <div>
+                    <span className="font-medium">Best Savings:</span>
+                    <span className="ml-2">
+                      {Math.max(...bundleVariants.map((v: ProductBundleVariant) => {
+                        const original = parseFloat(product.price) * v.quantity;
+                        const bundle = v.calculated_price || 0;
+                        return original > 0 ? Math.round(((original - bundle) / original) * 100) : 0;
+                      }), 0)}%
+                    </span>
+                  </div>
                 </div>
               </div>
             )}

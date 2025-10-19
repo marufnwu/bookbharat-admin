@@ -69,6 +69,18 @@ export const productsApiExtended = {
   getAnalytics: (id: number) => api.get(`/products/${id}/analytics`).then(res => res.data),
 };
 
+// Bundle Variants API
+export const bundleVariantsApi = {
+  getAll: (productId: number) => api.get(`/products/${productId}/bundle-variants`).then(res => res.data),
+  getById: (productId: number, variantId: number) => api.get(`/products/${productId}/bundle-variants/${variantId}`).then(res => res.data),
+  create: (productId: number, data: any) => api.post(`/products/${productId}/bundle-variants`, data).then(res => res.data),
+  update: (productId: number, variantId: number, data: any) => api.put(`/products/${productId}/bundle-variants/${variantId}`, data).then(res => res.data),
+  delete: (productId: number, variantId: number) => api.delete(`/products/${productId}/bundle-variants/${variantId}`).then(res => res.data),
+  calculatePrice: (productId: number, data: any) => api.post(`/products/${productId}/bundle-variants/calculate-price`, data).then(res => res.data),
+  updateSortOrder: (productId: number, variants: Array<{ id: number; sort_order: number }>) => 
+    api.post(`/products/${productId}/bundle-variants/update-sort-order`, { variants }).then(res => res.data),
+};
+
 // Extended Categories API
 export const categoriesApiExtended = {
   getCategories: (filters?: any) => api.get('/categories', { params: filters }).then(res => res.data),
