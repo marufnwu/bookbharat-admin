@@ -18,6 +18,7 @@ import { Button, Badge, LoadingSpinner } from '../../components';
 import { useNotificationStore } from '../../store/notificationStore';
 import { format } from 'date-fns';
 import { ProductBundleVariant } from '../../types';
+import { getFullImageUrl } from '../../utils/imageUrl';
 
 const ProductDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -650,9 +651,12 @@ const ProductDetail: React.FC = () => {
                 {product.images.map((image: any) => (
                   <div key={image.id} className="relative group">
                     <img
-                      src={image.image_url || image.url}
+                      src={getFullImageUrl(image.image_url) || getFullImageUrl(image.url) || '/placeholder-image.png'}
                       alt={image.alt_text || image.alt || product.name}
                       className="w-full h-48 object-cover rounded-lg"
+                      onError={(e) => {
+                        e.currentTarget.src = '/placeholder-image.png';
+                      }}
                     />
                     {image.is_primary && (
                       <span className="absolute top-2 left-2 bg-blue-600 text-white text-xs px-2 py-1 rounded">

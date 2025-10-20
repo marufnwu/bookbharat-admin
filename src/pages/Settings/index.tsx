@@ -26,6 +26,7 @@ import SiteSettings from './SiteSettings';
 import SystemSettings from './SystemSettings';
 import OrderCharges from './OrderCharges';
 import TaxConfigurations from './TaxConfigurations';
+import NotificationSettings from './NotificationSettings';
 
 const Settings: React.FC = () => {
   const location = useLocation();
@@ -485,7 +486,7 @@ const Settings: React.FC = () => {
       case 'system':
         return <SystemSettings />;
       case 'notifications':
-        return renderNotificationSettings();
+        return <NotificationSettings />;
       default:
         return renderGeneralSettings();
     }

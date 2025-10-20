@@ -14,6 +14,7 @@ import { Table, Button, Input, Badge, LoadingSpinner } from '../../components';
 import { useNotificationStore } from '../../store/notificationStore';
 import { Product, FilterOptions, TableColumn } from '../../types';
 import { format } from 'date-fns';
+import { getFullImageUrl } from '../../utils/imageUrl';
 
 const ProductList: React.FC = () => {
   const [filters, setFilters] = useState<FilterOptions>({
@@ -155,9 +156,12 @@ const ProductList: React.FC = () => {
           <div className="h-10 w-10 bg-gray-200 rounded-md mr-3 flex items-center justify-center">
             {record.images && record.images.length > 0 ? (
               <img
-                src={record.images[0].image_url || record.images[0].image_path}
+                src={getFullImageUrl(record.images[0].image_url) || getFullImageUrl(record.images[0].image_path) || '/placeholder-image.png'}
                 alt={record.images[0].alt_text || record.name || record.title}
                 className="h-10 w-10 rounded-md object-cover"
+                onError={(e) => {
+                  e.currentTarget.src = '/placeholder-image.png';
+                }}
               />
             ) : (
               <span className="text-xs text-gray-500">No Image</span>
