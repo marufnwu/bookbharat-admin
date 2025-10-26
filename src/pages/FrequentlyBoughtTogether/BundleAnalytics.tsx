@@ -102,17 +102,21 @@ const BundleAnalytics: React.FC = () => {
     }).format(amount);
   };
 
-  const formatPercentage = (value: number) => {
-    return `${value.toFixed(2)}%`;
+  const formatPercentage = (value: number | null | undefined) => {
+    if (value === null || value === undefined || isNaN(value)) {
+      return '0%';
+    }
+    return `${Number(value).toFixed(2)}%`;
   };
 
-  const getConversionBadge = (rate: number) => {
-    if (rate >= 10) {
-      return <Badge variant="success">{formatPercentage(rate)}</Badge>;
-    } else if (rate >= 5) {
-      return <Badge variant="warning">{formatPercentage(rate)}</Badge>;
+  const getConversionBadge = (rate: number | null | undefined) => {
+    const numRate = rate === null || rate === undefined || isNaN(rate) ? 0 : Number(rate);
+    if (numRate >= 10) {
+      return <Badge variant="success">{formatPercentage(numRate)}</Badge>;
+    } else if (numRate >= 5) {
+      return <Badge variant="warning">{formatPercentage(numRate)}</Badge>;
     }
-    return <Badge variant="error">{formatPercentage(rate)}</Badge>;
+    return <Badge variant="error">{formatPercentage(numRate)}</Badge>;
   };
 
   const stats = statsData?.statistics || {};

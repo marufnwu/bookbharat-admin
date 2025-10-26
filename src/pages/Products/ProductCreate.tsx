@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { productsApi, categoriesApi, publishersApi, authorsApi } from '../../api';
@@ -36,6 +36,21 @@ interface ProductForm {
 const ProductCreate: React.FC = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('basic');
+
+  // Read initial tab from URL hash
+  useEffect(() => {
+    const hash = window.location.hash.replace('#', '');
+    const validTabs = ['basic', 'details', 'pricing', 'images', 'seo'];
+    if (hash && validTabs.includes(hash)) {
+      setActiveTab(hash);
+    }
+  }, []);
+
+  // Update URL hash when tab changes
+  const handleTabChange = (tabId: string) => {
+    setActiveTab(tabId);
+    window.location.hash = tabId;
+  };
   const [images, setImages] = useState<File[]>([]);
   const [imagePreview, setImagePreview] = useState<string[]>([]);
   const [imageAltTexts, setImageAltTexts] = useState<string[]>([]);
@@ -271,7 +286,7 @@ const ProductCreate: React.FC = () => {
             {tabs.map(tab => (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => handleTabChange(tab.id)}
                 className={`py-2 px-6 border-b-2 font-medium text-sm ${
                   activeTab === tab.id
                     ? 'border-blue-500 text-blue-600'

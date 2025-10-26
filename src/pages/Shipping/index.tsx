@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Package,
   MapPin,
@@ -24,6 +24,21 @@ type TabType = 'carriers' | 'warehouses' | 'weight-slabs' | 'zone-rates' | 'pinc
 
 const Shipping: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabType>('carriers');
+
+  // Read initial tab from URL hash
+  useEffect(() => {
+    const hash = window.location.hash.replace('#', '');
+    const validTabs: TabType[] = ['carriers', 'warehouses', 'weight-slabs', 'zone-rates', 'pincodes', 'free-shipping', 'calculator', 'analytics'];
+    if (hash && validTabs.includes(hash as TabType)) {
+      setActiveTab(hash as TabType);
+    }
+  }, []);
+
+  // Update URL hash when tab changes
+  const handleTabChange = (tabId: TabType) => {
+    setActiveTab(tabId);
+    window.location.hash = tabId;
+  };
 
   const tabs = [
     { id: 'carriers', label: 'Carriers', icon: Truck },
@@ -121,7 +136,7 @@ const Shipping: React.FC = () => {
               return (
                 <button
                   key={tab.id}
-                  onClick={() => setActiveTab(tab.id as TabType)}
+                  onClick={() => handleTabChange(tab.id as TabType)}
                   className={`
                     flex items-center py-4 px-1 border-b-2 font-medium text-sm
                     ${activeTab === tab.id

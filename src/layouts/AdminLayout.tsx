@@ -54,6 +54,7 @@ const navigation: NavigationItem[] = [
 
   // Order Management
   { name: 'Orders', href: '/orders', icon: ShoppingCart },
+  { name: 'Abandoned Carts', href: '/abandoned-carts', icon: ShoppingCart },
   { name: 'Shipping', href: '/shipping', icon: Truck },
 
   // Customer Management
@@ -83,6 +84,8 @@ const navigation: NavigationItem[] = [
       { name: 'Promotional Banners', href: '/promotional-banners', icon: Tag },
       { name: 'Navigation Menu', href: '/navigation-menu', icon: Navigation },
       { name: 'Content Pages', href: '/content-pages', icon: FileText },
+      { name: 'Content Blocks', href: '/content-blocks', icon: FileText },
+      { name: 'Invoice Templates', href: '/invoice-templates', icon: FileText },
       { name: 'Media Library', href: '/media-library', icon: Image },
     ]
   },

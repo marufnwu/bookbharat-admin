@@ -447,8 +447,15 @@ export const shippingApi = {
   deleteWeightSlab: (id: number): Promise<ApiResponse> =>
     api.delete(`/shipping/weight-slabs/${id}`).then(res => res.data),
 
-  getPincodes: (): Promise<ApiResponse<any>> =>
-    api.get('/shipping/pincodes').then(res => res.data),
+  getPincodes: (params?: { page?: number; search?: string; zone?: string; state?: string }): Promise<ApiResponse<any>> => {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append('page', params.page.toString());
+    if (params?.search) queryParams.append('search', params.search);
+    if (params?.zone) queryParams.append('zone', params.zone);
+    if (params?.state) queryParams.append('state', params.state);
+    const query = queryParams.toString();
+    return api.get(`/shipping/pincodes${query ? `?${query}` : ''}`).then(res => res.data);
+  },
 
   createPincodeZone: (pincode: any): Promise<ApiResponse<any>> =>
     api.post('/shipping/pincodes', pincode).then(res => res.data),

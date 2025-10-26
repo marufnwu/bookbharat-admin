@@ -27,6 +27,8 @@ import SystemSettings from './SystemSettings';
 import OrderCharges from './OrderCharges';
 import TaxConfigurations from './TaxConfigurations';
 import NotificationSettings from './NotificationSettings';
+import EmailTemplates from '../Content/EmailTemplates';
+import AbandonedCartRecoverySettings from './AbandonedCartRecoverySettings';
 
 const Settings: React.FC = () => {
   const location = useLocation();
@@ -350,53 +352,7 @@ const Settings: React.FC = () => {
   };
 
   const renderEmailTemplates = () => {
-    if (emailLoading) {
-      return (
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-        </div>
-      );
-    }
-
-    return (
-      <div className="space-y-6">
-        <div className="bg-white rounded-lg shadow">
-          <div className="p-6 border-b border-gray-200">
-            <h3 className="text-lg font-medium text-gray-900">Email Templates</h3>
-          </div>
-          <div className="p-6">
-            <div className="space-y-4">
-              {[
-                { key: 'order_confirmation', name: 'Order Confirmation', desc: 'Sent when order is placed' },
-                { key: 'order_shipped', name: 'Order Shipped', desc: 'Sent when order is shipped' },
-                { key: 'order_delivered', name: 'Order Delivered', desc: 'Sent when order is delivered' },
-                { key: 'welcome_email', name: 'Welcome Email', desc: 'Sent to new customers' },
-                { key: 'password_reset', name: 'Password Reset', desc: 'Sent for password reset requests' },
-                { key: 'abandoned_cart', name: 'Abandoned Cart', desc: 'Sent for abandoned cart recovery' },
-              ].map((template) => (
-                <div key={template.key} className="border rounded-lg p-4">
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <h4 className="font-medium text-gray-900">{template.name}</h4>
-                      <p className="text-sm text-gray-500">{template.desc}</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50">
-                        Preview
-                      </button>
-                      <button className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center">
-                        <Edit className="mr-1 h-3 w-3" />
-                        Edit
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-    );
+    return <EmailTemplates />;
   };
 
   const renderNotificationSettings = () => {
@@ -445,6 +401,7 @@ const Settings: React.FC = () => {
       case 'roles': return 'Roles & Permissions';
       case 'system': return 'System Management';
       case 'notifications': return 'Notification Settings';
+      case 'recovery': return 'Abandoned Cart Recovery';
       default: return 'Settings';
     }
   };
@@ -461,6 +418,7 @@ const Settings: React.FC = () => {
       case 'roles': return 'Manage user roles and permissions';
       case 'system': return 'System configuration and maintenance settings';
       case 'notifications': return 'Configure notification preferences and alerts';
+      case 'recovery': return 'Configure abandoned cart recovery and email settings';
       default: return 'Manage your application settings';
     }
   };
@@ -487,6 +445,8 @@ const Settings: React.FC = () => {
         return <SystemSettings />;
       case 'notifications':
         return <NotificationSettings />;
+      case 'recovery':
+        return <AbandonedCartRecoverySettings />;
       default:
         return renderGeneralSettings();
     }

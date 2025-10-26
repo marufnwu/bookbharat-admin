@@ -39,6 +39,9 @@ import HomepageLayout from './pages/HomepageLayout';
 import MediaLibrary from './pages/MediaLibrary';
 import PromotionalBanners from './pages/PromotionalBanners';
 import Newsletter from './pages/Newsletter';
+import ContentBlocks from './pages/Content/ContentBlocks';
+import InvoiceTemplates from './pages/Content/InvoiceTemplates';
+import AbandonedCarts from './pages/AbandonedCarts';
 
 // Components
 import { ProtectedRoute } from './components';
@@ -134,11 +137,20 @@ const App: React.FC = () => {
               {/* Newsletter */}
               <Route path="newsletter" element={<Newsletter />} />
 
+              {/* Abandoned Carts */}
+              <Route path="abandoned-carts" element={<AbandonedCarts />} />
+
               {/* Content Pages */}
               <Route path="content-pages" element={<ContentPages />} />
 
               {/* Navigation Menu */}
               <Route path="navigation-menu" element={<NavigationMenu />} />
+
+              {/* Content Blocks */}
+              <Route path="content-blocks" element={<ContentBlocks />} />
+
+              {/* Invoice Templates */}
+              <Route path="invoice-templates" element={<InvoiceTemplates />} />
 
               {/* Settings - with sub-routes */}
               <Route path="settings/*" element={<Settings key="settings-default" />} />

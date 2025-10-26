@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   GlobeAltIcon,
@@ -75,6 +75,21 @@ const SiteSettings: React.FC = () => {
   const queryClient = useQueryClient();
   const { showSuccess, showError } = useNotificationStore();
   const formRef = useRef<HTMLFormElement>(null);
+
+  // Read initial section from URL hash
+  useEffect(() => {
+    const hash = window.location.hash.replace('#', '');
+    const validSections = ['general', 'theme', 'features', 'social', 'seo'];
+    if (hash && validSections.includes(hash)) {
+      setActiveSection(hash);
+    }
+  }, []);
+
+  // Update URL hash when section changes
+  const handleSectionChange = (sectionId: string) => {
+    setActiveSection(sectionId);
+    window.location.hash = sectionId;
+  };
 
   // Fetch site configuration from API
   const { data: siteConfigData, isLoading: siteConfigLoading } = useQuery({
@@ -492,7 +507,7 @@ const SiteSettings: React.FC = () => {
                 <button
                   key={section.id}
                   type="button"
-                  onClick={() => setActiveSection(section.id)}
+                  onClick={() => handleSectionChange(section.id)}
                   className={`
                     flex items-center py-4 px-1 border-b-2 font-medium text-sm
                     ${activeSection === section.id
