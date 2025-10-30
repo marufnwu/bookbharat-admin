@@ -9,6 +9,8 @@ import {
   Clock,
   BarChart3,
   MessageSquare,
+  Smartphone,
+  Loader,
 } from 'lucide-react';
 import { api } from '../../api/axios';
 import toast from 'react-hot-toast';
@@ -24,8 +26,24 @@ interface RecoverySettings {
   recovery_email_interval_final: number;
   recovery_discount_code_validity: number;
   recovery_sms_enabled: boolean;
+  sms_gateway: string;
+  sms_high_value_threshold: number;
+  sms_rate_limit_hours: number;
+  recovery_discount_sms: number;
+  sms_message_template: string;
+  sms_max_retries: number;
   recovery_data_retention_days: number;
   recovery_enable_analytics: boolean;
+  ab_testing_enabled: boolean;
+  ab_test_duration_days: number;
+  ab_min_sample_size: number;
+  ab_confidence_threshold: number;
+  ab_auto_winner_threshold: number;
+  segmentation_enabled: boolean;
+  segment_1: string;
+  segment_2: string;
+  segment_3: string;
+  segment_4: string;
 }
 
 const AbandonedCartRecoverySettings: React.FC = () => {
@@ -41,8 +59,24 @@ const AbandonedCartRecoverySettings: React.FC = () => {
     recovery_email_interval_final: 48,
     recovery_discount_code_validity: 7,
     recovery_sms_enabled: false,
+    sms_gateway: 'twilio', // Default
+    sms_high_value_threshold: 1000,
+    sms_rate_limit_hours: 1,
+    recovery_discount_sms: 10,
+    sms_message_template: 'Your cart is abandoned. Complete your purchase now!',
+    sms_max_retries: 3,
     recovery_data_retention_days: 90,
     recovery_enable_analytics: true,
+    ab_testing_enabled: false,
+    ab_test_duration_days: 7,
+    ab_min_sample_size: 100,
+    ab_confidence_threshold: 0.95,
+    ab_auto_winner_threshold: 0.9,
+    segmentation_enabled: false,
+    segment_1: '',
+    segment_2: '',
+    segment_3: '',
+    segment_4: '',
   });
 
   // Fetch current settings
@@ -252,7 +286,7 @@ const AbandonedCartRecoverySettings: React.FC = () => {
                 <MessageSquare className="h-5 w-5 text-gray-600" />
                 <div>
                   <label className="text-sm font-medium text-gray-900">SMS Recovery for High-Value Carts</label>
-                  <p className="text-xs text-gray-500 mt-1">Send SMS for carts above ₹1000</p>
+                  <p className="text-xs text-gray-500 mt-1">Send SMS for carts above threshold</p>
                 </div>
               </div>
               <button
@@ -266,6 +300,80 @@ const AbandonedCartRecoverySettings: React.FC = () => {
                 {formData.recovery_sms_enabled ? 'Enabled' : 'Disabled'}
               </button>
             </div>
+
+            {formData.recovery_sms_enabled && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">SMS Gateway</label>
+                  <select
+                    value={formData.sms_gateway}
+                    onChange={(e) => handleChange('sms_gateway', e.target.value)}
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="twilio">Twilio</option>
+                    <option value="aws_sns">AWS SNS</option>
+                    <option value="custom">Custom</option>
+                  </select>
+                  <p className="text-xs text-gray-500 mt-1">Choose SMS provider</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">High-Value Threshold (₹)</label>
+                  <input
+                    type="number"
+                    value={formData.sms_high_value_threshold}
+                    onChange={(e) => handleChange('sms_high_value_threshold', parseInt(e.target.value))}
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Send SMS only for carts above this value</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Rate Limit (hours)</label>
+                  <input
+                    type="number"
+                    value={formData.sms_rate_limit_hours}
+                    onChange={(e) => handleChange('sms_rate_limit_hours', parseInt(e.target.value))}
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Minimum hours between SMS to same customer</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">SMS Discount (%)</label>
+                  <input
+                    type="number"
+                    value={formData.recovery_discount_sms}
+                    onChange={(e) => handleChange('recovery_discount_sms', parseInt(e.target.value))}
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Discount offered in SMS recovery</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Max Retry Attempts</label>
+                  <input
+                    type="number"
+                    value={formData.sms_max_retries}
+                    onChange={(e) => handleChange('sms_max_retries', parseInt(e.target.value))}
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Retry failed SMS up to X times</p>
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700">SMS Message Template</label>
+                  <textarea
+                    value={formData.sms_message_template}
+                    onChange={(e) => handleChange('sms_message_template', e.target.value)}
+                    rows={3}
+                    placeholder="Use placeholders: {amount}, {code}, {discount}, {link}, {store}"
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Use {'{amount}'}, {'{code}'}, {'{discount}'}, {'{link}'}, {'{store}'} as placeholders</p>
+                </div>
+              </div>
+            )}
 
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -286,6 +394,134 @@ const AbandonedCartRecoverySettings: React.FC = () => {
                 {formData.recovery_enable_analytics ? 'Enabled' : 'Disabled'}
               </button>
             </div>
+          </div>
+        </div>
+
+        {/* A/B Testing */}
+        <div className="border-b pb-6">
+          <h3 className="flex items-center gap-2 text-lg font-semibold text-gray-900 mb-4">
+            <Smartphone className="h-5 w-5 text-gray-600" />
+            A/B Testing
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Enable A/B Testing</label>
+              <button
+                onClick={() => handleChange('ab_testing_enabled', !formData.ab_testing_enabled)}
+                className={`px-4 py-2 rounded-md font-medium transition ${
+                  formData.ab_testing_enabled
+                    ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                {formData.ab_testing_enabled ? 'Enabled' : 'Disabled'}
+              </button>
+              <p className="text-xs text-gray-500 mt-1">Run different recovery strategies simultaneously</p>
+            </div>
+            {formData.ab_testing_enabled && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Test Duration (days)</label>
+                  <input
+                    type="number"
+                    value={formData.ab_test_duration_days}
+                    onChange={(e) => handleChange('ab_test_duration_days', parseInt(e.target.value))}
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Min Sample Size</label>
+                  <input
+                    type="number"
+                    value={formData.ab_min_sample_size}
+                    onChange={(e) => handleChange('ab_min_sample_size', parseInt(e.target.value))}
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Confidence Threshold</label>
+                  <input
+                    type="number"
+                    value={formData.ab_confidence_threshold}
+                    onChange={(e) => handleChange('ab_confidence_threshold', parseFloat(e.target.value))}
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Auto Winner Threshold</label>
+                  <input
+                    type="number"
+                    value={formData.ab_auto_winner_threshold}
+                    onChange={(e) => handleChange('ab_auto_winner_threshold', parseFloat(e.target.value))}
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Segmentation */}
+        <div className="border-b pb-6">
+          <h3 className="flex items-center gap-2 text-lg font-semibold text-gray-900 mb-4">
+            <MessageSquare className="h-5 w-5 text-gray-600" />
+            Segmentation
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Enable Customer Segmentation</label>
+              <button
+                onClick={() => handleChange('segmentation_enabled', !formData.segmentation_enabled)}
+                className={`px-4 py-2 rounded-md font-medium transition ${
+                  formData.segmentation_enabled
+                    ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                {formData.segmentation_enabled ? 'Enabled' : 'Disabled'}
+              </button>
+              <p className="text-xs text-gray-500 mt-1">Target recovery emails based on customer segments</p>
+            </div>
+            {formData.segmentation_enabled && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Segment 1</label>
+                  <input
+                    type="text"
+                    value={formData.segment_1}
+                    onChange={(e) => handleChange('segment_1', e.target.value)}
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Segment 2</label>
+                  <input
+                    type="text"
+                    value={formData.segment_2}
+                    onChange={(e) => handleChange('segment_2', e.target.value)}
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Segment 3</label>
+                  <input
+                    type="text"
+                    value={formData.segment_3}
+                    onChange={(e) => handleChange('segment_3', e.target.value)}
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Segment 4</label>
+                  <input
+                    type="text"
+                    value={formData.segment_4}
+                    onChange={(e) => handleChange('segment_4', e.target.value)}
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
