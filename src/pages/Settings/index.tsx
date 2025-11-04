@@ -26,7 +26,6 @@ import SiteSettings from './SiteSettings';
 import SystemSettings from './SystemSettings';
 import OrderCharges from './OrderCharges';
 import TaxConfigurations from './TaxConfigurations';
-import NotificationSettings from './NotificationSettings';
 import EmailTemplates from '../Content/EmailTemplates';
 import AbandonedCartRecoverySettings from './AbandonedCartRecoverySettings';
 
@@ -400,7 +399,6 @@ const Settings: React.FC = () => {
       case 'email': return 'Email Templates';
       case 'roles': return 'Roles & Permissions';
       case 'system': return 'System Management';
-      case 'notifications': return 'Notification Settings';
       case 'recovery': return 'Abandoned Cart Recovery';
       default: return 'Settings';
     }
@@ -417,7 +415,6 @@ const Settings: React.FC = () => {
       case 'email': return 'Customize email templates and notifications';
       case 'roles': return 'Manage user roles and permissions';
       case 'system': return 'System configuration and maintenance settings';
-      case 'notifications': return 'Configure notification preferences and alerts';
       case 'recovery': return 'Configure abandoned cart recovery and email settings';
       default: return 'Manage your application settings';
     }
@@ -443,8 +440,6 @@ const Settings: React.FC = () => {
         return renderEmailTemplates();
       case 'system':
         return <SystemSettings />;
-      case 'notifications':
-        return <NotificationSettings />;
       case 'recovery':
         return <AbandonedCartRecoverySettings />;
       default:

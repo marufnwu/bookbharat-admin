@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { Toaster } from 'react-hot-toast';
+import { overrideGlobalAlert } from './utils/globalAlert';
 
 // Layouts
 import AdminLayout from './layouts/AdminLayout';
@@ -43,6 +44,17 @@ import ContentBlocks from './pages/Content/ContentBlocks';
 import InvoiceTemplates from './pages/Content/InvoiceTemplates';
 import AbandonedCarts from './pages/AbandonedCarts';
 
+// Documentation Pages
+import DynamicDocumentationPage from './pages/Documentation/DynamicDocumentationPage';
+
+// Communication & Notification Pages
+import CommunicationConfig from './pages/Communication/CommunicationConfig';
+import NotificationPreferences from './pages/Notifications/NotificationPreferences';
+import NotificationHistory from './pages/Notifications/NotificationHistory';
+import NotificationAnalytics from './pages/Notifications/NotificationAnalytics';
+import WebhookManagement from './pages/Notifications/WebhookManagement';
+import WhatsAppTemplateBuilder from './pages/Notifications/WhatsAppTemplateBuilder';
+
 // Components
 import { ProtectedRoute } from './components';
 
@@ -58,6 +70,14 @@ const queryClient = new QueryClient({
 });
 
 const App: React.FC = () => {
+  // Override native alert() to use toast system (optional)
+  React.useEffect(() => {
+    if (process.env.NODE_ENV === 'production') {
+      // Only override alerts in production
+      return overrideGlobalAlert();
+    }
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <Router>
@@ -111,6 +131,7 @@ const App: React.FC = () => {
               {/* Admin Users */}
               <Route path="users" element={<AdminUsers />} />
 
+  
               {/* Shipping */}
               <Route path="shipping" element={<Shipping />} />
 
@@ -163,7 +184,31 @@ const App: React.FC = () => {
               <Route path="settings/charges" element={<Settings key="settings-charges" />} />
               <Route path="settings/taxes" element={<Settings key="settings-taxes" />} />
               <Route path="settings/system" element={<Settings key="settings-system" />} />
-              <Route path="settings/notifications" element={<Settings key="settings-notifications" />} />
+              <Route path="settings/notifications" element={<Navigate to="/notifications" replace />} />
+
+              {/* Communication Configuration */}
+              <Route path="communication" element={<CommunicationConfig />} />
+              <Route path="communication/email" element={<CommunicationConfig />} />
+              <Route path="communication/sms" element={<CommunicationConfig />} />
+              <Route path="communication/whatsapp" element={<CommunicationConfig />} />
+              <Route path="communication/status" element={<CommunicationConfig />} />
+
+              {/* Notification Preferences */}
+              <Route path="notifications" element={<NotificationPreferences />} />
+              <Route path="notifications/preferences" element={<NotificationPreferences />} />
+              <Route path="notifications/events" element={<NotificationPreferences />} />
+              <Route path="notifications/rules" element={<NotificationPreferences />} />
+              <Route path="notifications/test" element={<NotificationPreferences />} />
+
+              {/* Notification Management */}
+              <Route path="notifications/history" element={<NotificationHistory />} />
+              <Route path="notifications/analytics" element={<NotificationAnalytics />} />
+              <Route path="notifications/webhooks" element={<WebhookManagement />} />
+              <Route path="notifications/whatsapp-templates" element={<WhatsAppTemplateBuilder />} />
+
+              {/* Documentation */}
+              <Route path="docs" element={<DynamicDocumentationPage />} />
+              <Route path="docs/:slug" element={<DynamicDocumentationPage />} />
 
               {/* Profile */}
               <Route path="profile" element={<Profile />} />

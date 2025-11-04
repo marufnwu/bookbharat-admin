@@ -23,6 +23,9 @@ import {
   Shield,
   CreditCard,
   Globe,
+  Webhook,
+  BarChart3,
+  Clock,
   Mail,
   Bell,
   Server,
@@ -31,6 +34,10 @@ import {
   Image,
   Tag,
   Newspaper,
+  MessageSquare,
+  Phone,
+  CheckCircle,
+  Activity,
 } from 'lucide-react';
 import { Menu, Transition } from '@headlessui/react';
 import { useAuth } from '../auth/useAuth';
@@ -106,8 +113,35 @@ const navigation: NavigationItem[] = [
       { name: 'Order Charges', href: '/settings/charges', icon: Receipt },
       { name: 'Tax Configuration', href: '/settings/taxes', icon: DollarSign },
       { name: 'Email Templates', href: '/settings/email', icon: Mail },
-      { name: 'Notifications', href: '/settings/notifications', icon: Bell },
     ]
+  },
+
+  // Communication & Notifications (Unified)
+  {
+    name: 'Communication',
+    href: '/communication',
+    icon: MessageSquare,
+    children: [
+      // Provider Configuration Section
+      { name: 'Provider Overview', href: '/communication', icon: Activity },
+      { name: 'Email Providers', href: '/communication/email', icon: Mail },
+      { name: 'SMS Providers', href: '/communication/sms', icon: Phone },
+      { name: 'WhatsApp Providers', href: '/communication/whatsapp', icon: MessageSquare },
+      // Event Configuration Section
+      { name: 'Event Preferences', href: '/notifications/preferences', icon: Bell },
+      { name: 'Notification History', href: '/notifications/history', icon: Clock },
+      { name: 'Analytics', href: '/notifications/analytics', icon: BarChart3 },
+      { name: 'Webhooks', href: '/notifications/webhooks', icon: Webhook },
+      { name: 'WhatsApp Templates', href: '/notifications/whatsapp-templates', icon: MessageSquare },
+      { name: 'Channel Status', href: '/communication/status', icon: CheckCircle },
+    ]
+  },
+
+  // Documentation
+  {
+    name: 'Documentation',
+    href: '/docs',
+    icon: FileText,
   },
 
   // System Administration

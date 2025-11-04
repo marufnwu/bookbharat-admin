@@ -1,0 +1,1823 @@
+import React, { useState, useEffect } from 'react';
+import {
+  Mail,
+  MessageSquare,
+  Smartphone,
+  Settings,
+  CheckCircle,
+  XCircle,
+  X,
+  AlertCircle,
+  Globe,
+  Send,
+  Server,
+  Shield,
+  Zap,
+  BarChart3,
+  TestTube,
+  RotateCw,
+  Trash2,
+  Clock,
+  Plus,
+  Package,
+} from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useLocation } from 'react-router-dom';
+import { communicationConfigApi, notificationSettingsApi } from '../../api/notificationSettings';
+import { showToast } from '../../utils/toast';
+
+interface CommunicationChannel {
+  id: number;
+  channel_type: string;
+  provider_name: string;
+  config: any;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+interface ProviderField {
+  key: string;
+  label: string;
+  type: 'text' | 'email' | 'password' | 'number' | 'url' | 'tel' | 'select';
+  placeholder?: string;
+  required: boolean;
+  description: string;
+  options?: Array<{ value: string; label: string }>;
+  default?: string;
+  encrypted?: boolean;
+}
+
+interface ProviderInfo {
+  name: string;
+  description: string;
+  icon: string;
+  fields: ProviderField[];
+}
+
+interface ProviderStructures {
+  [channelType: string]: {
+    [providerName: string]: ProviderInfo;
+  };
+}
+
+// WhatsApp Template interfaces
+interface WhatsAppTemplate {
+  name: string;
+  category: string;
+  language: string;
+  status: 'APPROVED' | 'PENDING' | 'REJECTED' | 'DISABLED';
+  components: any[];
+  required_for_events?: string[];
+}
+
+interface WhatsAppDashboardData {
+  success: boolean;
+  data: {
+    health_status: {
+      overall_status: string;
+      total_templates: number;
+      synced_templates: number;
+      missing_templates: number;
+      pending_review: number;
+      errors: string[];
+    };
+    validation_report: {
+      valid_templates: Record<string, any>;
+      invalid_templates: Record<string, any>;
+      warnings: Record<string, string[]>;
+      summary: {
+        total: number;
+        valid: number;
+        invalid: number;
+        warnings: number;
+      };
+    };
+    static_templates: string[];
+    supported_events: string[];
+    sync_config: Record<string, any>;
+    connection_status: {
+      status: 'connected' | 'disconnected' | 'error';
+      message: string;
+      business_id?: string;
+      business_name?: string;
+      last_checked: string;
+    };
+    last_updated: string;
+  };
+}
+
+interface TemplateStatus {
+  success: boolean;
+  data: {
+    template_name: string;
+    static_definition: WhatsAppTemplate;
+    whatsapp_status: WhatsAppTemplate | null;
+    validation: {
+      valid: boolean;
+      errors: string[];
+      warnings: string[];
+    };
+    events_using: string[];
+    last_checked: string;
+  };
+}
+
+const CommunicationConfig: React.FC = () => {
+  const location = useLocation();
+  const queryClient = useQueryClient();
+  const [selectedChannel, setSelectedChannel] = useState<string>('email');
+  const [selectedProvider, setSelectedProvider] = useState<string>('smtp');
+  const [testEmail, setTestEmail] = useState<string>('');
+  const [testPhone, setTestPhone] = useState<string>('');
+  const [isTesting, setIsTesting] = useState<boolean>(false);
+  const [editingChannel, setEditingChannel] = useState<number | null>(null);
+
+  // WhatsApp Template state
+  const [whatsappActiveTab, setWhatsAppActiveTab] = useState<'config' | 'templates'>('config');
+  const [selectedTemplate, setSelectedTemplate] = useState<string>('');
+  const [templateTestNumber, setTemplateTestNumber] = useState<string>('');
+
+  // Enhanced template management states
+  const [showCreateTemplate, setShowCreateTemplate] = useState<boolean>(false);
+  const [selectedCategory, setSelectedCategory] = useState<string>('');
+  const [selectedPreset, setSelectedPreset] = useState<any>(null);
+  const [newTemplateName, setNewTemplateName] = useState<string>('');
+  const [creatingTemplate, setCreatingTemplate] = useState<boolean>(false);
+  const [templateCategories, setTemplateCategories] = useState<{ [key: string]: any }>({});
+  const [syncResults, setSyncResults] = useState<any>(null); // Store detailed sync results
+
+  // Template filtering states
+  const [templateFilter, setTemplateFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+
+  // Helper function to extract template variables from text
+  const getTemplateVariables = (text: string): string[] => {
+    const regex = /\{\{(\d+)\}\}/g;
+    const variables: string[] = [];
+    let match;
+    while ((match = regex.exec(text)) !== null) {
+      variables.push(match[0]);
+    }
+    return variables;
+  };
+
+  // Form state - dynamically populated based on provider structure
+  const [formData, setFormData] = useState<{ [key: string]: string | number }>({});
+
+  // Determine channel based on current route
+  useEffect(() => {
+    const path = location.pathname;
+    if (path.includes('/communication/sms')) {
+      setSelectedChannel('sms');
+    } else if (path.includes('/communication/whatsapp')) {
+      setSelectedChannel('whatsapp');
+    } else {
+      setSelectedChannel('email');
+    }
+  }, [location.pathname]);
+
+  // Fetch provider structures from backend
+  const { data: providerStructuresData, isLoading: structuresLoading } = useQuery({
+    queryKey: ['communication-provider-structures'],
+    queryFn: communicationConfigApi.getAllProviderStructures,
+  });
+
+  // Fetch communication settings
+  const { data: communicationData, isLoading, refetch } = useQuery({
+    queryKey: ['communication-settings'],
+    queryFn: communicationConfigApi.getAll,
+  });
+
+  const channels = communicationData?.data || [];
+
+  // Fallback provider structures in case backend doesn't provide them
+  const defaultProviderStructures: ProviderStructures = {
+    email: {
+      smtp: {
+        name: 'SMTP',
+        description: 'Standard SMTP mail server',
+        icon: 'mail',
+        fields: [
+          { key: 'host', label: 'SMTP Host', type: 'text', required: true, placeholder: 'smtp.example.com', description: 'Your SMTP server hostname' },
+          { key: 'port', label: 'SMTP Port', type: 'number', required: true, default: '587', description: 'SMTP server port (usually 587 for TLS, 465 for SSL)' },
+          { key: 'encryption', label: 'Encryption', type: 'select', required: true, default: 'tls', description: 'Connection encryption method', options: [
+            { value: 'none', label: 'None' },
+            { value: 'ssl', label: 'SSL' },
+            { value: 'tls', label: 'TLS' }
+          ]},
+          { key: 'username', label: 'Username', type: 'text', required: true, description: 'Your SMTP username' },
+          { key: 'password', label: 'Password', type: 'password', required: true, description: 'Your SMTP password' },
+          { key: 'from_address', label: 'From Address', type: 'email', required: true, description: 'Email address to send from' },
+          { key: 'from_name', label: 'From Name', type: 'text', required: true, description: 'Display name for emails' }
+        ]
+      },
+      sendgrid: {
+        name: 'SendGrid',
+        description: 'SendGrid API integration',
+        icon: 'cloud',
+        fields: [
+          { key: 'api_key', label: 'API Key', type: 'password', required: true, description: 'Your SendGrid API key' },
+          { key: 'from_email', label: 'From Email', type: 'email', required: true, description: 'Email address to send from' },
+          { key: 'from_name', label: 'From Name', type: 'text', required: true, description: 'Display name for emails' }
+        ]
+      }
+    },
+    sms: {
+      twilio: {
+        name: 'Twilio',
+        description: 'Twilio SMS API',
+        icon: 'message',
+        fields: [
+          { key: 'account_sid', label: 'Account SID', type: 'text', required: true, description: 'Your Twilio Account SID' },
+          { key: 'auth_token', label: 'Auth Token', type: 'password', required: true, description: 'Your Twilio Auth Token' },
+          { key: 'from_number', label: 'From Number', type: 'text', required: true, placeholder: '+1234567890', description: 'Your Twilio phone number' }
+        ]
+      },
+      msg91: {
+        name: 'MSG91',
+        description: 'MSG91 SMS Gateway',
+        icon: 'send',
+        fields: [
+          { key: 'authkey', label: 'Auth Key', type: 'password', required: true, description: 'Your MSG91 auth key' },
+          { key: 'sender_id', label: 'Sender ID', type: 'text', required: true, description: '6-character sender ID' },
+          { key: 'route', label: 'Route', type: 'select', required: true, default: '4', description: 'SMS route type', options: [
+            { value: '1', label: 'Transactional' },
+            { value: '4', label: 'Promotional' }
+          ]}
+        ]
+      }
+    },
+    whatsapp: {
+      meta: {
+        name: 'Meta WhatsApp',
+        description: 'Meta WhatsApp Business API',
+        icon: 'brand',
+        fields: [
+          { key: 'api_url', label: 'API URL', type: 'text', required: true, default: 'https://graph.facebook.com', description: 'Meta Graph API URL' },
+          { key: 'access_token', label: 'Access Token', type: 'password', required: true, description: 'Your WhatsApp Business API access token' },
+          { key: 'phone_number_id', label: 'Phone Number ID', type: 'text', required: true, description: 'Your WhatsApp phone number ID' },
+          { key: 'business_account_id', label: 'Business Account ID', type: 'text', required: true, description: 'Your Business Account ID' }
+        ]
+      },
+      twilio: {
+        name: 'Twilio WhatsApp',
+        description: 'Twilio WhatsApp API',
+        icon: 'message-circle',
+        fields: [
+          { key: 'account_sid', label: 'Account SID', type: 'text', required: true, description: 'Your Twilio Account SID' },
+          { key: 'auth_token', label: 'Auth Token', type: 'password', required: true, description: 'Your Twilio Auth Token' },
+          { key: 'from_number', label: 'From Number (WhatsApp)', type: 'text', required: true, description: 'Your Twilio WhatsApp-enabled number' }
+        ]
+      }
+    }
+  };
+
+  const providerStructures: ProviderStructures = providerStructuresData?.data || defaultProviderStructures;
+
+  // Get available providers for selected channel
+  const availableProviders = Object.keys(providerStructures[selectedChannel] || {});
+
+  // Get current provider structure
+  const currentProviderStructure = providerStructures[selectedChannel]?.[selectedProvider];
+
+  // Initialize form data when provider changes
+  useEffect(() => {
+    if (currentProviderStructure?.fields) {
+      const initialData: { [key: string]: string | number } = {};
+      currentProviderStructure.fields.forEach((field) => {
+        initialData[field.key] = field.default || '';
+      });
+      setFormData(initialData);
+    }
+  }, [selectedProvider, currentProviderStructure]);
+
+  // Queries for WhatsApp Templates
+  const { data: whatsappDashboard, isLoading: dashboardLoading, refetch: refetchDashboard } = useQuery({
+    queryKey: ['whatsapp', 'templates', 'dashboard'],
+    queryFn: async () => {
+      try {
+        const response = await notificationSettingsApi.getWhatsAppTemplateDashboard();
+        return response.data;
+      } catch (error) {
+        console.error('Failed to fetch WhatsApp dashboard:', error);
+        return null;
+      }
+    },
+    enabled: whatsappActiveTab === 'templates'
+  });
+
+  // Fetch template structures from backend
+  const { data: templateStructures, isLoading: templateStructuresLoading } = useQuery({
+    queryKey: ['whatsapp', 'templates', 'structures'],
+    queryFn: async () => {
+      try {
+        const response = await notificationSettingsApi.getWhatsAppTemplateStructures();
+        return response.data;
+      } catch (error) {
+        console.error('Failed to fetch template structures:', error);
+        return [];
+      }
+    },
+    enabled: whatsappActiveTab === 'templates'
+  });
+
+  // Fetch enhanced template categories
+  const { data: categoriesData, isLoading: categoriesLoading } = useQuery({
+    queryKey: ['whatsapp', 'templates', 'categories'],
+    queryFn: async () => {
+      try {
+        const response = await fetch('/api/v1/admin/whatsapp-templates/categories', {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('admin_token')}`,
+            'Content-Type': 'application/json',
+          }
+        });
+        const data = await response.json();
+        if (data.success) {
+          // Transform templates to include key for easy access
+          const transformed = Object.keys(data.data).reduce((acc: any, categoryKey) => {
+            acc[categoryKey] = {
+              ...data.data[categoryKey],
+              templates: Object.keys(data.data[categoryKey].templates).map(templateKey => ({
+                key: templateKey,
+                ...data.data[categoryKey].templates[templateKey]
+              }))
+            };
+            return acc;
+          }, {});
+          setTemplateCategories(transformed);
+          return data.data;
+        }
+        return null;
+      } catch (error) {
+        console.error('Failed to fetch template categories:', error);
+        return null;
+      }
+    },
+    enabled: whatsappActiveTab === 'templates'
+  });
+
+  const { data: templateStatus, isLoading: templateStatusLoading } = useQuery({
+    queryKey: ['whatsapp', 'templates', 'status'],
+    queryFn: async () => {
+      try {
+        const response = await notificationSettingsApi.getWhatsAppTemplateStatus('');
+        return response.data;
+      } catch (error) {
+        console.error('Failed to fetch template status:', error);
+        return null;
+      }
+    },
+    enabled: false // Manual fetch only
+  });
+
+  // Mutations for WhatsApp Templates
+  const syncTemplatesMutation = useMutation({
+    mutationFn: async (data?: { force?: boolean; templates?: string[] }) => {
+      return notificationSettingsApi.syncWhatsAppTemplates(data);
+    },
+    onSuccess: (response) => {
+      // Store the sync results for display
+      setSyncResults(response);
+
+      // Check if the sync actually succeeded based on response data
+      if (response.data?.success === false || response.success === false) {
+        // Show detailed error message with sync results
+        const synced = response.data?.synced || response.synced || 0;
+        const failed = response.data?.failed || response.failed || 0;
+        const message = response.data?.message || response.message || 'Sync completed with issues';
+
+        showToast.error(`${message} (${synced} synced, ${failed} failed)`);
+
+        // Show individual template errors if available
+        if (response.data?.details || response.details) {
+          const details = response.data?.details || response.details;
+          Object.keys(details).forEach(templateName => {
+            const templateDetail = details[templateName];
+            if (!templateDetail.success && templateDetail.error) {
+              console.error(`${templateName}: ${templateDetail.error}`);
+            }
+          });
+        }
+      } else {
+        // Real success
+        const synced = response.data?.synced || response.synced || 0;
+        const message = response.data?.message || response.message || 'Templates synced successfully!';
+
+        if (synced > 0) {
+          showToast.success(`${message} (${synced} templates synced)`);
+        } else {
+          showToast.info('No templates needed syncing');
+        }
+      }
+      refetchDashboard();
+    },
+    onError: (error: any) => {
+      showToast.error(error.response?.data?.message || 'Failed to sync templates');
+    }
+  });
+
+  const testTemplateMutation = useMutation({
+    mutationFn: async (data: { template_name: string; test_number: string; sample_data?: any }) => {
+      return notificationSettingsApi.testWhatsAppTemplate(data);
+    },
+    onSuccess: (response) => {
+      showToast.success(response.message || 'Test template sent successfully!');
+    },
+    onError: (error: any) => {
+      showToast.error(error.response?.data?.message || 'Failed to test template');
+    }
+  });
+
+  const clearCachesMutation = useMutation({
+    mutationFn: async () => {
+      return notificationSettingsApi.clearWhatsAppTemplateCaches();
+    },
+    onSuccess: (response) => {
+      showToast.success(response.message || 'Template caches cleared successfully!');
+      refetchDashboard();
+    },
+    onError: (error: any) => {
+      showToast.error(error.response?.data?.message || 'Failed to clear caches');
+    }
+  });
+
+  // Populate form with existing configuration data
+  useEffect(() => {
+    if (channels && channels.length > 0) {
+      const channelConfig = channels.find((ch: CommunicationChannel) =>
+        ch.channel_type === selectedChannel && ch.provider_name.toLowerCase() === selectedProvider
+      );
+
+      if (channelConfig && channelConfig.config) {
+        const config = channelConfig.config;
+        setFormData(prev => {
+          const updated = { ...prev };
+          Object.keys(config).forEach(key => {
+            if (key in updated) {
+              updated[key] = config[key];
+            }
+          });
+          return updated;
+        });
+      }
+    }
+  }, [channels, selectedChannel, selectedProvider]);
+
+  const getChannelStatus = (channel: CommunicationChannel) => {
+    if (!channel.is_active) return { status: 'inactive', color: 'text-gray-500', icon: XCircle };
+    if (!channel.config || Object.keys(channel.config).length === 0) return { status: 'incomplete', color: 'text-yellow-500', icon: AlertCircle };
+    return { status: 'active', color: 'text-green-500', icon: CheckCircle };
+  };
+
+  const getChannelIcon = (channelType: string) => {
+    switch (channelType) {
+      case 'email': return Mail;
+      case 'sms': return Smartphone;
+      case 'whatsapp': return MessageSquare;
+      default: return Globe;
+    }
+  };
+
+  const getProviderIcon = (iconName: string) => {
+    switch (iconName) {
+      case 'mail': return Mail;
+      case 'twilio': return MessageSquare;
+      case 'msg91': return MessageSquare;
+      case 'textlocal': return MessageSquare;
+      case 'whatsapp': return MessageSquare;
+      case 'sendgrid': return Send;
+      case 'mailgun': return Mail;
+      case 'aws': return Shield;
+      case 'api': return Server;
+      default: return Zap;
+    }
+  };
+
+  const handleFieldChange = (key: string, value: string | number) => {
+    setFormData(prev => ({
+      ...prev,
+      [key]: value
+    }));
+  };
+
+  // Test functions
+  const handleTestEmail = async () => {
+    if (!testEmail) {
+      showToast.error('Please enter a test email address');
+      return;
+    }
+
+    setIsTesting(true);
+    try {
+      const result = await communicationConfigApi.testEmail({ test_email: testEmail });
+      showToast.success((result as any)?.message || 'Test email sent successfully!');
+      setTestEmail('');
+    } catch (error: any) {
+      showToast.error((error as any)?.response?.data?.message || 'Failed to send test email');
+    } finally {
+      setIsTesting(false);
+    }
+  };
+
+  const handleTestSMS = async (channel?: CommunicationChannel) => {
+    if (!testPhone) {
+      showToast.error('Please enter a test phone number');
+      return;
+    }
+
+    setIsTesting(true);
+    try {
+      // Backend now automatically uses the existing active configuration
+      const result = await communicationConfigApi.testSMS({
+        test_number: testPhone
+      });
+      showToast.success((result as any)?.message || 'SMS test sent successfully!');
+      setTestPhone('');
+    } catch (error: any) {
+      showToast.error((error as any)?.response?.data?.message || 'Failed to send test SMS');
+    } finally {
+      setIsTesting(false);
+    }
+  };
+
+  const handleTestWhatsApp = async (channel?: CommunicationChannel) => {
+    if (!testPhone) {
+      showToast.error('Please enter a test phone number');
+      return;
+    }
+
+    setIsTesting(true);
+    try {
+      // Backend now automatically uses the existing active configuration
+      const result = await communicationConfigApi.testWhatsApp({
+        test_number: testPhone
+      });
+      showToast.success((result as any)?.message || 'WhatsApp test sent successfully!');
+      setTestPhone('');
+    } catch (error: any) {
+      showToast.error((error as any)?.response?.data?.message || 'Failed to send test WhatsApp message');
+    } finally {
+      setIsTesting(false);
+    }
+  };
+
+  // Template structures are now fetched from backend API - no local definitions
+
+  const handleCreateTemplateFromPreset = async (templateName: string) => {
+    const template = templateStructures?.find((t: any) => t.name === templateName);
+    if (!template) return;
+
+    setCreatingTemplate(true);
+    try {
+      // Use the existing sync API which is already working
+      const response = await notificationSettingsApi.syncWhatsAppTemplates({
+        templates: [templateName],
+        force: true
+      });
+
+      // Check the actual response status
+      if (response.success === false || response.data?.success === false) {
+        const synced = response.synced || response.data?.synced || 0;
+        const failed = response.failed || response.data?.failed || 0;
+        const message = response.message || response.data?.message || 'Template creation failed';
+
+        if (failed > 0) {
+          showToast.error(`${message} (${synced} created, ${failed} failed)`);
+
+          // Show specific error if available
+          const details = response.details || response.data?.details;
+          if (details && details[templateName] && !details[templateName].success) {
+            console.error(`${templateName} creation error:`, details[templateName].error);
+          }
+        } else {
+          showToast.warning(message);
+        }
+      } else {
+        const synced = response.synced || response.data?.synced || 0;
+        const message = response.message || response.data?.message || 'Template creation initiated';
+
+        if (synced > 0) {
+          showToast.success(`Template "${templateName}" creation process initiated! Check WhatsApp Business Manager for approval.`);
+        } else {
+          showToast.info(`Template "${templateName}" may already exist or is in process`);
+        }
+      }
+
+      // Refresh templates after creation
+      setTimeout(() => {
+        refetchDashboard();
+      }, 3000);
+    } catch (error: any) {
+      console.error('Error creating template from preset:', error);
+      showToast.error(error.response?.data?.message || 'Failed to create template. Please check your connection and try again.');
+    } finally {
+      setCreatingTemplate(false);
+    }
+  };
+
+  // Handle creating template from preset
+  const handleCreateTemplate = async () => {
+    if (!selectedPreset || !newTemplateName) return;
+
+    setCreatingTemplate(true);
+    try {
+      const response = await fetch('/api/v1/admin/whatsapp-templates/create-from-preset', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('admin_token')}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          preset_key: selectedPreset.key,
+          custom_name: newTemplateName,
+          language: 'en_US',
+          customizations: {}
+        })
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        showToast.success(`Template "${newTemplateName}" created successfully!`);
+        setShowCreateTemplate(false);
+        setSelectedCategory('');
+        setSelectedPreset(null);
+        setNewTemplateName('');
+        refetchDashboard();
+      } else {
+        showToast.error(data.message || 'Failed to create template');
+      }
+    } catch (error) {
+      console.error('Error creating template:', error);
+      showToast.error('Failed to create template');
+    } finally {
+      setCreatingTemplate(false);
+    }
+  };
+
+  // Handle testing template
+  const handleTestTemplate = async (templateName: string) => {
+    if (!templateTestNumber) {
+      showToast.error('Please enter a test phone number');
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/v1/admin/whatsapp-templates/test', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('admin_token')}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          template_name: templateName,
+          test_number: templateTestNumber
+        })
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        showToast.success(`Test message sent to ${templateTestNumber}`);
+      } else {
+        showToast.error(data.message || 'Failed to send test message');
+      }
+    } catch (error) {
+      console.error('Error testing template:', error);
+      showToast.error('Failed to send test message');
+    }
+  };
+
+  // Save functions
+  const handleSaveConfig = async (existingId?: number) => {
+    try {
+      const configData = {
+        channel_type: selectedChannel,
+        provider_name: selectedProvider,
+        config: formData,
+        is_active: true
+      };
+
+      if (existingId) {
+        await communicationConfigApi.update(existingId, configData);
+        showToast.success('Configuration updated successfully');
+      } else {
+        await communicationConfigApi.store(configData);
+        showToast.success('Configuration saved successfully');
+      }
+      refetch();
+    } catch (error: any) {
+      showToast.error((error as any)?.response?.data?.message || 'Failed to save configuration');
+    }
+  };
+
+  const renderFormField = (field: ProviderField) => {
+    const value = formData[field.key] || '';
+
+    switch (field.type) {
+      case 'select':
+        return (
+          <select
+            value={value.toString()}
+            onChange={(e) => handleFieldChange(field.key, e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            {field.options?.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        );
+
+      case 'password':
+        return (
+          <input
+            type="password"
+            value={value.toString()}
+            onChange={(e) => handleFieldChange(field.key, e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder={field.placeholder}
+          />
+        );
+
+      case 'number':
+        return (
+          <input
+            type="number"
+            value={value.toString()}
+            onChange={(e) => handleFieldChange(field.key, parseInt(e.target.value) || 0)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder={field.placeholder}
+          />
+        );
+
+      case 'email':
+        return (
+          <input
+            type="email"
+            value={value.toString()}
+            onChange={(e) => handleFieldChange(field.key, e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder={field.placeholder}
+          />
+        );
+
+      case 'url':
+        return (
+          <input
+            type="url"
+            value={value.toString()}
+            onChange={(e) => handleFieldChange(field.key, e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder={field.placeholder}
+          />
+        );
+
+      case 'tel':
+        return (
+          <input
+            type="tel"
+            value={value.toString()}
+            onChange={(e) => handleFieldChange(field.key, e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder={field.placeholder}
+          />
+        );
+
+      default:
+        return (
+          <input
+            type="text"
+            value={value.toString()}
+            onChange={(e) => handleFieldChange(field.key, e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder={field.placeholder}
+          />
+        );
+    }
+  };
+
+  const renderConfigurationForm = (existingChannel?: CommunicationChannel) => {
+    if (!currentProviderStructure) return null;
+
+    const requiredFieldsMet = currentProviderStructure.fields
+      .filter(field => field.required)
+      .every(field => formData[field.key] && formData[field.key] !== '');
+
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center space-x-3 p-4 bg-blue-50 rounded-lg">
+          {React.createElement(getProviderIcon(currentProviderStructure.icon), {
+            className: "h-6 w-6 text-blue-600"
+          })}
+          <div>
+            <h3 className="font-semibold text-blue-900">{currentProviderStructure.name}</h3>
+            <p className="text-sm text-blue-700">{currentProviderStructure.description}</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {currentProviderStructure.fields.map((field) => (
+            <div key={field.key} className="space-y-1">
+              <label className="block text-sm font-medium text-gray-700">
+                {field.label}
+                {field.required && <span className="text-red-500 ml-1">*</span>}
+              </label>
+              {renderFormField(field)}
+              {field.description && (
+                <p className="text-xs text-gray-500">{field.description}</p>
+              )}
+            </div>
+          ))}
+        </div>
+
+        <div className="flex justify-end space-x-3 pt-4 border-t">
+          <button
+            onClick={() => setEditingChannel(null)}
+            className="px-4 py-2 text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => {
+              handleSaveConfig(existingChannel?.id);
+              setEditingChannel(null);
+            }}
+            disabled={!requiredFieldsMet}
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {existingChannel ? 'Save Changes' : 'Save Configuration'}
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  const renderChannelConfig = (channel: CommunicationChannel) => {
+    const status = getChannelStatus(channel);
+    const Icon = getChannelIcon(channel.channel_type);
+    const isEditing = editingChannel === channel.id;
+
+    return (
+      <div key={channel.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="flex items-start justify-between mb-4">
+          <div className="flex items-center space-x-3">
+            <div className={`p-2 rounded-lg ${channel.channel_type === 'email' ? 'bg-blue-100' : channel.channel_type === 'sms' ? 'bg-green-100' : 'bg-purple-100'}`}>
+              <Icon className={`h-5 w-5 ${channel.channel_type === 'email' ? 'text-blue-600' : channel.channel_type === 'sms' ? 'text-green-600' : 'text-purple-600'}`} />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 capitalize">{channel.channel_type}</h3>
+              <p className="text-sm text-gray-500">{channel.provider_name}</p>
+            </div>
+          </div>
+          <div className="flex items-center space-x-3">
+            <div className={`flex items-center space-x-1 ${status.color}`}>
+              <status.icon className="h-5 w-5" />
+              <span className="text-sm font-medium capitalize">{status.status}</span>
+            </div>
+            {!isEditing && (
+              <button
+                onClick={() => {
+                  setEditingChannel(channel.id);
+                  setSelectedProvider(channel.provider_name.toLowerCase());
+                  // Populate form data with existing configuration
+                  if (channel.config) {
+                    setFormData(prev => {
+                      const updated = { ...prev };
+                      Object.keys(channel.config).forEach(key => {
+                        updated[key] = channel.config[key];
+                      });
+                      return updated;
+                    });
+                  }
+                }}
+                className="px-3 py-1 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center space-x-1"
+              >
+                <Settings className="h-4 w-4" />
+                <span>Edit</span>
+              </button>
+            )}
+          </div>
+        </div>
+
+        {isEditing ? (
+          renderConfigurationForm(channel)
+        ) : (
+          <React.Fragment>
+            <div className="space-y-3 mb-4">
+              {Object.entries(channel.config || {}).slice(0, 3).map(([key, value]) => (
+                <div key={key} className="flex justify-between text-sm">
+                  <span className="text-gray-600 capitalize">{key.replace('_', ' ')}:</span>
+                  <span className="font-medium max-w-xs break-all">
+                    {String(value) || 'Not configured'}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            {/* WhatsApp Channel Tabs */}
+            {channel.channel_type === 'whatsapp' ? (
+              <div className="border-t pt-4">
+                {/* WhatsApp Tab Navigation */}
+                <div className="flex space-x-1 border-b border-gray-200 mb-4">
+                  <button
+                    onClick={() => setWhatsAppActiveTab('config')}
+                    className={`px-3 py-2 text-sm font-medium border-b-2 transition-colors ${
+                      whatsappActiveTab === 'config'
+                        ? 'border-blue-500 text-blue-600'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    }`}
+                  >
+                    Configuration
+                  </button>
+                  <button
+                    onClick={() => setWhatsAppActiveTab('templates')}
+                    className={`px-3 py-2 text-sm font-medium border-b-2 transition-colors ${
+                      whatsappActiveTab === 'templates'
+                        ? 'border-blue-500 text-blue-600'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    }`}
+                  >
+                    Templates
+                  </button>
+                </div>
+
+                {/* WhatsApp Tab Content */}
+                {whatsappActiveTab === 'config' && (
+                  <div className="space-y-4">
+                    <h4 className="text-sm font-medium text-gray-900">Test Configuration</h4>
+                    <div className="flex space-x-3">
+                      <input
+                        type="tel"
+                        value={testPhone}
+                        onChange={(e) => setTestPhone(e.target.value)}
+                        placeholder="Enter test phone number"
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                      />
+                      <button
+                        onClick={() => handleTestWhatsApp()}
+                        disabled={!testPhone || isTesting}
+                        className="px-3 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2 text-sm"
+                      >
+                        <Send className="h-4 w-4" />
+                        <span>{isTesting ? 'Sending...' : 'Send Test'}</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {whatsappActiveTab === 'templates' && (
+                  <div className="space-y-4">
+                    {dashboardLoading ? (
+                      <div className="flex items-center justify-center py-8">
+                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                      </div>
+                    ) : whatsappDashboard ? (
+                      <>
+                        {/* Template Dashboard Stats */}
+                        {whatsappDashboard.templates && (
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-gray-50 rounded-lg">
+                            <div className="text-center">
+                              <div className="text-2xl font-bold text-green-600">{whatsappDashboard.templates.total || 0}</div>
+                              <div className="text-xs text-gray-600">Total Templates</div>
+                            </div>
+                            <div className="text-center">
+                              <div className="text-2xl font-bold text-blue-600">{whatsappDashboard.templates.approved || 0}</div>
+                              <div className="text-xs text-gray-600">Approved</div>
+                            </div>
+                            <div className="text-center">
+                              <div className="text-2xl font-bold text-yellow-600">{whatsappDashboard.templates.pending || 0}</div>
+                              <div className="text-xs text-gray-600">Pending</div>
+                            </div>
+                            <div className="text-center">
+                              <div className="text-2xl font-bold text-red-600">{whatsappDashboard.templates.rejected || 0}</div>
+                              <div className="text-xs text-gray-600">Rejected</div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Template Actions */}
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            onClick={() => syncTemplatesMutation.mutate({})}
+                            disabled={syncTemplatesMutation.isPending}
+                            className="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 flex items-center space-x-2 text-sm"
+                          >
+                            <RotateCw className={`h-4 w-4 ${syncTemplatesMutation.isPending ? 'animate-spin' : ''}`} />
+                            <span>Sync Templates</span>
+                          </button>
+                          <button
+                            onClick={() => clearCachesMutation.mutate()}
+                            disabled={clearCachesMutation.isPending}
+                            className="px-3 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 disabled:opacity-50 flex items-center space-x-2 text-sm"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                            <span>Clear Caches</span>
+                          </button>
+                        </div>
+
+                        {/* Sync Results Display */}
+                        {syncResults && (
+                          <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                            <div className="flex items-center justify-between mb-3">
+                              <h5 className="text-sm font-medium text-gray-900">Sync Results</h5>
+                              <button
+                                onClick={() => setSyncResults(null)}
+                                className="text-gray-400 hover:text-gray-600"
+                              >
+                                <X className="h-4 w-4" />
+                              </button>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-3">
+                              <div className="text-center p-2 bg-white rounded border border-gray-200">
+                                <div className={`text-xl font-bold ${
+                                  (syncResults.success || syncResults.data?.success) ? 'text-green-600' : 'text-red-600'
+                                }`}>
+                                  {syncResults.synced || syncResults.data?.synced || 0}
+                                </div>
+                                <div className="text-xs text-gray-600">Synced</div>
+                              </div>
+                              <div className="text-center p-2 bg-white rounded border border-gray-200">
+                                <div className={`text-xl font-bold ${
+                                  (syncResults.failed || syncResults.data?.failed) > 0 ? 'text-red-600' : 'text-gray-400'
+                                }`}>
+                                  {syncResults.failed || syncResults.data?.failed || 0}
+                                </div>
+                                <div className="text-xs text-gray-600">Failed</div>
+                              </div>
+                              <div className="text-center p-2 bg-white rounded border border-gray-200">
+                                <div className="text-xl font-bold text-gray-600">
+                                  {syncResults.skipped || syncResults.data?.skipped || 0}
+                                </div>
+                                <div className="text-xs text-gray-600">Skipped</div>
+                              </div>
+                            </div>
+
+                            {/* Detailed Template Status */}
+                            {(syncResults.details || syncResults.data?.details) && (
+                              <div className="space-y-2">
+                                <h6 className="text-xs font-medium text-gray-700">Template Details:</h6>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                  {Object.entries(syncResults.details || syncResults.data?.details || {}).map(([templateName, detail]: [string, any]) => (
+                                    <div key={templateName} className="flex items-center justify-between p-2 bg-white rounded border border-gray-200 text-xs">
+                                      <div className="flex items-center space-x-2">
+                                        <div className={`w-2 h-2 rounded-full ${
+                                          detail.success ? 'bg-green-500' : 'bg-red-500'
+                                        }`}></div>
+                                        <span className="font-medium">{templateName}</span>
+                                      </div>
+                                      <div className="flex items-center space-x-2">
+                                        <span className={`px-2 py-1 rounded text-xs font-medium ${
+                                          detail.success ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                                        }`}>
+                                          {detail.success ? 'Success' : detail.action || 'Failed'}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+
+                                {/* Error Messages */}
+                                {Object.entries(syncResults.details || syncResults.data?.details || {})
+                                  .filter(([_, detail]: [string, any]) => !detail.success && detail.error)
+                                  .map(([templateName, detail]: [string, any]) => (
+                                    <div key={templateName} className="p-2 bg-red-50 border border-red-200 rounded text-xs">
+                                      <div className="font-medium text-red-700 mb-1">{templateName} Error:</div>
+                                      <div className="text-red-600">{detail.error}</div>
+                                    </div>
+                                  ))}
+                              </div>
+                            )}
+
+                            {/* Overall Status Message */}
+                            <div className={`p-2 rounded text-xs font-medium ${
+                              (syncResults.success || syncResults.data?.success)
+                                ? 'bg-green-100 text-green-700'
+                                : 'bg-yellow-100 text-yellow-700'
+                            }`}>
+                              {syncResults.message || syncResults.data?.message || 'Sync completed'}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Backend Template Structures */}
+                        <div className="space-y-6">
+                          {/* Template Filters and Search */}
+                          <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
+                            <div className="flex flex-wrap gap-2">
+                              <select
+                                value={templateFilter}
+                                onChange={(e) => setTemplateFilter(e.target.value)}
+                                className="px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              >
+                                <option value="all">All Categories</option>
+                                <option value="UTILITY">Utility</option>
+                                <option value="MARKETING">Marketing</option>
+                                <option value="AUTHENTICATION">Authentication</option>
+                              </select>
+
+                              <select
+                                value={statusFilter}
+                                onChange={(e) => setStatusFilter(e.target.value)}
+                                className="px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              >
+                                <option value="all">All Status</option>
+                                <option value="created">Created</option>
+                                <option value="not_created">Not Created</option>
+                              </select>
+                            </div>
+
+                            <div className="text-sm text-gray-500">
+                              {templateStructures?.length || 0} templates available
+                            </div>
+                          </div>
+
+                          {templateStructuresLoading ? (
+                            <div className="flex items-center justify-center py-8">
+                              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                              <span className="ml-2 text-sm text-gray-600">Loading templates...</span>
+                            </div>
+                          ) : (
+                            <>
+                              {/* Group templates by category */}
+                              {['UTILITY', 'MARKETING', 'AUTHENTICATION'].map((category) => {
+                                const filteredTemplates = templateStructures?.filter((template: any) => {
+                                  const matchesCategory = templateFilter === 'all' || template.category === category;
+                                  const apiTemplate = whatsappDashboard.templates?.list?.find((api: any) => api.name === template.name);
+                                  const matchesStatus = statusFilter === 'all' ||
+                                    (statusFilter === 'created' && apiTemplate) ||
+                                    (statusFilter === 'not_created' && !apiTemplate);
+                                  const matchesCategoryFilter = templateFilter === 'all' || template.category === templateFilter;
+
+                                  return matchesCategoryFilter && matchesStatus;
+                                }) || [];
+
+                                if (filteredTemplates.length === 0) return null;
+
+                                return (
+                                  <div key={category} className="mb-8">
+                                    {/* Category Header */}
+                                    <div className="flex items-center space-x-2 mb-4">
+                                      <div className={`w-3 h-3 rounded-full ${
+                                        category === 'UTILITY' ? 'bg-blue-500' :
+                                        category === 'MARKETING' ? 'bg-green-500' :
+                                        'bg-purple-500'
+                                      }`}></div>
+                                      <h4 className="text-lg font-semibold text-gray-900">{category}</h4>
+                                      <span className="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded-full">
+                                        {filteredTemplates.length} templates
+                                      </span>
+                                    </div>
+
+                                    {/* Templates Grid */}
+                                    <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+                                      {filteredTemplates.map((template: any) => {
+                                        const apiTemplate = whatsappDashboard.templates?.list?.find((api: any) => api.name === template.name);
+                                        const isCreated = !!apiTemplate;
+
+                                        return (
+                                          <div key={template.name} className="bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow">
+                                  <div className="flex items-start justify-between mb-2">
+                                    <div className="flex-1">
+                                      <div className="flex items-center space-x-2">
+                                        <h6 className="font-medium text-gray-900 text-sm">{template.name}</h6>
+                                        {apiTemplate && (
+                                          <span className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded-md">
+                                            Created
+                                        </span>
+                                        )}
+                                      </div>
+                                      <p className="text-xs text-gray-500 mt-1">{template.description}</p>
+                                    </div>
+
+                                    <div className="flex items-center space-x-2">
+                                      <span className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-md">
+                                        {template.category}
+                                      </span>
+                                      {!apiTemplate && (
+                                        <>
+                                          <button
+                                            onClick={() => handleCreateTemplateFromPreset(template.name)}
+                                            disabled={creatingTemplate}
+                                            className="px-2 py-1 text-xs bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 flex items-center space-x-1"
+                                          >
+                                            <Plus className="h-3 w-3" />
+                                            <span>Create</span>
+                                          </button>
+                                          <button
+                                            onClick={() => handleTestTemplate(template.name)}
+                                            className="px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
+                                          >
+                                            Reference
+                                          </button>
+                                        </>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  <div className="text-xs text-gray-600 mb-2">
+                                    <p className="font-medium mb-1">Variables:</p>
+                                    <div className="flex flex-wrap gap-1">
+                                      {template.variables?.length > 0 ? (
+                                        template.variables.map((variable: string, index: number) => (
+                                          <span key={index} className="px-1 py-0.5 bg-gray-200 rounded text-xs">
+                                            {variable}
+                                          </span>
+                                        ))
+                                      ) : (
+                                        <span className="text-gray-400">No variables</span>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  {template.example && (
+                                    <div className="text-xs text-gray-500 italic">
+                                      Example: {template.example}
+                                    </div>
+                                  )}
+
+                                  {apiTemplate && (
+                                    <div className="mt-2 pt-2 border-t border-gray-200">
+                                      <div className="flex items-center justify-between">
+                                        <span className="text-xs text-gray-500">
+                                          API Status: {apiTemplate.status}
+                                        </span>
+                                        <button
+                                          onClick={() => setSelectedTemplate(template.name)}
+                                          className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200"
+                                        >
+                                          Test
+                                        </button>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                      )}
+                        </div>
+
+                        {/* API Templates (if available) */}
+                        {whatsappDashboard.templates?.list && whatsappDashboard.templates.list.length > 0 && (
+                          <div className="space-y-4 mt-6">
+                            <div className="flex items-center justify-between">
+                              <h5 className="text-sm font-medium text-gray-900">API Template Details</h5>
+                              <div className="text-xs text-gray-500">
+                                {whatsappDashboard.templates.list.length} templates from WhatsApp API
+                              </div>
+                            </div>
+
+                            <div className="space-y-3 max-h-96 overflow-y-auto">
+                              {whatsappDashboard.templates.list.map((template: any, index: number) => (
+                                <div key={template.name || index} className="border border-gray-200 rounded-lg p-4 space-y-3">
+                                  {/* Template Header */}
+                                  <div className="flex items-start justify-between">
+                                    <div className="flex-1">
+                                      <div className="flex items-center space-x-2">
+                                        <h6 className="font-medium text-gray-900">{template.name}</h6>
+                                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                                          template.status === 'APPROVED'
+                                            ? 'bg-green-100 text-green-800'
+                                            : template.status === 'PENDING'
+                                            ? 'bg-yellow-100 text-yellow-800'
+                                            : template.status === 'REJECTED'
+                                            ? 'bg-red-100 text-red-800'
+                                            : 'bg-gray-100 text-gray-800'
+                                        }`}>
+                                          {template.status || 'UNKNOWN'}
+                                        </span>
+                                        <span className="text-xs text-gray-500">
+                                          Language: {template.language || 'en'}
+                                        </span>
+                                      </div>
+                                      <p className="text-sm text-gray-600 mt-1">
+                                        Category: {template.category || 'MARKETING'} •
+                                        Created: {template.created_at ? new Date(template.created_at).toLocaleDateString() : 'Unknown'}
+                                      </p>
+                                    </div>
+
+                                    {/* Template Actions */}
+                                    <div className="flex items-center space-x-2">
+                                      <button
+                                        onClick={() => {
+                                          syncTemplatesMutation.mutate({
+                                            templates: [template.name],
+                                            force: true
+                                          });
+                                        }}
+                                        disabled={syncTemplatesMutation.isPending}
+                                        className="px-2 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700 disabled:opacity-50 flex items-center space-x-1"
+                                      >
+                                        <RotateCw className={`h-3 w-3 ${syncTemplatesMutation.isPending ? 'animate-spin' : ''}`} />
+                                        <span>Sync</span>
+                                      </button>
+                                      {template.status === 'APPROVED' && (
+                                        <button
+                                          onClick={() => {
+                                            setSelectedTemplate(template.name);
+                                            // Switch to config tab and focus on test input
+                                            setWhatsAppActiveTab('config');
+                                            setTimeout(() => {
+                                              const testInput = document.querySelector('input[placeholder="Enter test phone number"]') as HTMLInputElement;
+                                              if (testInput) {
+                                                testInput.focus();
+                                                testInput.value = templateTestNumber;
+                                              }
+                                            }, 100);
+                                          }}
+                                          className="px-2 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700 flex items-center space-x-1"
+                                        >
+                                          <TestTube className="h-3 w-3" />
+                                          <span>Test</span>
+                                        </button>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  {/* Template Structure */}
+                                  {template.components && template.components.length > 0 && (
+                                    <div className="space-y-2">
+                                      <div className="text-xs font-medium text-gray-700 uppercase tracking-wide">Components</div>
+                                      <div className="space-y-1">
+                                        {template.components.map((component: any, compIndex: number) => (
+                                          <div key={compIndex} className="bg-gray-50 p-2 rounded text-xs">
+                                            <div className="flex items-center space-x-2 mb-1">
+                                              <span className="font-medium capitalize">{component.type}:</span>
+                                              {component.format && (
+                                                <span className="text-gray-500">({component.format})</span>
+                                              )}
+                                            </div>
+
+                                            {component.text && (
+                                              <div className="text-gray-600 mb-1">
+                                                <span className="font-medium">Text:</span> {component.text}
+                                              </div>
+                                            )}
+
+                                            {component.example && (
+                                              <div className="text-gray-600 mb-1">
+                                                <span className="font-medium">Example:</span> {component.example?.header_text || component.example?.body_text?.[0] || 'N/A'}
+                                              </div>
+                                            )}
+
+                                            {component.buttons && component.buttons.length > 0 && (
+                                              <div className="text-gray-600">
+                                                <span className="font-medium">Buttons:</span>
+                                                <ul className="ml-3 mt-1">
+                                                  {component.buttons.map((button: any, btnIndex: number) => (
+                                                    <li key={btnIndex}>
+                                                      {button.type}: {button.text} ({button.url ? 'URL' : button.phone_number ? 'Phone' : 'Quick Reply'})
+                                                    </li>
+                                                  ))}
+                                                </ul>
+                                              </div>
+                                            )}
+
+                                            {component.parameters && component.parameters.length > 0 && (
+                                              <div className="text-gray-600">
+                                                <span className="font-medium">Parameters:</span>
+                                                <ul className="ml-3 mt-1">
+                                                  {component.parameters.map((param: any, paramIndex: number) => (
+                                                    <li key={paramIndex}>
+                                                      {param.type}: {param.text || param.currency?.code || param.image?.link || 'N/A'}
+                                                    </li>
+                                                  ))}
+                                                </ul>
+                                              </div>
+                                            )}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {/* Sync Status */}
+                                  <div className="flex items-center justify-between text-xs">
+                                    <div className="flex items-center space-x-2">
+                                      <Clock className="h-3 w-3 text-gray-400" />
+                                      <span className="text-gray-500">
+                                        Last synced: {template.last_synced ? new Date(template.last_synced).toLocaleString() : 'Never'}
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center space-x-2">
+                                      {template.is_synced ? (
+                                        <span className="text-green-600 flex items-center space-x-1">
+                                          <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                                          <span>Created</span>
+                                        </span>
+                                      ) : (
+                                        <span className="text-yellow-600 flex items-center space-x-1">
+                                          <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
+                                          <span>Pending Sync</span>
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* No API Templates Message */}
+                        {(!whatsappDashboard.templates?.list || whatsappDashboard.templates.list.length === 0) && (
+                          <div className="text-center py-6 mt-6">
+                            <div className="inline-flex items-center justify-center w-12 h-12 bg-gray-100 rounded-full mb-3">
+                              <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                              </svg>
+                            </div>
+                            <h4 className="text-sm font-medium text-gray-900 mb-2">No API Templates Found</h4>
+                            <p className="text-xs text-gray-500 mb-4">
+                              {whatsappDashboard.connection_status?.status === 'error'
+                                ? `Unable to sync templates from WhatsApp API: ${whatsappDashboard.connection_status.message || 'Connection error'}`
+                                : "No templates found in your WhatsApp Business account. Please create templates in your WhatsApp Business Manager first."
+                              }
+                            </p>
+                            <div className="flex justify-center space-x-3">
+                              <button
+                                onClick={() => setWhatsAppActiveTab('config')}
+                                className="px-3 py-1 text-xs bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
+                              >
+                                Check Configuration
+                              </button>
+                              <button
+                                onClick={() => syncTemplatesMutation.mutate({})}
+                                disabled={syncTemplatesMutation.isPending}
+                                className="px-3 py-1 text-xs bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+                              >
+                                Try Sync Again
+                              </button>
+                            </div>
+
+                            <div className="mt-4 pt-4 border-t border-gray-200">
+                              <p className="text-xs text-gray-600 mb-2">
+                                However, you can use the <strong>predefined template structures</strong> above for reference and development.
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                Create these templates in your WhatsApp Business Manager to enable full functionality.
+                              </p>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Template Testing - Always Available */}
+                        <div className="space-y-3 border-t pt-4 mt-6">
+                          <h5 className="text-sm font-medium text-gray-900">Test Template</h5>
+                          <div className="flex space-x-3">
+                            <select
+                              value={selectedTemplate}
+                              onChange={(e) => setSelectedTemplate(e.target.value)}
+                              className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                            >
+                              <option value="">Select a template</option>
+                              {/* Show backend template structures for reference */}
+                              <optgroup label="Template Structures (Reference)">
+                                {templateStructures?.map((template: any) => (
+                                  <option key={`backend-${template.name}`} value={template.name} disabled>
+                                    {template.name} ({template.category}) - Reference Only
+                                  </option>
+                                ))}
+                              </optgroup>
+                              {/* Show approved API templates */}
+                              {whatsappDashboard.templates?.list && whatsappDashboard.templates.list.length > 0 && (
+                                <optgroup label="API Templates (Testable)">
+                                  {whatsappDashboard.templates.list
+                                    .filter((t: any) => t.status === 'APPROVED')
+                                    .map((template: any) => (
+                                      <option key={template.name} value={template.name}>
+                                        {template.name} ({template.category || 'MARKETING'})
+                                      </option>
+                                    ))}
+                                </optgroup>
+                              )}
+                            </select>
+                            <input
+                              type="tel"
+                              value={templateTestNumber}
+                              onChange={(e) => setTemplateTestNumber(e.target.value)}
+                              placeholder="Test number"
+                              className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                            />
+                            <button
+                              onClick={() => {
+                                if (selectedTemplate && templateTestNumber) {
+                                  testTemplateMutation.mutate({
+                                    template_name: selectedTemplate,
+                                    test_number: templateTestNumber
+                                  });
+                                } else {
+                                  showToast.error('Please select a template and enter test number');
+                                }
+                              }}
+                              disabled={!selectedTemplate || !templateTestNumber || testTemplateMutation.isPending}
+                              className="px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 flex items-center space-x-2 text-sm"
+                            >
+                              <TestTube className="h-4 w-4" />
+                              <span>Test</span>
+                            </button>
+                          </div>
+                          {selectedTemplate && (
+                            <p className="text-xs text-gray-500">
+                              Selected template: <span className="font-medium">{selectedTemplate}</span>
+                              {templateStructures?.find((t: any) => t.name === selectedTemplate) && (
+                                <span className="text-amber-600 ml-2">(Backend template - create in WhatsApp Business Manager to test)</span>
+                              )}
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Connection Status */}
+                        {whatsappDashboard.connection_status && (
+                          <div className={`p-3 rounded-lg ${
+                            whatsappDashboard.connection_status.status === 'connected'
+                              ? 'bg-green-50 border border-green-200'
+                              : whatsappDashboard.connection_status.status === 'error'
+                              ? 'bg-red-50 border border-red-200'
+                              : 'bg-yellow-50 border border-yellow-200'
+                          }`}>
+                            <div className="flex items-center space-x-2">
+                              <div className={`w-3 h-3 rounded-full ${
+                                whatsappDashboard.connection_status.status === 'connected'
+                                  ? 'bg-green-500'
+                                  : whatsappDashboard.connection_status.status === 'error'
+                                  ? 'bg-red-500'
+                                  : 'bg-yellow-500'
+                              }`}></div>
+                              <span className="text-sm font-medium capitalize">
+                                {whatsappDashboard.connection_status.status}
+                              </span>
+                            </div>
+                            <p className="text-xs text-gray-600 mt-1">
+                              {whatsappDashboard.connection_status.message}
+                            </p>
+                            {whatsappDashboard.connection_status.last_checked && (
+                              <p className="text-xs text-gray-500 mt-1">
+                                Last checked: {new Date(whatsappDashboard.connection_status.last_checked).toLocaleString()}
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <div className="space-y-4">
+                        {/* Connection Status with Better UX */}
+                        {whatsappDashboard.connection_status && (
+                          <div className={`p-4 rounded-lg ${
+                            whatsappDashboard.connection_status.status === 'connected'
+                              ? 'bg-green-50 border border-green-200'
+                              : whatsappDashboard.connection_status.status === 'error'
+                              ? 'bg-red-50 border border-red-200'
+                              : 'bg-yellow-50 border border-yellow-200'
+                          }`}>
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-2">
+                                <div className={`w-3 h-3 rounded-full ${
+                                  whatsappDashboard.connection_status.status === 'connected'
+                                    ? 'bg-green-500'
+                                    : whatsappDashboard.connection_status.status === 'error'
+                                    ? 'bg-red-500'
+                                    : 'bg-yellow-500'
+                                }`}></div>
+                                <span className="text-sm font-medium capitalize">
+                                  {whatsappDashboard.connection_status.status}
+                                </span>
+                              </div>
+                              <div className="text-xs text-gray-500">
+                                Last checked: {new Date(whatsappDashboard.connection_status.last_checked).toLocaleString()}
+                              </div>
+                            </div>
+                            <p className="text-sm text-gray-600 mt-2">
+                              {whatsappDashboard.connection_status.message}
+                            </p>
+
+                            {/* Actionable guidance for connection issues */}
+                            {whatsappDashboard.connection_status.status === 'error' && (
+                              <div className="mt-3 p-3 bg-white bg-opacity-60 rounded-md">
+                                <p className="text-xs text-gray-700 mb-2">
+                                  <strong>To fix this issue:</strong>
+                                </p>
+                                <ul className="text-xs text-gray-600 space-y-1">
+                                  <li>• Update the WhatsApp Access Token in the Configuration tab</li>
+                                  <li>• Ensure the Phone Number ID is correct</li>
+                                  <li>• Verify your WhatsApp Business API permissions</li>
+                                  <li>• Click "Sync Templates" after updating credentials</li>
+                                </ul>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Template Actions - Always Available */}
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            onClick={() => syncTemplatesMutation.mutate({})}
+                            disabled={syncTemplatesMutation.isPending}
+                            className="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 flex items-center space-x-2 text-sm"
+                          >
+                            <RotateCw className={`h-4 w-4 ${syncTemplatesMutation.isPending ? 'animate-spin' : ''}`} />
+                            <span>Sync Templates</span>
+                          </button>
+                          <button
+                            onClick={() => clearCachesMutation.mutate()}
+                            disabled={clearCachesMutation.isPending}
+                            className="px-3 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 disabled:opacity-50 flex items-center space-x-2 text-sm"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                            <span>Clear Caches</span>
+                          </button>
+                        </div>
+
+                        {/* Template Testing - Always Available */}
+                        <div className="space-y-3 border-t pt-4">
+                          <h5 className="text-sm font-medium text-gray-900">Test Template</h5>
+                          <div className="flex space-x-3">
+                            <input
+                              type="tel"
+                              value={templateTestNumber}
+                              onChange={(e) => setTemplateTestNumber(e.target.value)}
+                              placeholder="Test number"
+                              className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                            />
+                            <button
+                              onClick={() => {
+                                if (selectedTemplate && templateTestNumber) {
+                                  testTemplateMutation.mutate({
+                                    template_name: selectedTemplate,
+                                    test_number: templateTestNumber
+                                  });
+                                } else {
+                                  showToast.error('Please select a template and enter test number');
+                                }
+                              }}
+                              disabled={!selectedTemplate || !templateTestNumber || testTemplateMutation.isPending}
+                              className="px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 flex items-center space-x-2 text-sm"
+                            >
+                              <TestTube className="h-4 w-4" />
+                              <span>Test</span>
+                            </button>
+                          </div>
+                          {selectedTemplate && (
+                            <p className="text-xs text-gray-500">
+                              Selected template: <span className="font-medium">{selectedTemplate}</span>
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Info Section */}
+                        <div className="text-center py-4 text-gray-500">
+                          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                            <h6 className="text-sm font-medium text-blue-900 mb-2">Template Management</h6>
+                            <p className="text-xs text-blue-700 mb-3">
+                              Connect your WhatsApp Business API to view and manage templates. Templates allow you to send structured messages to your customers.
+                            </p>
+                            <div className="text-xs text-blue-600 space-y-1">
+                              <p>• Approved templates can be used for messaging</p>
+                              <p>• Sync templates to see the latest status</p>
+                              <p>• Test templates before sending to customers</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="border-t pt-4">
+                <h4 className="text-sm font-medium text-gray-900 mb-3">Test Configuration</h4>
+                {channel.channel_type === 'email' ? (
+                  <div className="flex space-x-3">
+                    <input
+                      type="email"
+                      value={testEmail}
+                      onChange={(e) => setTestEmail(e.target.value)}
+                      placeholder="Enter test email address"
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                    />
+                    <button
+                      onClick={handleTestEmail}
+                      disabled={!testEmail || isTesting}
+                      className="px-3 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2 text-sm"
+                    >
+                      <Send className="h-4 w-4" />
+                      <span>{isTesting ? 'Sending...' : 'Send Test'}</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex space-x-3">
+                    <input
+                      type="tel"
+                      value={testPhone}
+                      onChange={(e) => setTestPhone(e.target.value)}
+                      placeholder="Enter test phone number"
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                    />
+                    <button
+                      onClick={() => handleTestSMS()}
+                      disabled={!testPhone || isTesting}
+                      className="px-3 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2 text-sm"
+                    >
+                      <Send className="h-4 w-4" />
+                      <span>{isTesting ? 'Sending...' : 'Send Test'}</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </React.Fragment>
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <div className="p-6">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">Communication Configuration</h1>
+        <p className="text-gray-600 mt-1">Configure global communication infrastructure (Email, SMS, WhatsApp)</p>
+      </div>
+
+      <div className="space-y-6">
+        {isLoading || templateStructuresLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          </div>
+        ) : (
+          <React.Fragment>
+            {/* Existing Configurations */}
+            {channels
+              .filter((channel: CommunicationChannel) => channel.channel_type === selectedChannel)
+              .map((channel: CommunicationChannel) => renderChannelConfig(channel))}
+
+            {/* Add New Configuration Section */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <div className="mb-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    Add New {selectedChannel.charAt(0).toUpperCase() + selectedChannel.slice(1)} Configuration
+                  </h3>
+                  <div className={`p-2 rounded-lg ${
+                    selectedChannel === 'email' ? 'bg-blue-100' :
+                    selectedChannel === 'sms' ? 'bg-green-100' :
+                    'bg-purple-100'
+                  }`}>
+                    {React.createElement(getChannelIcon(selectedChannel), {
+                      className: `h-5 w-5 ${
+                        selectedChannel === 'email' ? 'text-blue-600' :
+                        selectedChannel === 'sms' ? 'text-green-600' :
+                        'text-purple-600'
+                      }`
+                    })}
+                  </div>
+                </div>
+
+                {/* Provider Selection - Always show if providers are available */}
+                {availableProviders.length > 0 && (
+                  <div className="mb-6">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Select Provider
+                    </label>
+                    <select
+                      value={selectedProvider}
+                      onChange={(e) => {
+                        setSelectedProvider(e.target.value);
+                        setEditingChannel(null); // Reset edit state when changing provider
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      {availableProviders.map((provider) => (
+                        <option key={provider} value={provider}>
+                          {providerStructures[selectedChannel]?.[provider]?.name || provider}
+                        </option>
+                      ))}
+                    </select>
+                    {providerStructures[selectedChannel]?.[selectedProvider]?.description && (
+                      <p className="mt-1 text-sm text-gray-500">
+                        {providerStructures[selectedChannel]?.[selectedProvider]?.description}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {availableProviders.length === 0 && (
+                  <div className="text-center py-8">
+                    <p className="text-gray-500">No providers available for {selectedChannel}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Configuration form for new provider */}
+              {availableProviders.length > 0 && renderConfigurationForm()}
+            </div>
+          </React.Fragment>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default CommunicationConfig;

@@ -26,10 +26,24 @@ import {
   TrendingUp,
   Clock,
   AlertCircle,
+  Phone,
+  MessageCircle,
+  Tag as DiscountTag,
+  Plus,
+  Edit,
+  Save,
+  History,
+  StickyNote,
+  Bell,
+  Send,
+  Target,
+  Users,
+  Percent,
+  Gift,
+  Star,
 } from 'lucide-react';
 import { api } from '../../api/axios';
 import toast from 'react-hot-toast';
-import AnalyticsDashboard from './AnalyticsDashboard';
 import ValidationLogs from './ValidationLogs';
 import SmsRecoveryManager from './SmsRecoveryManager';
 import ABTestingManager from './ABTestingManager';
@@ -51,6 +65,7 @@ interface AbandonedCart {
   user?: {
     email: string;
     name?: string;
+    phone?: string;
   };
   cart_data: any;
   total_amount: number;
@@ -65,11 +80,60 @@ interface AbandonedCart {
   customer_segment: string;
   device_type?: string;
   source?: string;
+  recovery_token?: string;
+  last_activity?: string;
+  expires_at?: string;
+}
+
+interface CartItem {
+  id: number;
+  name: string;
+  sku: string;
+  price: number;
+  quantity: number;
+  image?: string;
+  variant?: string;
+}
+
+interface DiscountCode {
+  code: string;
+  type: string;
+  value: number;
+  min_purchase_amount?: number;
+  valid_until: string;
+  discount_amount: number;
+  final_price: number;
+}
+
+interface RecoveryTemplate {
+  name: string;
+  email_subject: string;
+  message: string;
+  discount_percentage: number;
+  follow_up_days: number;
+}
+
+interface CartNote {
+  id: number;
+  notes: string;
+  note_type: 'internal' | 'customer_communication' | 'recovery_attempt';
+  admin_user?: {
+    name: string;
+  };
+  created_at: string;
+}
+
+interface Reminder {
+  id: number;
+  reminder_type: 'email' | 'sms' | 'phone_call' | 'manual_followup' | 'whatsapp';
+  message_content: string;
+  scheduled_at: string;
+  status: 'pending' | 'sent' | 'completed';
 }
 
 const AbandonedCarts: React.FC = () => {
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<'carts' | 'analytics' | 'validation' | 'sms' | 'abtesting'>('carts');
+  const [activeTab, setActiveTab] = useState<'carts' | 'validation' | 'sms' | 'abtesting'>('carts');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCart, setSelectedCart] = useState<AbandonedCart | null>(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
@@ -77,6 +141,51 @@ const AbandonedCarts: React.FC = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [selectedCarts, setSelectedCarts] = useState<number[]>([]);
   const [selectAll, setSelectAll] = useState(false);
+
+  // Enhanced UI states
+  const [showDiscountModal, setShowDiscountModal] = useState(false);
+  const [showTemplateModal, setShowTemplateModal] = useState(false);
+  const [showNotesModal, setShowNotesModal] = useState(false);
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [showMessageModal, setShowMessageModal] = useState(false);
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [showCartInsightsModal, setShowCartInsightsModal] = useState(false);
+  const [activeModalTab, setActiveModalTab] = useState<'details' | 'history' | 'notes' | 'discounts' | 'insights'>('details');
+
+  // Form states
+  const [discountForm, setDiscountForm] = useState({
+    discount_type: 'percentage',
+    discount_value: '',
+    min_purchase_amount: '',
+    valid_days: '7',
+    usage_limit: '1',
+  });
+
+  const [messageForm, setMessageForm] = useState({
+    message_type: 'email',
+    subject: '',
+    message_content: '',
+    send_immediately: true,
+    include_discount: false,
+  });
+
+  const [scheduleForm, setScheduleForm] = useState({
+    reminder_type: 'email',
+    scheduled_at: '',
+    message_content: '',
+  });
+
+  const [notesForm, setNotesForm] = useState({
+    notes: '',
+    note_type: 'internal' as const,
+  });
+
+  // Data states
+  const [templates, setTemplates] = useState<Record<string, RecoveryTemplate>>({});
+  const [cartHistory, setCartHistory] = useState<any>(null);
+  const [cartNotes, setCartNotes] = useState<CartNote[]>([]);
+  const [cartDiscounts, setCartDiscounts] = useState<DiscountCode[]>([]);
+  const [cartInsights, setCartInsights] = useState<any>(null);
 
   // Advanced filters state
   const [filters, setFilters] = useState({
@@ -219,10 +328,229 @@ const AbandonedCarts: React.FC = () => {
     },
   });
 
-  // Event handlers
+  // Enhanced mutations
+  const generateDiscountMutation = useMutation({
+    mutationFn: async ({ cartId, formData }: { cartId: number; formData: any }) => {
+      const response = await api.post(`/abandoned-carts/${cartId}/generate-discount-code`, formData);
+      return response.data;
+    },
+    onSuccess: (data) => {
+      toast.success('Discount code generated successfully');
+      queryClient.invalidateQueries({ queryKey: ['abandoned-carts'] });
+      setShowDiscountModal(false);
+      if (data.data?.discount) {
+        setCartDiscounts(prev => [...prev, data.data.discount]);
+      }
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to generate discount code');
+    },
+  });
+
+  const scheduleReminderMutation = useMutation({
+    mutationFn: async ({ cartId, formData }: { cartId: number; formData: any }) => {
+      const response = await api.post(`/abandoned-carts/${cartId}/schedule-reminder`, formData);
+      return response.data;
+    },
+    onSuccess: () => {
+      toast.success('Reminder scheduled successfully');
+      queryClient.invalidateQueries({ queryKey: ['abandoned-carts'] });
+      setShowScheduleModal(false);
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to schedule reminder');
+    },
+  });
+
+  const sendPersonalizedMessageMutation = useMutation({
+    mutationFn: async ({ cartId, formData }: { cartId: number; formData: any }) => {
+      const response = await api.post(`/abandoned-carts/${cartId}/send-personalized-message`, formData);
+      return response.data;
+    },
+    onSuccess: () => {
+      toast.success('Message sent successfully');
+      queryClient.invalidateQueries({ queryKey: ['abandoned-carts'] });
+      setShowMessageModal(false);
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to send message');
+    },
+  });
+
+  const addNotesMutation = useMutation({
+    mutationFn: async ({ cartId, formData }: { cartId: number; formData: any }) => {
+      const response = await api.post(`/abandoned-carts/${cartId}/add-notes`, formData);
+      return response.data;
+    },
+    onSuccess: (data) => {
+      toast.success('Notes added successfully');
+      if (data.data?.note) {
+        setCartNotes(prev => [data.data.note, ...prev]);
+      }
+      setNotesForm({ notes: '', note_type: 'internal' });
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to add notes');
+    },
+  });
+
+  const applyTemplateMutation = useMutation({
+    mutationFn: async ({ cartId, templateName, sendImmediately }: { cartId: number; templateName: string; sendImmediately: boolean }) => {
+      const response = await api.post(`/abandoned-carts/${cartId}/apply-recovery-template`, {
+        template_name: templateName,
+        send_immediately: sendImmediately
+      });
+      return response.data;
+    },
+    onSuccess: (data) => {
+      toast.success(data.message);
+      queryClient.invalidateQueries({ queryKey: ['abandoned-carts'] });
+      setShowTemplateModal(false);
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to apply template');
+    },
+  });
+
+  // Fetch templates
+  const { data: templatesData } = useQuery({
+    queryKey: ['recovery-templates'],
+    queryFn: async () => {
+      const response = await api.get('/abandoned-carts/recovery-templates');
+      return response.data;
+    },
+  });
+
+  // Update templates when data changes
+  useEffect(() => {
+    if (templatesData?.data) {
+      setTemplates(templatesData.data || {});
+    }
+  }, [templatesData]);
+
+  // Fetch cart recovery history when modal opens
+  const { data: historyData } = useQuery({
+    queryKey: ['cart-recovery-history', selectedCart?.id],
+    queryFn: async () => {
+      if (!selectedCart?.id) return null;
+      const response = await api.get(`/abandoned-carts/${selectedCart.id}/recovery-history`);
+      return response.data;
+    },
+    enabled: !!selectedCart?.id && showDetailsModal,
+  });
+
+  // Update history data when it changes
+  useEffect(() => {
+    if (historyData?.data) {
+      setCartHistory(historyData.data);
+      setCartNotes(historyData.data?.contact_history || []);
+      setCartDiscounts(historyData.data?.active_discounts || []);
+      setCartInsights(historyData.data?.recovery_insights);
+    }
+  }, [historyData]);
+
+  // Enhanced event handlers
   const handleViewDetails = (cart: AbandonedCart) => {
     setSelectedCart(cart);
     setShowDetailsModal(true);
+    setActiveModalTab('details');
+  };
+
+  const handleGenerateDiscount = (cart: AbandonedCart) => {
+    setSelectedCart(cart);
+    setShowDiscountModal(true);
+  };
+
+  const handleScheduleReminder = (cart: AbandonedCart) => {
+    setSelectedCart(cart);
+    setShowScheduleModal(true);
+  };
+
+  const handleSendMessage = (cart: AbandonedCart) => {
+    setSelectedCart(cart);
+    setShowMessageModal(true);
+  };
+
+  const handleAddNotes = (cart: AbandonedCart) => {
+    setSelectedCart(cart);
+    setShowNotesModal(true);
+  };
+
+  const handleViewHistory = (cart: AbandonedCart) => {
+    setSelectedCart(cart);
+    setShowHistoryModal(true);
+  };
+
+  const handleViewInsights = (cart: AbandonedCart) => {
+    setSelectedCart(cart);
+    setShowCartInsightsModal(true);
+  };
+
+  const handleShowTemplates = (cart: AbandonedCart) => {
+    setSelectedCart(cart);
+    setShowTemplateModal(true);
+  };
+
+  // Form submission handlers
+  const handleGenerateDiscountSubmit = () => {
+    if (!selectedCart) return;
+    if (!discountForm.discount_value) {
+      toast.error('Please enter discount value');
+      return;
+    }
+    generateDiscountMutation.mutate({
+      cartId: selectedCart.id,
+      formData: discountForm
+    });
+  };
+
+  const handleScheduleReminderSubmit = () => {
+    if (!selectedCart) return;
+    if (!scheduleForm.scheduled_at || !scheduleForm.message_content) {
+      toast.error('Please fill all required fields');
+      return;
+    }
+    scheduleReminderMutation.mutate({
+      cartId: selectedCart.id,
+      formData: scheduleForm
+    });
+  };
+
+  const handleSendMessageSubmit = () => {
+    if (!selectedCart) return;
+    if (!messageForm.message_content) {
+      toast.error('Please enter message content');
+      return;
+    }
+    if (messageForm.message_type !== 'email' && !messageForm.subject) {
+      toast.error('Please enter subject for email');
+      return;
+    }
+    sendPersonalizedMessageMutation.mutate({
+      cartId: selectedCart.id,
+      formData: messageForm
+    });
+  };
+
+  const handleAddNotesSubmit = () => {
+    if (!selectedCart) return;
+    if (!notesForm.notes.trim()) {
+      toast.error('Please enter notes');
+      return;
+    }
+    addNotesMutation.mutate({
+      cartId: selectedCart.id,
+      formData: notesForm
+    });
+  };
+
+  const handleApplyTemplate = (templateName: string, sendImmediately: boolean = false) => {
+    if (!selectedCart) return;
+    applyTemplateMutation.mutate({
+      cartId: selectedCart.id,
+      templateName,
+      sendImmediately
+    });
   };
 
   const handleSendEmail = (cartId: number) => {
@@ -363,7 +691,6 @@ const AbandonedCarts: React.FC = () => {
       <div className="flex gap-2 border-b border-gray-200">
         {[
           { id: 'carts', label: 'Carts', icon: ShoppingCart },
-          { id: 'analytics', label: 'Analytics', icon: BarChart3 },
           { id: 'validation', label: 'Validation Logs', icon: FileText },
           { id: 'sms', label: 'SMS Recovery', icon: MessageSquare },
           { id: 'abtesting', label: 'AB Testing', icon: Zap },
@@ -819,25 +1146,100 @@ const AbandonedCarts: React.FC = () => {
                             <div className="text-sm text-gray-900">{cart.recovery_email_count || 0}</div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                            <div className="flex justify-end gap-2">
+                            <div className="flex justify-end gap-1">
+                              {/* Primary Actions */}
                               <button
                                 onClick={() => handleViewDetails(cart)}
-                                className="text-blue-600 hover:text-blue-900"
+                                className="text-blue-600 hover:text-blue-900 p-1 rounded hover:bg-blue-50"
                                 title="View Details"
                               >
                                 <Eye className="h-4 w-4" />
                               </button>
+
+                              {/* Recovery Actions */}
+                              <div className="relative group">
+                                <button
+                                  className="text-green-600 hover:text-green-900 p-1 rounded hover:bg-green-50"
+                                  title="Recovery Actions"
+                                >
+                                  <Target className="h-4 w-4" />
+                                </button>
+                                <div className="absolute right-0 mt-1 w-48 bg-white rounded-md shadow-lg border border-gray-200 z-10 hidden group-hover:block">
+                                  <div className="py-1">
+                                    <button
+                                      onClick={() => handleGenerateDiscount(cart)}
+                                      className="flex items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+                                    >
+                                      <DiscountTag className="h-4 w-4 mr-2" />
+                                      Generate Discount
+                                    </button>
+                                    <button
+                                      onClick={() => handleShowTemplates(cart)}
+                                      className="flex items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+                                    >
+                                      <FileText className="h-4 w-4 mr-2" />
+                                      Apply Template
+                                    </button>
+                                    <button
+                                      onClick={() => handleScheduleReminder(cart)}
+                                      className="flex items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+                                    >
+                                      <Bell className="h-4 w-4 mr-2" />
+                                      Schedule Reminder
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Communication Actions */}
+                              <div className="relative group">
+                                <button
+                                  className="text-purple-600 hover:text-purple-900 p-1 rounded hover:bg-purple-50"
+                                  title="Communication"
+                                >
+                                  <MessageCircle className="h-4 w-4" />
+                                </button>
+                                <div className="absolute right-0 mt-1 w-48 bg-white rounded-md shadow-lg border border-gray-200 z-10 hidden group-hover:block">
+                                  <div className="py-1">
+                                    <button
+                                      onClick={() => handleSendMessage(cart)}
+                                      className="flex items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+                                    >
+                                      <Send className="h-4 w-4 mr-2" />
+                                      Send Message
+                                    </button>
+                                    <button
+                                      onClick={() => handleAddNotes(cart)}
+                                      className="flex items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+                                    >
+                                      <StickyNote className="h-4 w-4 mr-2" />
+                                      Add Notes
+                                    </button>
+                                    <button
+                                      onClick={() => handleViewHistory(cart)}
+                                      className="flex items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+                                    >
+                                      <History className="h-4 w-4 mr-2" />
+                                      View History
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Standard Email Action */}
                               <button
                                 onClick={() => handleSendEmail(cart.id)}
-                                className="text-green-600 hover:text-green-900"
+                                className="text-green-600 hover:text-green-900 p-1 rounded hover:bg-green-50"
                                 disabled={sendEmailMutation.isPending}
                                 title="Send Recovery Email"
                               >
                                 <Mail className="h-4 w-4" />
                               </button>
+
+                              {/* Delete Action */}
                               <button
                                 onClick={() => handleDelete(cart.id)}
-                                className="text-red-600 hover:text-red-900"
+                                className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50"
                                 disabled={deleteMutation.isPending}
                                 title="Delete Cart"
                               >
@@ -945,13 +1347,13 @@ const AbandonedCarts: React.FC = () => {
             )}
           </div>
 
-          {/* Details Modal */}
+          {/* Enhanced Details Modal */}
           {showDetailsModal && selectedCart && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-              <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-                <div className="p-6">
-                  <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-xl font-semibold">Abandoned Cart Details</h2>
+              <div className="bg-white rounded-lg shadow-xl w-full max-w-6xl max-h-[90vh] overflow-hidden">
+                <div className="p-6 border-b border-gray-200">
+                  <div className="flex justify-between items-center">
+                    <h2 className="text-xl font-semibold">Cart Recovery Center - {selectedCart.user?.email || 'Guest'}</h2>
                     <button
                       onClick={() => setShowDetailsModal(false)}
                       className="text-gray-400 hover:text-gray-600"
@@ -960,119 +1362,262 @@ const AbandonedCarts: React.FC = () => {
                     </button>
                   </div>
 
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {/* Cart Information */}
-                    <div className="space-y-4">
-                      <h3 className="font-semibold text-gray-900">Cart Information</h3>
-                      <div className="space-y-3">
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700">Customer</label>
-                            <p className="mt-1 text-sm text-gray-900">{selectedCart.user?.email || 'Guest'}</p>
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700">Session ID</label>
-                            <p className="mt-1 text-sm text-gray-900 font-mono text-xs">{selectedCart.session_id}</p>
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700">Total Amount</label>
-                            <p className="mt-1 text-sm text-gray-900 font-semibold">₹{selectedCart.total_amount}</p>
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700">Items Count</label>
-                            <p className="mt-1 text-sm text-gray-900">{selectedCart.items_count}</p>
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700">Status</label>
-                            <span className={`px-2 py-1 text-xs rounded-full ${getSegmentColor(selectedCart.customer_segment)}`}>
-                              {selectedCart.status}
-                            </span>
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700">Customer Segment</label>
-                            <span className={`px-2 py-1 text-xs rounded-full ${getSegmentColor(selectedCart.customer_segment)}`}>
-                              {selectedCart.customer_segment?.replace('_', ' ') || 'unknown'}
-                            </span>
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700">Recovery Probability</label>
-                            <div className="flex items-center gap-2 mt-1">
-                              <div className="flex-1 bg-gray-200 rounded-full h-2">
-                                <div
-                                  className={`h-2 rounded-full ${
-                                    selectedCart.recovery_probability >= 70 ? 'bg-green-500' :
-                                    selectedCart.recovery_probability >= 40 ? 'bg-yellow-500' : 'bg-red-500'
-                                  }`}
-                                  style={{ width: `${selectedCart.recovery_probability}%` }}
-                                ></div>
-                              </div>
-                              <span className="text-sm font-medium text-gray-900">
-                                {selectedCart.recovery_probability}%
-                              </span>
-                            </div>
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700">Device Type</label>
-                            <div className="flex items-center gap-2 mt-1">
-                              {getDeviceIcon(selectedCart.device_type)}
-                              <span className="text-sm text-gray-900">
-                                {selectedCart.device_type || 'unknown'}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">Abandoned At</label>
-                          <p className="mt-1 text-sm text-gray-900">
-                            {selectedCart.abandoned_at
-                              ? new Date(selectedCart.abandoned_at).toLocaleString()
-                              : '-'}
-                          </p>
-                        </div>
-
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">Recovery Emails Sent</label>
-                          <p className="mt-1 text-sm text-gray-900">{selectedCart.recovery_email_count || 0}</p>
-                        </div>
-
-                        {selectedCart.last_recovery_email_sent && (
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700">Last Email Sent</label>
-                            <p className="mt-1 text-sm text-gray-900">
-                              {new Date(selectedCart.last_recovery_email_sent).toLocaleString()}
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Cart Items */}
-                    <div className="space-y-4">
-                      <h3 className="font-semibold text-gray-900">Cart Items</h3>
-                      <div className="bg-gray-50 rounded-lg p-4 max-h-96 overflow-y-auto">
-                        <pre className="text-xs text-gray-700 whitespace-pre-wrap">
-                          {JSON.stringify(selectedCart.cart_data, null, 2)}
-                        </pre>
-                      </div>
-                    </div>
+                  {/* Modal Tabs */}
+                  <div className="flex gap-4 mt-4">
+                    {[
+                      { id: 'details', label: 'Cart Details', icon: ShoppingCart },
+                      { id: 'history', label: 'Recovery History', icon: History },
+                      { id: 'notes', label: 'Notes & Communication', icon: StickyNote },
+                      { id: 'discounts', label: 'Discounts', icon: DiscountTag },
+                      { id: 'insights', label: 'Insights', icon: Target },
+                    ].map(tab => (
+                      <button
+                        key={tab.id}
+                        onClick={() => setActiveModalTab(tab.id as any)}
+                        className={`px-3 py-2 font-medium border-b-2 transition flex items-center gap-2 text-sm ${
+                          activeModalTab === tab.id
+                            ? 'border-blue-600 text-blue-600'
+                            : 'border-transparent text-gray-600 hover:text-gray-900'
+                        }`}
+                      >
+                        <tab.icon className="h-4 w-4" />
+                        {tab.label}
+                      </button>
+                    ))}
                   </div>
+                </div>
 
-                  <div className="flex justify-end gap-3 mt-6">
-                    <button
-                      onClick={() => {
-                        markAsRecoveredMutation.mutate({
-                          cartId: selectedCart.id,
-                          notes: 'Manually marked as recovered by admin',
-                          recoveryMethod: 'manual'
-                        });
-                      }}
-                      className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center gap-2"
-                      disabled={markAsRecoveredMutation.isPending}
-                    >
-                      <TrendingUp className="h-4 w-4" />
-                      Mark as Recovered
-                    </button>
+                <div className="p-6 overflow-y-auto" style={{ maxHeight: 'calc(90vh - 200px)' }}>
+                  {/* Details Tab */}
+                  {activeModalTab === 'details' && (
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                      {/* Cart Information */}
+                      <div className="lg:col-span-2 space-y-6">
+                        <div>
+                          <h3 className="font-semibold text-gray-900 mb-4">Cart Information</h3>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700">Customer Email</label>
+                              <p className="mt-1 text-sm text-gray-900">{selectedCart.user?.email || 'Guest'}</p>
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700">Phone</label>
+                              <p className="mt-1 text-sm text-gray-900">{selectedCart.user?.phone || 'Not provided'}</p>
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700">Session ID</label>
+                              <p className="mt-1 text-sm text-gray-900 font-mono text-xs">{selectedCart.session_id}</p>
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700">Total Amount</label>
+                              <p className="mt-1 text-sm text-gray-900 font-semibold text-lg">₹{selectedCart.total_amount}</p>
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700">Items Count</label>
+                              <p className="mt-1 text-sm text-gray-900">{selectedCart.items_count} items</p>
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700">Status</label>
+                              <span className={`px-2 py-1 text-xs rounded-full ${getSegmentColor(selectedCart.customer_segment)}`}>
+                                {selectedCart.status}
+                              </span>
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700">Customer Segment</label>
+                              <span className={`px-2 py-1 text-xs rounded-full ${getSegmentColor(selectedCart.customer_segment)}`}>
+                                {selectedCart.customer_segment?.replace('_', ' ') || 'unknown'}
+                              </span>
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700">Device Type</label>
+                              <div className="flex items-center gap-2 mt-1">
+                                {getDeviceIcon(selectedCart.device_type)}
+                                <span className="text-sm text-gray-900">
+                                  {selectedCart.device_type || 'unknown'}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-1 gap-4 mt-4">
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700">Recovery Probability</label>
+                              <div className="flex items-center gap-2 mt-1">
+                                <div className="flex-1 bg-gray-200 rounded-full h-3">
+                                  <div
+                                    className={`h-3 rounded-full ${
+                                      selectedCart.recovery_probability >= 70 ? 'bg-green-500' :
+                                      selectedCart.recovery_probability >= 40 ? 'bg-yellow-500' : 'bg-red-500'
+                                    }`}
+                                    style={{ width: `${selectedCart.recovery_probability}%` }}
+                                  ></div>
+                                </div>
+                                <span className="text-sm font-medium text-gray-900">
+                                  {selectedCart.recovery_probability}%
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700">Abandoned At</label>
+                                <p className="mt-1 text-sm text-gray-900">
+                                  {selectedCart.abandoned_at
+                                    ? new Date(selectedCart.abandoned_at).toLocaleString()
+                                    : '-'}
+                                </p>
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700">Last Activity</label>
+                                <p className="mt-1 text-sm text-gray-900">
+                                  {selectedCart.last_activity
+                                    ? new Date(selectedCart.last_activity).toLocaleString()
+                                    : '-'}
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700">Recovery Emails Sent</label>
+                                <p className="mt-1 text-sm text-gray-900">{selectedCart.recovery_email_count || 0}</p>
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700">Expires At</label>
+                                <p className="mt-1 text-sm text-gray-900">
+                                  {selectedCart.expires_at
+                                    ? new Date(selectedCart.expires_at).toLocaleString()
+                                    : '-'}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Cart Items */}
+                        <div>
+                          <h3 className="font-semibold text-gray-900 mb-4">Cart Items</h3>
+                          <div className="bg-gray-50 rounded-lg p-4">
+                            {Array.isArray(selectedCart.cart_data?.items) ? (
+                              <div className="space-y-3">
+                                {selectedCart.cart_data.items.map((item: any, index: number) => (
+                                  <div key={index} className="flex items-center justify-between bg-white p-3 rounded border">
+                                    <div className="flex items-center gap-3">
+                                      {item.image && (
+                                        <img src={item.image} alt={item.name} className="w-12 h-12 object-cover rounded" />
+                                      )}
+                                      <div>
+                                        <p className="font-medium text-sm">{item.name}</p>
+                                        <p className="text-xs text-gray-500">
+                                          {item.quantity} x ₹{item.price} = ₹{item.quantity * item.price}
+                                        </p>
+                                        {item.variant && (
+                                          <p className="text-xs text-gray-400">Variant: {item.variant}</p>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <pre className="text-xs text-gray-700 whitespace-pre-wrap">
+                                {JSON.stringify(selectedCart.cart_data, null, 2)}
+                              </pre>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Quick Actions */}
+                      <div className="space-y-4">
+                        <h3 className="font-semibold text-gray-900">Quick Actions</h3>
+                        <div className="space-y-2">
+                          <button
+                            onClick={() => handleGenerateDiscount(selectedCart)}
+                            className="w-full px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 flex items-center justify-center gap-2"
+                          >
+                            <DiscountTag className="h-4 w-4" />
+                            Generate Discount
+                          </button>
+                          <button
+                            onClick={() => handleShowTemplates(selectedCart)}
+                            className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center justify-center gap-2"
+                          >
+                            <FileText className="h-4 w-4" />
+                            Apply Template
+                          </button>
+                          <button
+                            onClick={() => handleScheduleReminder(selectedCart)}
+                            className="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center justify-center gap-2"
+                          >
+                            <Bell className="h-4 w-4" />
+                            Schedule Reminder
+                          </button>
+                          <button
+                            onClick={() => handleSendMessage(selectedCart)}
+                            className="w-full px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 flex items-center justify-center gap-2"
+                          >
+                            <Send className="h-4 w-4" />
+                            Send Message
+                          </button>
+                          <button
+                            onClick={() => handleAddNotes(selectedCart)}
+                            className="w-full px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 flex items-center justify-center gap-2"
+                          >
+                            <StickyNote className="h-4 w-4" />
+                            Add Notes
+                          </button>
+                          <button
+                            onClick={() => {
+                              markAsRecoveredMutation.mutate({
+                                cartId: selectedCart.id,
+                                notes: 'Manually marked as recovered by admin',
+                                recoveryMethod: 'manual'
+                              });
+                            }}
+                            className="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center justify-center gap-2"
+                            disabled={markAsRecoveredMutation.isPending}
+                          >
+                            <TrendingUp className="h-4 w-4" />
+                            Mark as Recovered
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Other tabs would be implemented here */}
+                  {activeModalTab === 'history' && (
+                    <div className="text-center py-12 text-gray-500">
+                      <History className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                      <p>Recovery history coming soon...</p>
+                    </div>
+                  )}
+
+                  {activeModalTab === 'notes' && (
+                    <div className="text-center py-12 text-gray-500">
+                      <StickyNote className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                      <p>Notes and communication coming soon...</p>
+                    </div>
+                  )}
+
+                  {activeModalTab === 'discounts' && (
+                    <div className="text-center py-12 text-gray-500">
+                      <DiscountTag className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                      <p>Discount management coming soon...</p>
+                    </div>
+                  )}
+
+                  {activeModalTab === 'insights' && (
+                    <div className="text-center py-12 text-gray-500">
+                      <Target className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                      <p>Cart insights coming soon...</p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="p-6 border-t border-gray-200 bg-gray-50">
+                  <div className="flex justify-end gap-3">
                     <button
                       onClick={() => handleSendEmail(selectedCart.id)}
                       className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center gap-2"
@@ -1092,11 +1637,445 @@ const AbandonedCarts: React.FC = () => {
               </div>
             </div>
           )}
+
+          {/* Discount Modal */}
+          {showDiscountModal && selectedCart && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
+                <div className="p-6">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-semibold">Generate Discount Code</h3>
+                    <button
+                      onClick={() => setShowDiscountModal(false)}
+                      className="text-gray-400 hover:text-gray-600"
+                    >
+                      <X className="h-6 w-6" />
+                    </button>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Discount Type</label>
+                      <select
+                        value={discountForm.discount_type}
+                        onChange={(e) => setDiscountForm(prev => ({ ...prev, discount_type: e.target.value }))}
+                        className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                      >
+                        <option value="percentage">Percentage</option>
+                        <option value="fixed">Fixed Amount</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">
+                        Discount Value ({discountForm.discount_type === 'percentage' ? '%' : '₹'})
+                      </label>
+                      <input
+                        type="number"
+                        value={discountForm.discount_value}
+                        onChange={(e) => setDiscountForm(prev => ({ ...prev, discount_value: e.target.value }))}
+                        className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                        placeholder={discountForm.discount_type === 'percentage' ? '10' : '100'}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Min Purchase Amount (₹)</label>
+                      <input
+                        type="number"
+                        value={discountForm.min_purchase_amount}
+                        onChange={(e) => setDiscountForm(prev => ({ ...prev, min_purchase_amount: e.target.value }))}
+                        className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                        placeholder={String(Math.floor(selectedCart.total_amount * 0.8))}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Valid Days</label>
+                      <input
+                        type="number"
+                        value={discountForm.valid_days}
+                        onChange={(e) => setDiscountForm(prev => ({ ...prev, valid_days: e.target.value }))}
+                        className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                        min="1"
+                        max="365"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Usage Limit</label>
+                      <input
+                        type="number"
+                        value={discountForm.usage_limit}
+                        onChange={(e) => setDiscountForm(prev => ({ ...prev, usage_limit: e.target.value }))}
+                        className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                        min="1"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end gap-3 mt-6">
+                    <button
+                      onClick={() => setShowDiscountModal(false)}
+                      className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleGenerateDiscountSubmit}
+                      disabled={generateDiscountMutation.isPending}
+                      className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50"
+                    >
+                      Generate Discount
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Template Modal */}
+          {showTemplateModal && selectedCart && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl">
+                <div className="p-6">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-semibold">Apply Recovery Template</h3>
+                    <button
+                      onClick={() => setShowTemplateModal(false)}
+                      className="text-gray-400 hover:text-gray-600"
+                    >
+                      <X className="h-6 w-6" />
+                    </button>
+                  </div>
+
+                  <div className="space-y-4">
+                    {Object.entries(templates).map(([key, template]) => (
+                      <div key={key} className="border border-gray-200 rounded-lg p-4">
+                        <div className="flex justify-between items-start mb-2">
+                          <h4 className="font-medium">{template.name}</h4>
+                          <span className="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800">
+                            {template.discount_percentage}% discount
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-600 mb-2">{template.message}</p>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleApplyTemplate(key, false)}
+                            className="px-3 py-1 bg-gray-600 text-white text-sm rounded hover:bg-gray-700"
+                          >
+                            Schedule for Later
+                          </button>
+                          <button
+                            onClick={() => handleApplyTemplate(key, true)}
+                            className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
+                          >
+                            Send Now
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="flex justify-end mt-6">
+                    <button
+                      onClick={() => setShowTemplateModal(false)}
+                      className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+                    >
+                      Close
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Schedule Reminder Modal */}
+          {showScheduleModal && selectedCart && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
+                <div className="p-6">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-semibold">Schedule Reminder</h3>
+                    <button
+                      onClick={() => setShowScheduleModal(false)}
+                      className="text-gray-400 hover:text-gray-600"
+                    >
+                      <X className="h-6 w-6" />
+                    </button>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Reminder Type</label>
+                      <select
+                        value={scheduleForm.reminder_type}
+                        onChange={(e) => setScheduleForm(prev => ({ ...prev, reminder_type: e.target.value }))}
+                        className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                      >
+                        <option value="email">Email</option>
+                        <option value="sms">SMS</option>
+                        <option value="whatsapp">WhatsApp</option>
+                        <option value="phone_call">Phone Call</option>
+                        <option value="manual_followup">Manual Follow-up</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Scheduled Date & Time</label>
+                      <input
+                        type="datetime-local"
+                        value={scheduleForm.scheduled_at}
+                        onChange={(e) => setScheduleForm(prev => ({ ...prev, scheduled_at: e.target.value }))}
+                        className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Message Content</label>
+                      <textarea
+                        value={scheduleForm.message_content}
+                        onChange={(e) => setScheduleForm(prev => ({ ...prev, message_content: e.target.value }))}
+                        rows={4}
+                        className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="Enter your reminder message..."
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end gap-3 mt-6">
+                    <button
+                      onClick={() => setShowScheduleModal(false)}
+                      className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleScheduleReminderSubmit}
+                      disabled={scheduleReminderMutation.isPending}
+                      className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50"
+                    >
+                      Schedule Reminder
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Message Modal */}
+          {showMessageModal && selectedCart && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
+                <div className="p-6">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-semibold">Send Personalized Message</h3>
+                    <button
+                      onClick={() => setShowMessageModal(false)}
+                      className="text-gray-400 hover:text-gray-600"
+                    >
+                      <X className="h-6 w-6" />
+                    </button>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Message Type</label>
+                      <select
+                        value={messageForm.message_type}
+                        onChange={(e) => setMessageForm(prev => ({ ...prev, message_type: e.target.value }))}
+                        className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                      >
+                        <option value="email">Email</option>
+                        <option value="sms">SMS</option>
+                        <option value="whatsapp">WhatsApp</option>
+                        <option value="phone_call">Phone Call</option>
+                      </select>
+                    </div>
+
+                    {messageForm.message_type === 'email' && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Subject</label>
+                        <input
+                          type="text"
+                          value={messageForm.subject}
+                          onChange={(e) => setMessageForm(prev => ({ ...prev, subject: e.target.value }))}
+                          className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                          placeholder="Enter subject..."
+                        />
+                      </div>
+                    )}
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Message Content</label>
+                      <textarea
+                        value={messageForm.message_content}
+                        onChange={(e) => setMessageForm(prev => ({ ...prev, message_content: e.target.value }))}
+                        rows={4}
+                        className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="Enter your message..."
+                      />
+                    </div>
+
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        id="include_discount"
+                        checked={messageForm.include_discount}
+                        onChange={(e) => setMessageForm(prev => ({ ...prev, include_discount: e.target.checked }))}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      />
+                      <label htmlFor="include_discount" className="ml-2 block text-sm text-gray-900">
+                        Include discount offer
+                      </label>
+                    </div>
+
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        id="send_immediately"
+                        checked={messageForm.send_immediately}
+                        onChange={(e) => setMessageForm(prev => ({ ...prev, send_immediately: e.target.checked }))}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      />
+                      <label htmlFor="send_immediately" className="ml-2 block text-sm text-gray-900">
+                        Send immediately
+                      </label>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end gap-3 mt-6">
+                    <button
+                      onClick={() => setShowMessageModal(false)}
+                      className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleSendMessageSubmit}
+                      disabled={sendPersonalizedMessageMutation.isPending}
+                      className="px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 disabled:opacity-50"
+                    >
+                      Send Message
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Notes Modal */}
+          {showNotesModal && selectedCart && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
+                <div className="p-6">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-semibold">Add Notes</h3>
+                    <button
+                      onClick={() => setShowNotesModal(false)}
+                      className="text-gray-400 hover:text-gray-600"
+                    >
+                      <X className="h-6 w-6" />
+                    </button>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Note Type</label>
+                      <select
+                        value={notesForm.note_type}
+                        onChange={(e) => setNotesForm(prev => ({ ...prev, note_type: e.target.value as any }))}
+                        className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                      >
+                        <option value="internal">Internal Note</option>
+                        <option value="customer_communication">Customer Communication</option>
+                        <option value="recovery_attempt">Recovery Attempt</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Notes</label>
+                      <textarea
+                        value={notesForm.notes}
+                        onChange={(e) => setNotesForm(prev => ({ ...prev, notes: e.target.value }))}
+                        rows={4}
+                        className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="Enter your notes..."
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end gap-3 mt-6">
+                    <button
+                      onClick={() => setShowNotesModal(false)}
+                      className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleAddNotesSubmit}
+                      disabled={addNotesMutation.isPending}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+                    >
+                      Add Notes
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* History Modal */}
+          {showHistoryModal && selectedCart && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[80vh] overflow-y-auto">
+                <div className="p-6">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-semibold">Recovery History</h3>
+                    <button
+                      onClick={() => setShowHistoryModal(false)}
+                      className="text-gray-400 hover:text-gray-600"
+                    >
+                      <X className="h-6 w-6" />
+                    </button>
+                  </div>
+
+                  <div className="text-center py-12 text-gray-500">
+                    <History className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                    <p>Recovery history coming soon...</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Cart Insights Modal */}
+          {showCartInsightsModal && selectedCart && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[80vh] overflow-y-auto">
+                <div className="p-6">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-semibold">Cart Insights</h3>
+                    <button
+                      onClick={() => setShowCartInsightsModal(false)}
+                      className="text-gray-400 hover:text-gray-600"
+                    >
+                      <X className="h-6 w-6" />
+                    </button>
+                  </div>
+
+                  <div className="text-center py-12 text-gray-500">
+                    <Target className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                    <p>Cart insights coming soon...</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </>
       )}
 
       {/* Other Tabs */}
-      {activeTab === 'analytics' && <AnalyticsDashboard />}
       {activeTab === 'validation' && <ValidationLogs />}
       {activeTab === 'sms' && <SmsRecoveryManager />}
       {activeTab === 'abtesting' && <ABTestingManager />}

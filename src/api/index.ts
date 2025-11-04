@@ -45,7 +45,7 @@ const authApiBase = {
     api.post('/auth/logout').then(res => res.data),
 
   check: (): Promise<ApiResponse<User>> =>
-    api.get('/auth/user').then(res => res.data),
+    api.get('/auth/check').then(res => res.data),
 
   me: (): Promise<ApiResponse<User>> =>
     api.get('/auth/user').then(res => res.data), // Using user endpoint for me
