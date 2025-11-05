@@ -68,8 +68,8 @@ interface AbandonedCart {
     phone?: string;
   };
   cart_data: any;
-  total_amount: number;
-  items_count: number;
+  total: number;
+  total_items: number;
   currency: string;
   is_abandoned: boolean;
   abandoned_at?: string;
@@ -1103,10 +1103,10 @@ const AbandonedCarts: React.FC = () => {
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-900">{cart.items_count} items</div>
+                            <div className="text-sm text-gray-900">{cart.total_items} items</div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm font-medium text-gray-900">₹{cart.total_amount}</div>
+                            <div className="text-sm font-medium text-gray-900">₹{cart.total}</div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <span className={`px-2 py-1 text-xs rounded-full ${getSegmentColor(cart.customer_segment)}`}>
@@ -1410,11 +1410,11 @@ const AbandonedCarts: React.FC = () => {
                             </div>
                             <div>
                               <label className="block text-sm font-medium text-gray-700">Total Amount</label>
-                              <p className="mt-1 text-sm text-gray-900 font-semibold text-lg">₹{selectedCart.total_amount}</p>
+                              <p className="mt-1 text-sm text-gray-900 font-semibold text-lg">₹{selectedCart.total}</p>
                             </div>
                             <div>
                               <label className="block text-sm font-medium text-gray-700">Items Count</label>
-                              <p className="mt-1 text-sm text-gray-900">{selectedCart.items_count} items</p>
+                              <p className="mt-1 text-sm text-gray-900">{selectedCart.total_items} items</p>
                             </div>
                             <div>
                               <label className="block text-sm font-medium text-gray-700">Status</label>
@@ -1686,7 +1686,7 @@ const AbandonedCarts: React.FC = () => {
                         value={discountForm.min_purchase_amount}
                         onChange={(e) => setDiscountForm(prev => ({ ...prev, min_purchase_amount: e.target.value }))}
                         className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                        placeholder={String(Math.floor(selectedCart.total_amount * 0.8))}
+                        placeholder={String(Math.floor(selectedCart.total * 0.8))}
                       />
                     </div>
 

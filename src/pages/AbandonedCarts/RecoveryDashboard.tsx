@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   BarChart,
@@ -25,26 +25,13 @@ import {
   Smartphone,
   Monitor,
   Target,
-  Bell,
   Gift,
-  Clock,
   AlertCircle,
   CheckCircle,
   RefreshCw,
-  Filter,
   Search,
-  Eye,
-  Send,
-  Zap,
-  Star,
   TrendingDown,
-  Phone,
-  MessageSquare,
-  ChevronRight,
-  Plus,
   Download,
-  Calendar,
-  Settings,
 } from 'lucide-react';
 import { api } from '../../api/axios';
 import toast from 'react-hot-toast';
@@ -53,11 +40,9 @@ import {
   RECOVERY_RATE_THRESHOLDS,
   COLORS,
   DISCOUNT_DEFAULTS,
-  ANIMATION_DURATIONS,
   PAGINATION,
 } from '../../constants/abandonedCarts';
 import EnhancedAbandonedCartsTable from './EnhancedAbandonedCartsTable';
-import RecoveryActionsModal from './RecoveryActionsModal';
 import ErrorDisplay from './ErrorDisplay';
 
 interface Cart {
@@ -68,8 +53,8 @@ interface Cart {
   };
   session_id: string;
   cart_data: any;
-  total_amount: number;
-  items_count: number;
+  total: number;
+  total_items: number;
   currency: string;
   is_abandoned: boolean;
   status: string;
@@ -109,9 +94,7 @@ const RecoveryDashboard: React.FC = () => {
   const queryClient = useQueryClient();
   const [activeView, setActiveView] = useState<'dashboard' | 'carts'>('dashboard');
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCart, setSelectedCart] = useState<any>(null);
-  const [showActionsModal, setShowActionsModal] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
+      const [currentPage, setCurrentPage] = useState(1);
   const [filters, setFilters] = useState({
     search: '',
     customer_segment: '',
@@ -195,7 +178,7 @@ const RecoveryDashboard: React.FC = () => {
 
         // Calculate optimal discount for each cart
         const discount = calculateDiscount({
-          cartValue: cart?.total_amount || 0,
+          cartValue: cart?.total || 0,
           customerSegment: cart?.customer_segment || 'regular',
           isVip: cart?.customer_segment === 'vip',
           urgency: cart?.urgency_level || 'medium',
@@ -228,8 +211,8 @@ const RecoveryDashboard: React.FC = () => {
   };
 
   const handleViewDetails = (cart: Cart) => {
-    setSelectedCart(cart);
-    setShowActionsModal(true);
+    // Modal functionality removed - user will implement themselves
+    console.log('View cart details:', cart.id);
   };
 
   const handleRowSelect = (cartId: number, selected: boolean) => {
@@ -946,18 +929,7 @@ const RecoveryDashboard: React.FC = () => {
         </>
       )}
 
-      {/* Recovery Actions Modal */}
-      {showActionsModal && selectedCart && (
-        <RecoveryActionsModal
-          cart={selectedCart}
-          onClose={() => {
-            setShowActionsModal(false);
-            setSelectedCart(null);
-          }}
-          onActionComplete={refreshAllData}
-        />
-      )}
-    </div>
+      </div>
   );
 };
 

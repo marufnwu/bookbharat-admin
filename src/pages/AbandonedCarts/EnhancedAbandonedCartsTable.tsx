@@ -4,33 +4,21 @@ import toast from 'react-hot-toast';
 import { calculateDiscount, formatDiscount } from '../../utils/discountCalculator';
 import {
   Mail,
-  Trash2,
   Eye,
   Gift,
-  Bell,
-  Send,
   Zap,
   Target,
-  TrendingUp,
-  Calendar,
   User,
-  Clock,
   Smartphone,
   Monitor,
-  ChevronRight,
   CheckCircle,
-  AlertCircle,
   RefreshCw,
-  Star,
-  Phone,
-  MessageSquare,
+  Bell,
 } from 'lucide-react';
-import RecoveryActionsModal from './RecoveryActionsModal';
 import ErrorDisplay from './ErrorDisplay';
 import {
   RECOVERY_RATE_THRESHOLDS,
   URGENCY_THRESHOLDS,
-  COLORS,
   CUSTOMER_SEGMENTS,
   DEVICE_TYPES,
   RECOVERY_STATUS,
@@ -44,8 +32,8 @@ interface Cart {
   };
   session_id: string;
   cart_data: any;
-  total_amount: number;
-  items_count: number;
+  total: number;
+  total_items: number;
   currency: string;
   is_abandoned: boolean;
   status: string;
@@ -86,9 +74,7 @@ const EnhancedAbandonedCartsTable: React.FC<EnhancedAbandonedCartsTableProps> = 
   onSelectAll,
   selectAll,
 }) => {
-  const [showActionsModal, setShowActionsModal] = useState(false);
-  const [selectedCart, setSelectedCart] = useState<Cart | null>(null);
-  const [generatingDiscount, setGeneratingDiscount] = useState<number | null>(null);
+    const [generatingDiscount, setGeneratingDiscount] = useState<number | null>(null);
   const [sendingEmail, setSendingEmail] = useState<number | null>(null);
   const [loadingInsights, setLoadingInsights] = useState<number | null>(null);
   const [actionError, setActionError] = useState<any>(null);
@@ -128,8 +114,8 @@ const EnhancedAbandonedCartsTable: React.FC<EnhancedAbandonedCartsTableProps> = 
   };
 
   const handleViewDetails = (cart: Cart) => {
-    setSelectedCart(cart);
-    setShowActionsModal(true);
+    // Modal functionality removed - user will implement themselves
+    console.log('View cart details:', cart.id);
   };
 
   const handleQuickDiscount = async (cartId: number) => {
@@ -140,7 +126,7 @@ const EnhancedAbandonedCartsTable: React.FC<EnhancedAbandonedCartsTableProps> = 
 
       // Calculate optimal discount using centralized logic
       const discount = calculateDiscount({
-        cartValue: cart?.total_amount || 0,
+        cartValue: cart?.total || 0,
         customerSegment: cart?.customer_segment || 'regular',
         isVip: cart?.customer_segment === 'vip',
         urgency: (cart?.insights?.urgency_level as 'low' | 'medium' | 'high' | 'critical') || 'medium',
@@ -346,15 +332,15 @@ const EnhancedAbandonedCartsTable: React.FC<EnhancedAbandonedCartsTableProps> = 
 
                 {/* Items Count */}
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-900">{cart.items_count}</div>
+                  <div className="text-sm text-gray-900">{cart.total_items}</div>
                 </td>
 
                 {/* Cart Value */}
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm font-medium text-gray-900">₹{cart.total_amount.toLocaleString()}</div>
+                  <div className="text-sm font-medium text-gray-900">₹{cart.total.toLocaleString()}</div>
                   {cart.active_discount && (
                     <div className="text-xs text-green-600">
-                      -₹{cart.active_discount.calculateDiscount(cart.total_amount).toLocaleString()}
+                      -₹{cart.active_discount.calculateDiscount(cart.total).toLocaleString()}
                     </div>
                   )}
                 </td>
@@ -474,18 +460,7 @@ const EnhancedAbandonedCartsTable: React.FC<EnhancedAbandonedCartsTableProps> = 
         </table>
       </div>
 
-      {/* Recovery Actions Modal */}
-      {showActionsModal && selectedCart && (
-        <RecoveryActionsModal
-          cart={selectedCart}
-          onClose={() => {
-            setShowActionsModal(false);
-            setSelectedCart(null);
-          }}
-          onActionComplete={onRefresh}
-        />
-      )}
-    </>
+      </>
   );
 };
 

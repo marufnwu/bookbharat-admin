@@ -49,7 +49,7 @@ interface SmsRecord {
   };
   persistent_cart?: {
     id: number;
-    total_amount: number;
+    total: number;
   };
 }
 
