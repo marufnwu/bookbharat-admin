@@ -55,6 +55,25 @@ import NotificationAnalytics from './pages/Notifications/NotificationAnalytics';
 import WebhookManagement from './pages/Notifications/WebhookManagement';
 import WhatsAppTemplateBuilder from './pages/Notifications/WhatsAppTemplateBuilder';
 
+// Marketing Pages
+import MarketingSettings from './pages/Marketing/MarketingSettings';
+import MarketingAnalytics from './pages/Marketing/MarketingAnalytics';
+import FeedManagement from './pages/Marketing/FeedManagement';
+
+// Blog Pages
+import BlogPosts from './pages/Blog/BlogPosts';
+import BlogCategories from './pages/Blog/BlogCategories';
+import BlogComments from './pages/Blog/BlogComments';
+import BlogCreate from './pages/Blog/BlogCreate';
+import BlogEdit from './pages/Blog/BlogEdit';
+import CategoryCreate from './pages/Blog/CategoryCreate';
+import CategoryEdit from './pages/Blog/CategoryEdit';
+
+// Social Commerce
+import SocialCommerce from './pages/SocialCommerce/SocialCommerce';
+import SocialAccounts from './pages/SocialCommerce/SocialAccounts';
+import SocialContent from './pages/SocialCommerce/SocialContent';
+
 // Components
 import { ProtectedRoute } from './components';
 
@@ -205,6 +224,25 @@ const App: React.FC = () => {
               <Route path="notifications/analytics" element={<NotificationAnalytics />} />
               <Route path="notifications/webhooks" element={<WebhookManagement />} />
               <Route path="notifications/whatsapp-templates" element={<WhatsAppTemplateBuilder />} />
+
+              {/* Marketing Management */}
+              <Route path="marketing/settings" element={<MarketingSettings />} />
+              <Route path="marketing/analytics" element={<MarketingAnalytics />} />
+              <Route path="marketing/feeds" element={<FeedManagement />} />
+
+              {/* Blog Management */}
+              <Route path="blog/posts" element={<BlogPosts />} />
+              <Route path="blog/posts/create" element={<BlogCreate />} />
+              <Route path="blog/posts/:id/edit" element={<BlogEdit />} />
+              <Route path="blog/categories" element={<BlogCategories />} />
+              <Route path="blog/categories/create" element={<CategoryCreate />} />
+              <Route path="blog/categories/:id/edit" element={<CategoryEdit />} />
+              <Route path="blog/comments" element={<BlogComments />} />
+
+              {/* Social Commerce */}
+              <Route path="social-commerce" element={<SocialCommerce />} />
+              <Route path="social-commerce/accounts" element={<SocialAccounts />} />
+              <Route path="social-commerce/content" element={<SocialContent />} />
 
               {/* Documentation */}
               <Route path="docs" element={<DynamicDocumentationPage />} />

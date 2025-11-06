@@ -21,6 +21,7 @@ import {
   Navigation,
   Layout,
   Shield,
+  Settings as SettingsIcon,
   CreditCard,
   Globe,
   Webhook,
@@ -70,6 +71,16 @@ const navigation: NavigationItem[] = [
   // Marketing & Promotions
   { name: 'Coupons', href: '/coupons', icon: Ticket },
   {
+    name: 'Marketing',
+    href: '/marketing',
+    icon: BarChart3,
+    children: [
+      { name: 'Settings', href: '/marketing/settings', icon: SettingsIcon },
+      { name: 'Analytics', href: '/marketing/analytics', icon: BarChart3 },
+      { name: 'Product Feeds', href: '/marketing/feeds', icon: ShoppingBag },
+    ]
+  },
+  {
     name: 'Bundle Manager',
     href: '/bundle-manager',
     icon: Sparkles,
@@ -77,6 +88,26 @@ const navigation: NavigationItem[] = [
       { name: 'Associations', href: '/bundle-manager/associations', icon: Sparkles },
       { name: 'Discount Rules', href: '/bundle-manager/discount-rules', icon: CreditCard },
       { name: 'Analytics', href: '/bundle-manager/analytics', icon: Star },
+    ]
+  },
+  {
+    name: 'Blog',
+    href: '/blog',
+    icon: FileText,
+    children: [
+      { name: 'Posts', href: '/blog/posts', icon: FileText },
+      { name: 'Categories', href: '/blog/categories', icon: FolderOpen },
+      { name: 'Comments', href: '/blog/comments', icon: MessageSquare },
+    ]
+  },
+  {
+    name: 'Social Commerce',
+    href: '/social-commerce',
+    icon: Users,
+    children: [
+      { name: 'Overview', href: '/social-commerce', icon: Activity },
+      { name: 'Social Accounts', href: '/social-commerce/accounts', icon: Users },
+      { name: 'Content', href: '/social-commerce/content', icon: Image },
     ]
   },
 
