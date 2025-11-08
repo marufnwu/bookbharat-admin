@@ -18,8 +18,8 @@ interface MenuItem {
   id: string;
   label: string;
   href: string;
-  icon?: string;
-  order?: number;
+  url?: string;
+  external?: boolean;
   children?: MenuItem[];
 }
 
@@ -52,9 +52,32 @@ export default function NavigationMenu() {
       const response = await api.get('/configuration/navigation-config');
       const config = response.data.data;
 
-      setNavigationConfig(config);
-      setHeaderMenuItems(config.header || []);
-      setFooterSections(config.footer?.menu || []);
+      // Map API response to component expected structure
+      const mappedHeaderMenu = (config.header_menu || []).map((item: any) => ({
+        ...item,
+        href: item.url || item.href,
+        id: item.id || Math.random().toString(36).substr(2, 9)
+      }));
+
+      const mappedFooterMenu = (config.footer_menu || []).map((section: any) => ({
+        title: section.title,
+        links: (section.links || []).map((link: any) => ({
+          ...link,
+          href: link.url || link.href,
+          id: link.id || Math.random().toString(36).substr(2, 9)
+        }))
+      }));
+
+      const mappedConfig = {
+        header: mappedHeaderMenu,
+        footer: {
+          menu: mappedFooterMenu
+        }
+      };
+
+      setNavigationConfig(mappedConfig);
+      setHeaderMenuItems(mappedHeaderMenu);
+      setFooterSections(mappedFooterMenu);
     } catch (error) {
       console.error('Error fetching navigation config:', error);
       toast.error('Failed to load navigation configuration');
@@ -103,14 +126,45 @@ export default function NavigationMenu() {
     try {
       setSaving(true);
 
-      const updatedConfig = {
-        ...navigationConfig,
-        header: type === 'header' ? headerMenuItems : navigationConfig.header,
-        footer: type === 'footer' ? { menu: footerSections } : navigationConfig.footer
+      // Map component structure to API expected format
+      const apiConfig = {
+        header_menu: type === 'header'
+          ? headerMenuItems.map(item => ({
+              ...item,
+              url: item.href,
+              external: item.external || false
+            }))
+          : navigationConfig.header.map(item => ({
+              ...item,
+              url: item.href,
+              external: item.external || false
+            })),
+        footer_menu: type === 'footer'
+          ? footerSections.map(section => ({
+              title: section.title,
+              links: section.links.map(link => ({
+                ...link,
+                url: link.href,
+                external: link.external || false
+              }))
+            }))
+          : navigationConfig.footer.menu.map(section => ({
+              title: section.title,
+              links: section.links.map(link => ({
+                ...link,
+                url: link.href,
+                external: link.external || false
+              }))
+            }))
       };
 
-      await api.put('/configuration/navigation-config', updatedConfig);
+      await api.put('/configuration/navigation-config', apiConfig);
 
+      // Update local state with component structure
+      const updatedConfig = {
+        header: apiConfig.header_menu,
+        footer: { menu: apiConfig.footer_menu }
+      };
       setNavigationConfig(updatedConfig);
 
       if (type === 'header') {
@@ -133,8 +187,7 @@ export default function NavigationMenu() {
     const newItem: MenuItem = {
       id: Date.now().toString(),
       label: 'New Item',
-      href: '/',
-      order: 0
+      href: '/'
     };
 
     if (type === 'header') {
