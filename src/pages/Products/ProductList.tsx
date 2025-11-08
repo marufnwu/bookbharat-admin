@@ -8,6 +8,11 @@ import {
   PencilIcon,
   TrashIcon,
   EyeIcon,
+  TruckIcon,
+  StarIcon,
+  ClockIcon,
+  CheckCircleIcon,
+  XCircleIcon,
 } from '@heroicons/react/24/outline';
 import { productsApi, categoriesApi, brandsApi } from '../../api';
 import { Table, Button, Input, Badge, LoadingSpinner } from '../../components';
@@ -140,6 +145,62 @@ const ProductList: React.FC = () => {
     return <Badge variant="success">In Stock ({quantity})</Badge>;
   };
 
+  const getFreeShippingBadge = (product: Product) => {
+    if (!product.free_shipping_enabled || product.free_shipping_type === 'none') {
+      return null;
+    }
+
+    if (product.free_shipping_type === 'all_zones') {
+      return (
+        <div className="flex items-center text-green-600">
+          <TruckIcon className="h-4 w-4 mr-1" />
+          <span className="text-xs font-medium">Free Shipping</span>
+        </div>
+      );
+    }
+
+    const zones = product.free_shipping_zones ?
+      (Array.isArray(product.free_shipping_zones) ? product.free_shipping_zones : JSON.parse(product.free_shipping_zones || '[]')) : [];
+
+    if (zones.length > 0) {
+      return (
+        <div className="flex items-center text-green-600">
+          <TruckIcon className="h-4 w-4 mr-1" />
+          <span className="text-xs font-medium">Free ({zones.length} zones)</span>
+        </div>
+      );
+    }
+
+    return null;
+  };
+
+  const getRatingStars = (rating: number) => {
+    const numericRating = Number(rating) || 0;
+
+    if (!numericRating || numericRating === 0) {
+      return (
+        <div className="flex items-center text-gray-400">
+          <StarIcon className="h-4 w-4 mr-1" />
+          <span className="text-xs">No reviews</span>
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex items-center">
+        <div className="flex items-center text-yellow-400">
+          {[...Array(5)].map((_, i) => (
+            <StarIcon
+              key={i}
+              className={`h-4 w-4 ${i < Math.floor(numericRating) ? 'fill-current' : ''}`}
+            />
+          ))}
+        </div>
+        <span className="text-xs text-gray-600 ml-1">({numericRating.toFixed(1)})</span>
+      </div>
+    );
+  };
+
   const columns: TableColumn<Product>[] = [
     {
       key: 'id',
@@ -152,37 +213,42 @@ const ProductList: React.FC = () => {
       title: 'Product',
       sortable: true,
       render: (value, record) => (
-        <div className="flex items-center">
-          <div className="h-10 w-10 bg-gray-200 rounded-md mr-3 flex items-center justify-center">
+        <div className="flex items-start space-x-3">
+          <div className="h-12 w-12 bg-gray-100 rounded-lg flex-shrink-0 overflow-hidden">
             {record.images && record.images.length > 0 ? (
               <img
                 src={getFullImageUrl(record.images[0].image_url) || getFullImageUrl(record.images[0].image_path) || '/placeholder-image.png'}
                 alt={record.images[0].alt_text || record.name || record.title}
-                className="h-10 w-10 rounded-md object-cover"
+                className="h-12 w-12 rounded-lg object-cover transition-transform hover:scale-105"
                 onError={(e) => {
                   e.currentTarget.src = '/placeholder-image.png';
                 }}
               />
             ) : (
-              <span className="text-xs text-gray-500">No Image</span>
+              <div className="h-12 w-12 bg-gray-200 rounded-lg flex items-center justify-center">
+                <span className="text-xs text-gray-400">No img</span>
+              </div>
             )}
           </div>
-          <div>
-            <div className="font-medium text-gray-900">{record.name || value}</div>
-            <div className="text-sm text-gray-500">{record.sku}</div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center space-x-2">
+              <div className="font-medium text-gray-900 truncate">{record.name || value}</div>
+              {record.is_featured && (
+                <Badge variant="warning" size="sm">Featured</Badge>
+              )}
+            </div>
+            <div className="text-sm text-gray-500">SKU: {record.sku}</div>
+            <div className="flex items-center space-x-2 mt-1">
+              {record.category?.name && (
+                <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded">
+                  {record.category.name}
+                </span>
+              )}
+              {getFreeShippingBadge(record)}
+            </div>
           </div>
         </div>
       ),
-    },
-    {
-      key: 'category',
-      title: 'Category',
-      render: (_, record) => record.category?.name || 'N/A',
-    },
-    {
-      key: 'brand',
-      title: 'Brand',
-      render: (_, record) => record.brand?.name || 'N/A',
     },
     {
       key: 'price',
@@ -190,18 +256,22 @@ const ProductList: React.FC = () => {
       sortable: true,
       render: (value, record) => (
         <div>
-          <div className="font-medium">{formatCurrency(value)}</div>
-          {record.sale_price && (
-            <div className="text-sm text-red-600">{formatCurrency(record.sale_price)}</div>
+          <div className="font-semibold text-gray-900">{formatCurrency(value)}</div>
+          {record.compare_price && Number(record.compare_price) > Number(value) && (
+            <div className="text-sm text-gray-500 line-through">{formatCurrency(Number(record.compare_price))}</div>
+          )}
+          {record.compare_price && Number(record.compare_price) > Number(value) && (
+            <div className="text-xs text-green-600">
+              {Math.round(((1 - Number(value) / Number(record.compare_price)) * 100))}% off
+            </div>
           )}
         </div>
       ),
     },
     {
-      key: 'stock_quantity',
-      title: 'Stock',
-      sortable: true,
-      render: (value, record) => getStockBadge(value, record.manage_stock),
+      key: 'rating',
+      title: 'Rating',
+      render: (_, record) => getRatingStars(record.rating || 0),
     },
     {
       key: 'status',
@@ -210,32 +280,32 @@ const ProductList: React.FC = () => {
       render: (value) => getStatusBadge(value),
     },
     {
-      key: 'created_at',
-      title: 'Created',
-      sortable: true,
-      render: (value) => format(new Date(value), 'MMM dd, yyyy'),
-    },
-    {
       key: 'actions',
       title: 'Actions',
       render: (_, record) => (
-        <div className="flex space-x-2">
-          <Link to={`/products/${record.id}`}>
-            <Button variant="ghost" size="sm">
-              <EyeIcon className="h-4 w-4" />
-            </Button>
+        <div className="flex items-center space-x-1">
+          <Link
+            to={`/products/${record.id}`}
+            className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+            title="View product details"
+          >
+            <EyeIcon className="h-4 w-4" />
           </Link>
-          <Link to={`/products/${record.id}/edit`}>
-            <Button variant="ghost" size="sm">
-              <PencilIcon className="h-4 w-4" />
-            </Button>
+          <Link
+            to={`/products/${record.id}/edit`}
+            className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-md transition-colors"
+            title="Edit product"
+          >
+            <PencilIcon className="h-4 w-4" />
           </Link>
           <Button
             variant="ghost"
             size="sm"
             onClick={() => handleDeleteProduct(record.id)}
+            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
+            title="Delete product"
           >
-            <TrashIcon className="h-4 w-4 text-red-500" />
+            <TrashIcon className="h-4 w-4" />
           </Button>
         </div>
       ),

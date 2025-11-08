@@ -24,9 +24,16 @@ interface ProductForm {
   pages?: number;
   weight?: number;
   dimensions?: string;
+  length?: number;
+  width?: number;
+  height?: number;
   publication_date?: string;
   is_featured: boolean;
   is_active: boolean;
+  free_shipping_enabled: boolean;
+  free_shipping_type: 'none' | 'all_zones' | 'specific_zones';
+  free_shipping_zones: string[];
+  free_shipping_min_quantity: number;
   meta_title?: string;
   meta_description?: string;
   meta_keywords?: string;
@@ -56,6 +63,13 @@ const ProductEdit: React.FC = () => {
     language: 'English',
     is_featured: false,
     is_active: true,
+    free_shipping_enabled: false,
+    free_shipping_type: 'none',
+    free_shipping_zones: [],
+    free_shipping_min_quantity: 1,
+    length: undefined,
+    width: undefined,
+    height: undefined,
     images: []
   });
 
@@ -103,14 +117,36 @@ const ProductEdit: React.FC = () => {
         pages: p.pages || undefined,
         weight: p.weight || undefined,
         dimensions: p.dimensions || '',
+        length: undefined,
+        width: undefined,
+        height: undefined,
         publication_date: p.publication_date || '',
         is_featured: p.is_featured || false,
         is_active: p.is_active !== false,
+        free_shipping_enabled: p.free_shipping_enabled || false,
+        free_shipping_type: p.free_shipping_type || 'none',
+        free_shipping_zones: Array.isArray(p.free_shipping_zones)
+          ? p.free_shipping_zones
+          : (p.free_shipping_zones ? JSON.parse(p.free_shipping_zones || '[]') : []),
+        free_shipping_min_quantity: p.free_shipping_min_quantity || 1,
         meta_title: p.meta_title || '',
         meta_description: p.meta_description || '',
         meta_keywords: p.meta_keywords || '',
         images: []
       });
+
+      // Parse dimensions string into separate fields
+      if (p.dimensions) {
+        const dimensionParts = p.dimensions.split('×');
+        if (dimensionParts.length === 3) {
+          setFormData(prev => ({
+            ...prev,
+            length: dimensionParts[0]?.trim(),
+            width: dimensionParts[1]?.trim(),
+            height: dimensionParts[2]?.trim()
+          }));
+        }
+      }
 
       // Set existing images
       if (p.images && Array.isArray(p.images)) {
@@ -214,6 +250,13 @@ const ProductEdit: React.FC = () => {
     setExistingImages(prev => prev.filter((_, i) => i !== index));
   };
 
+  const buildDimensionsString = (): string => {
+    if (formData.length && formData.width && formData.height) {
+      return `${formData.length}×${formData.width}×${formData.height}`;
+    }
+    return formData.dimensions || '';
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -226,7 +269,7 @@ const ProductEdit: React.FC = () => {
     // Create FormData for multipart upload
     const data = new FormData();
     Object.keys(formData).forEach(key => {
-      if (key !== 'images' && key !== 'existing_images') {
+      if (key !== 'images' && key !== 'existing_images' && key !== 'length' && key !== 'width' && key !== 'height') {
         const value = (formData as any)[key];
         if (value !== undefined && value !== null) {
           // Handle boolean fields properly
@@ -238,6 +281,12 @@ const ProductEdit: React.FC = () => {
         }
       }
     });
+
+    // Add dimensions as a combined string
+    const dimensionsString = buildDimensionsString();
+    if (dimensionsString) {
+      data.append('dimensions', dimensionsString);
+    }
 
     // Append new images
     images.forEach(image => {
@@ -259,6 +308,7 @@ const ProductEdit: React.FC = () => {
     { id: 'basic', label: 'Basic Information' },
     { id: 'details', label: 'Product Details' },
     { id: 'pricing', label: 'Pricing & Inventory' },
+    { id: 'shipping', label: 'Shipping Configuration' },
     { id: 'bundle-variants', label: 'Bundle Variants' },
     { id: 'images', label: 'Images' },
     { id: 'seo', label: 'SEO' },
@@ -485,33 +535,8 @@ const ProductEdit: React.FC = () => {
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Weight (grams)
-                </label>
-                <input
-                  type="number"
-                  name="weight"
-                  value={formData.weight || ''}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Dimensions (LxWxH cm)
-                </label>
-                <input
-                  type="text"
-                  name="dimensions"
-                  value={formData.dimensions || ''}
-                  onChange={handleInputChange}
-                  placeholder="20x15x3"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
-
+  
+  
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Publication Date
@@ -605,6 +630,279 @@ const ProductEdit: React.FC = () => {
                   </p>
                 </div>
               )}
+            </div>
+          )}
+
+          {activeTab === 'shipping' && (
+            <div className="space-y-6">
+              {/* Basic Shipping Information */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Weight (grams)
+                  </label>
+                  <input
+                    type="number"
+                    name="weight"
+                    value={formData.weight || ''}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Enter product weight in grams"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Used for shipping cost calculations
+                  </p>
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-3">
+                    Package Dimensions (cm)
+                  </label>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">
+                        Length (cm)
+                      </label>
+                      <input
+                        type="number"
+                        name="length"
+                        value={formData.length || ''}
+                        onChange={handleInputChange}
+                        placeholder="20"
+                        step="0.1"
+                        min="0"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">
+                        Width (cm)
+                      </label>
+                      <input
+                        type="number"
+                        name="width"
+                        value={formData.width || ''}
+                        onChange={handleInputChange}
+                        placeholder="15"
+                        step="0.1"
+                        min="0"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">
+                        Height (cm)
+                      </label>
+                      <input
+                        type="number"
+                        name="height"
+                        value={formData.height || ''}
+                        onChange={handleInputChange}
+                        placeholder="3"
+                        step="0.1"
+                        min="0"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2">
+                    Enter the package dimensions in centimeters (Length × Width × Height)
+                  </p>
+                  {formData.length && formData.width && formData.height && (
+                    <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded">
+                      <p className="text-xs text-blue-700">
+                        📦 Package size: {formData.length} × {formData.width} × {formData.height} cm
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Free Shipping Configuration */}
+              <div className="border-t pt-6">
+                <div className="flex items-center mb-6">
+                  <div className="h-8 w-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
+                    <svg className="h-4 w-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">Free Shipping Configuration</h3>
+                    <p className="text-sm text-gray-600">Configure free shipping rules for this product</p>
+                  </div>
+                </div>
+
+                <div className="space-y-6">
+                  {/* Free Shipping Toggle */}
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <label className="flex items-center justify-between cursor-pointer">
+                      <div className="flex items-center">
+                        <input
+                          type="checkbox"
+                          name="free_shipping_enabled"
+                          checked={formData.free_shipping_enabled}
+                          onChange={handleInputChange}
+                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                        />
+                        <div className="ml-3">
+                          <span className="text-sm font-medium text-gray-900">
+                            Enable Free Shipping for this Product
+                          </span>
+                          <p className="text-xs text-gray-500">
+                            Customers will get free shipping when this product meets the criteria
+                          </p>
+                        </div>
+                      </div>
+                    </label>
+                  </div>
+
+                  {/* Free Shipping Options */}
+                  {formData.free_shipping_enabled && (
+                    <div className="bg-white border border-gray-200 rounded-lg p-6 space-y-6">
+                      {/* Free Shipping Type */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-3">
+                          Free Shipping Applicability
+                        </label>
+                        <select
+                          name="free_shipping_type"
+                          value={formData.free_shipping_type}
+                          onChange={handleInputChange}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                        >
+                          <option value="none">No Free Shipping</option>
+                          <option value="all_zones">All Shipping Zones</option>
+                          <option value="specific_zones">Specific Zones Only</option>
+                        </select>
+                        <p className="text-xs text-gray-500 mt-1">
+                          Choose where free shipping applies for this product
+                        </p>
+                      </div>
+
+                      {/* Zone Selection */}
+                      {formData.free_shipping_type === 'specific_zones' && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-3">
+                            Select Zones for Free Shipping
+                          </label>
+                          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                            {['A', 'B', 'C', 'D', 'E'].map((zone) => (
+                              <div key={zone} className="relative">
+                                <input
+                                  type="checkbox"
+                                  id={`zone-${zone}`}
+                                  value={zone}
+                                  checked={Array.isArray(formData.free_shipping_zones) && formData.free_shipping_zones.includes(zone)}
+                                  onChange={(e) => {
+                                    const currentZones = Array.isArray(formData.free_shipping_zones) ? formData.free_shipping_zones : [];
+                                    const zones = e.target.checked
+                                      ? [...currentZones, zone]
+                                      : currentZones.filter(z => z !== zone);
+                                    setFormData({ ...formData, free_shipping_zones: zones });
+                                  }}
+                                  className="sr-only peer"
+                                />
+                                <label
+                                  htmlFor={`zone-${zone}`}
+                                  className="flex flex-col items-center justify-center p-3 border-2 rounded-lg cursor-pointer transition-all
+                                    peer-checked:border-blue-500 peer-checked:bg-blue-50 peer-checked:text-blue-700
+                                    border-gray-200 hover:border-gray-300 text-gray-600"
+                                >
+                                  <span className="text-lg font-semibold">Zone {zone}</span>
+                                  <span className="text-xs text-center mt-1">
+                                    {zone === 'A' && 'Same City'}
+                                    {zone === 'B' && 'Same State'}
+                                    {zone === 'C' && 'Metro-Metro'}
+                                    {zone === 'D' && 'Rest of India'}
+                                    {zone === 'E' && 'Northeast/J&K'}
+                                  </span>
+                                </label>
+                              </div>
+                            ))}
+                          </div>
+                          <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                            <p className="text-xs text-yellow-800">
+                              <strong>Zone Guide:</strong> A: Same City (1-2 days), B: Same State (2-3 days),
+                              C: Metro to Metro (3-4 days), D: Rest of India (4-6 days), E: Northeast & J&K (6-10 days)
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Minimum Quantity */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-3">
+                          Minimum Quantity Requirement
+                        </label>
+                        <div className="flex items-center space-x-3">
+                          <input
+                            type="number"
+                            name="free_shipping_min_quantity"
+                            value={formData.free_shipping_min_quantity}
+                            onChange={handleInputChange}
+                            min="1"
+                            step="0.01"
+                            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                          />
+                          <span className="text-sm text-gray-600">units</span>
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">
+                          Minimum quantity customers must purchase to qualify for free shipping
+                        </p>
+                        {formData.free_shipping_min_quantity > 1 && (
+                          <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded">
+                            <p className="text-xs text-blue-700">
+                              💡 Customers need to buy at least {formData.free_shipping_min_quantity} units
+                              to get free shipping
+                            </p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Preview Section */}
+                      <div className="border-t pt-4">
+                        <h4 className="text-sm font-medium text-gray-700 mb-3">Configuration Summary</h4>
+                        <div className="bg-gray-50 rounded-lg p-4">
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-gray-600">Free Shipping Status:</span>
+                            <span className={`font-medium ${
+                              formData.free_shipping_enabled && formData.free_shipping_type !== 'none'
+                                ? 'text-green-600'
+                                : 'text-gray-500'
+                            }`}>
+                              {formData.free_shipping_enabled && formData.free_shipping_type !== 'none'
+                                ? '✓ Enabled'
+                                : '✗ Disabled'
+                              }
+                            </span>
+                          </div>
+                          {formData.free_shipping_enabled && formData.free_shipping_type !== 'none' && (
+                            <>
+                              <div className="flex items-center justify-between text-sm mt-2">
+                                <span className="text-gray-600">Applicable Zones:</span>
+                                <span className="font-medium text-gray-900">
+                                  {formData.free_shipping_type === 'all_zones'
+                                    ? 'All Zones (A-E)'
+                                    : Array.isArray(formData.free_shipping_zones) && formData.free_shipping_zones.length > 0
+                                      ? `Zones ${formData.free_shipping_zones.join(', ')}`
+                                      : 'None selected'
+                                  }
+                                </span>
+                              </div>
+                              <div className="flex items-center justify-between text-sm mt-2">
+                                <span className="text-gray-600">Min Quantity:</span>
+                                <span className="font-medium text-gray-900">
+                                  {formData.free_shipping_min_quantity} units
+                                </span>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           )}
 

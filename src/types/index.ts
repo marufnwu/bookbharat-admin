@@ -89,6 +89,14 @@ export interface Product {
   pages?: number;
   created_at: string;
   updated_at: string;
+  rating?: number; // Product rating
+  review_count?: number; // Number of reviews
+  sales_count?: number; // Number of units sold
+  // Free shipping fields
+  free_shipping_enabled?: boolean;
+  free_shipping_type?: 'all_zones' | 'specific_zones' | 'none';
+  free_shipping_zones?: string | string[]; // Can be JSON string or array
+  free_shipping_min_quantity?: number;
   category?: Category;
   brand?: Brand;
   images?: ProductImage[];
@@ -272,7 +280,7 @@ export interface Customer {
 
 // Table Types
 export interface TableColumn<T = any> {
-  key: keyof T | 'actions';
+  key: keyof T | 'actions' | 'rating';
   title: string;
   sortable?: boolean;
   render?: (value: any, record: T) => React.ReactNode;
