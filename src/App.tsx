@@ -74,6 +74,12 @@ import SocialCommerce from './pages/SocialCommerce/SocialCommerce';
 import SocialAccounts from './pages/SocialCommerce/SocialAccounts';
 import SocialContent from './pages/SocialCommerce/SocialContent';
 
+// Migration Pages
+import MigrationDashboard from './pages/Migration/Dashboard';
+import MigrationSettings from './pages/Migration/Settings';
+import MigrationConflicts from './pages/Migration/Conflicts';
+import MigrationLogs from './pages/Migration/Logs';
+
 // Components
 import { ProtectedRoute } from './components';
 
@@ -243,6 +249,12 @@ const App: React.FC = () => {
               <Route path="social-commerce" element={<SocialCommerce />} />
               <Route path="social-commerce/accounts" element={<SocialAccounts />} />
               <Route path="social-commerce/content" element={<SocialContent />} />
+
+              {/* Migration */}
+              <Route path="migration" element={<MigrationDashboard />} />
+              <Route path="migration/settings" element={<MigrationSettings />} />
+              <Route path="migration/conflicts" element={<MigrationConflicts />} />
+              <Route path="migration/logs" element={<MigrationLogs />} />
 
               {/* Documentation */}
               <Route path="docs" element={<DynamicDocumentationPage />} />

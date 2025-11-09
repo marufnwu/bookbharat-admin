@@ -24,7 +24,15 @@
       "Bash(npm cache clean:*)",
       "Bash(find:*)",
       "Read(//d/bookbharat-v2/**)",
-      "Bash(composer show:*)"
+      "Bash(composer show:*)",
+      "mcp__chrome-devtools__new_page",
+      "mcp__chrome-devtools__navigate_page",
+      "mcp__chrome-devtools__take_snapshot",
+      "mcp__chrome-devtools__list_console_messages",
+      "mcp__chrome-devtools__list_network_requests",
+      "mcp__chrome-devtools__wait_for",
+      "mcp__chrome-devtools__fill",
+      "mcp__chrome-devtools__click"
     ],
     "deny": [],
     "ask": []

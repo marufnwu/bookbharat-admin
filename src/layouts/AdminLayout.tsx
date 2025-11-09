@@ -175,6 +175,19 @@ const navigation: NavigationItem[] = [
     icon: FileText,
   },
 
+  // Migration
+  {
+    name: 'Migration',
+    href: '/migration',
+    icon: Activity,
+    children: [
+      { name: 'Dashboard', href: '/migration', icon: Activity },
+      { name: 'Settings', href: '/migration/settings', icon: Settings },
+      { name: 'Conflicts', href: '/migration/conflicts', icon: Shield },
+      { name: 'Logs', href: '/migration/logs', icon: FileText },
+    ]
+  },
+
   // System Administration
   {
     name: 'System',
