@@ -32,7 +32,10 @@
       "mcp__chrome-devtools__list_network_requests",
       "mcp__chrome-devtools__wait_for",
       "mcp__chrome-devtools__fill",
-      "mcp__chrome-devtools__click"
+      "mcp__chrome-devtools__click",
+      "Bash(timeout 30 npm run build:*)",
+      "mcp__chrome-devtools__evaluate_script",
+      "Bash(php:*)"
     ],
     "deny": [],
     "ask": []

@@ -185,4 +185,78 @@ export const migrationApi = {
     settings: Partial<MigrationSettings>;
   }): Promise<ApiResponse<MigrationSettings>> =>
     api.put('/migration/settings', settings).then(res => res.data),
+
+  // Search and Browse Legacy Data
+  searchLegacyProducts: (params: {
+    search?: string;
+    per_page?: number;
+    page?: number;
+    status?: string;
+    category_id?: number;
+    updated_since?: string;
+    item_type?: string;
+  } = {}): Promise<ApiResponse<{
+    data: any[];
+    meta: any;
+    summary: {
+      total_found: number;
+      already_imported: number;
+      available_to_import: number;
+    };
+  }>> =>
+    api.get('/migration/search/products', { params }).then(res => res.data),
+
+  searchLegacyCategories: (params: {
+    search?: string;
+    per_page?: number;
+    page?: number;
+    status?: string;
+  } = {}): Promise<ApiResponse<{
+    data: any[];
+    meta: any;
+    summary: {
+      total_found: number;
+      already_imported: number;
+      available_to_import: number;
+    };
+  }>> =>
+    api.get('/migration/search/categories', { params }).then(res => res.data),
+
+  // Immediate Import Operations
+  importSelectedProducts: (data: {
+    product_ids: number[];
+    overwrite_existing?: boolean;
+    import_images?: boolean;
+  }): Promise<ApiResponse<{
+    imported: number;
+    skipped: number;
+    failed: number;
+    errors: string[];
+  }>> =>
+    api.post('/migration/import/products', data).then(res => res.data),
+
+  importSelectedCategories: (data: {
+    category_ids: number[];
+    overwrite_existing?: boolean;
+  }): Promise<ApiResponse<{
+    imported: number;
+    skipped: number;
+    failed: number;
+    errors: string[];
+  }>> =>
+    api.post('/migration/import/categories', data).then(res => res.data),
+
+  // Conflict Management
+  checkImportConflicts: (data: {
+    entity_type: 'products' | 'categories';
+    entity_ids: number[];
+  }): Promise<ApiResponse<{
+    data: any[];
+    summary: {
+      total_checked: number;
+      conflicts_found: number;
+      can_import_safely: boolean;
+    };
+  }>> =>
+    api.post('/migration/conflicts/check', data).then(res => res.data),
 };

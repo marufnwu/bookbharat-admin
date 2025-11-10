@@ -79,6 +79,9 @@ import MigrationDashboard from './pages/Migration/Dashboard';
 import MigrationSettings from './pages/Migration/Settings';
 import MigrationConflicts from './pages/Migration/Conflicts';
 import MigrationLogs from './pages/Migration/Logs';
+import { ProductBrowser } from './pages/Migration/ProductBrowser';
+import { CategoryBrowser } from './pages/Migration/CategoryBrowser';
+import MigrationDocumentation from './pages/Migration/Documentation';
 
 // Components
 import { ProtectedRoute } from './components';
@@ -255,6 +258,9 @@ const App: React.FC = () => {
               <Route path="migration/settings" element={<MigrationSettings />} />
               <Route path="migration/conflicts" element={<MigrationConflicts />} />
               <Route path="migration/logs" element={<MigrationLogs />} />
+              <Route path="migration/products" element={<ProductBrowser />} />
+              <Route path="migration/categories" element={<CategoryBrowser />} />
+              <Route path="migration/documentation" element={<MigrationDocumentation />} />
 
               {/* Documentation */}
               <Route path="docs" element={<DynamicDocumentationPage />} />

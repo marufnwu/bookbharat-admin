@@ -1,0 +1,227 @@
+uid=8_0 RootWebArea "React App" url="http://localhost:3002/migration/products"
+  uid=8_1 ignored
+    uid=8_2 ignored
+      uid=8_3 generic
+        uid=8_4 ignored
+          uid=8_5 ignored
+            uid=8_6 ignored
+              uid=8_7 ignored
+                uid=8_8 ignored
+                  uid=8_9 ignored
+                    uid=8_10 ignored
+                      uid=8_11 ignored
+                        uid=8_12 StaticText "BB"
+                          uid=8_13 InlineTextBox "BB"
+                    uid=8_14 ignored
+                      uid=8_15 StaticText "BookBharat"
+                        uid=8_16 InlineTextBox "BookBharat"
+                  uid=8_17 generic
+                    uid=8_18 navigation
+                      uid=8_19 ignored
+                        uid=8_20 link "Dashboard" url="http://localhost:3002/dashboard"
+                          uid=8_21 StaticText "Dashboard"
+                            uid=8_22 InlineTextBox "Dashboard"
+                      uid=8_23 ignored
+                        uid=8_24 link "Products" url="http://localhost:3002/products"
+                          uid=8_25 StaticText "Products"
+                            uid=8_26 InlineTextBox "Products"
+                      uid=8_27 ignored
+                        uid=8_28 link "Categories" url="http://localhost:3002/categories"
+                          uid=8_29 StaticText "Categories"
+                            uid=8_30 InlineTextBox "Categories"
+                      uid=8_31 ignored
+                        uid=8_32 link "Reviews" url="http://localhost:3002/reviews"
+                          uid=8_33 StaticText "Reviews"
+                            uid=8_34 InlineTextBox "Reviews"
+                      uid=8_35 ignored
+                        uid=8_36 link "Orders" url="http://localhost:3002/orders"
+                          uid=8_37 StaticText "Orders"
+                            uid=8_38 InlineTextBox "Orders"
+                      uid=8_39 ignored
+                        uid=8_40 link "Abandoned Carts" url="http://localhost:3002/abandoned-carts"
+                          uid=8_41 StaticText "Abandoned Carts"
+                            uid=8_42 InlineTextBox "Abandoned Carts"
+                      uid=8_43 ignored
+                        uid=8_44 link "Shipping" url="http://localhost:3002/shipping"
+                          uid=8_45 StaticText "Shipping"
+                            uid=8_46 InlineTextBox "Shipping"
+                      uid=8_47 ignored
+                        uid=8_48 link "Customers" url="http://localhost:3002/customers"
+                          uid=8_49 StaticText "Customers"
+                            uid=8_50 InlineTextBox "Customers"
+                      uid=8_51 ignored
+                        uid=8_52 link "Coupons" url="http://localhost:3002/coupons"
+                          uid=8_53 StaticText "Coupons"
+                            uid=8_54 InlineTextBox "Coupons"
+                      uid=8_55 ignored
+                        uid=8_56 button "Marketing"
+                          uid=8_57 ignored
+                            uid=8_58 StaticText "Marketing"
+                              uid=8_59 InlineTextBox "Marketing"
+                      uid=8_60 ignored
+                        uid=8_61 button "Bundle Manager"
+                          uid=8_62 ignored
+                            uid=8_63 StaticText "Bundle Manager"
+                              uid=8_64 InlineTextBox "Bundle Manager"
+                      uid=8_65 ignored
+                        uid=8_66 button "Blog"
+                          uid=8_67 ignored
+                            uid=8_68 StaticText "Blog"
+                              uid=8_69 InlineTextBox "Blog"
+                      uid=8_70 ignored
+                        uid=8_71 button "Social Commerce"
+                          uid=8_72 ignored
+                            uid=8_73 StaticText "Social Commerce"
+                              uid=8_74 InlineTextBox "Social Commerce"
+                      uid=8_75 ignored
+                        uid=8_76 button "Content Management"
+                          uid=8_77 ignored
+                            uid=8_78 StaticText "Content Management"
+                              uid=8_79 InlineTextBox "Content Management"
+                      uid=8_80 ignored
+                        uid=8_81 link "Newsletter" url="http://localhost:3002/newsletter"
+                          uid=8_82 StaticText "Newsletter"
+                            uid=8_83 InlineTextBox "Newsletter"
+                      uid=8_84 ignored
+                        uid=8_85 button "Settings"
+                          uid=8_86 ignored
+                            uid=8_87 StaticText "Settings"
+                              uid=8_88 InlineTextBox "Settings"
+                      uid=8_89 ignored
+                        uid=8_90 button "Communication"
+                          uid=8_91 ignored
+                            uid=8_92 StaticText "Communication"
+                              uid=8_93 InlineTextBox "Communication"
+                      uid=8_94 ignored
+                        uid=8_95 link "Documentation" url="http://localhost:3002/docs"
+                          uid=8_96 StaticText "Documentation"
+                            uid=8_97 InlineTextBox "Documentation"
+                      uid=8_98 ignored
+                        uid=8_99 button "Migration"
+                          uid=8_100 ignored
+                            uid=8_101 StaticText "Migration"
+                              uid=8_102 InlineTextBox "Migration"
+                        uid=8_103 ignored
+                          uid=8_104 link "Dashboard" url="http://localhost:3002/migration"
+                            uid=8_105 StaticText "Dashboard"
+                              uid=8_106 InlineTextBox "Dashboard"
+                          uid=8_107 link "Settings" url="http://localhost:3002/migration/settings"
+                            uid=8_108 StaticText "Settings"
+                              uid=8_109 InlineTextBox "Settings"
+                          uid=8_110 link "Conflicts" url="http://localhost:3002/migration/conflicts"
+                            uid=8_111 StaticText "Conflicts"
+                              uid=8_112 InlineTextBox "Conflicts"
+                          uid=8_113 link "Logs" url="http://localhost:3002/migration/logs"
+                            uid=8_114 StaticText "Logs"
+                              uid=8_115 InlineTextBox "Logs"
+                          uid=8_116 link "Product Browser" url="http://localhost:3002/migration/products"
+                            uid=8_117 StaticText "Product Browser"
+                              uid=8_118 InlineTextBox "Product Browser"
+                          uid=8_119 link "Category Browser" url="http://localhost:3002/migration/categories"
+                            uid=8_120 StaticText "Category Browser"
+                              uid=8_121 InlineTextBox "Category Browser"
+                          uid=8_122 link "Documentation" url="http://localhost:3002/migration/documentation"
+                            uid=8_123 StaticText "Documentation"
+                              uid=8_124 InlineTextBox "Documentation"
+                      uid=8_125 ignored
+                        uid=8_126 button "System"
+                          uid=8_127 ignored
+                            uid=8_128 StaticText "System"
+                              uid=8_129 InlineTextBox "System"
+                    uid=8_130 ignored
+                      uid=8_131 button "Sign out"
+                        uid=8_132 StaticText "Sign out"
+                          uid=8_133 InlineTextBox "Sign out"
+            uid=8_134 ignored
+              uid=8_135 generic
+                uid=8_136 ignored
+                  uid=8_137 ignored
+                    uid=8_138 heading "Dashboard" level="1"
+                      uid=8_139 StaticText "Dashboard"
+                        uid=8_140 InlineTextBox "Dashboard"
+                  uid=8_141 ignored
+                    uid=8_142 generic
+                      uid=8_143 ignored
+                        uid=8_144 button "B BookBharat Admin" haspopup="menu"
+                          uid=8_145 ignored
+                            uid=8_146 ignored
+                              uid=8_147 StaticText "B"
+                                uid=8_148 InlineTextBox "B"
+                          uid=8_149 ignored
+                            uid=8_150 StaticText "BookBharat Admin"
+                              uid=8_151 InlineTextBox "BookBharat Admin"
+              uid=8_152 main
+                uid=8_153 ignored
+                  uid=8_154 ignored
+                    uid=8_155 ignored
+                      uid=8_156 ignored
+                        uid=8_157 ignored
+                          uid=8_158 heading "Browse Legacy Products" level="3"
+                            uid=8_159 StaticText "Browse Legacy Products"
+                              uid=8_160 InlineTextBox "Browse Legacy Products"
+                        uid=8_161 ignored
+                          uid=8_162 generic
+                            uid=8_163 ignored
+                              uid=8_164 ignored
+                                uid=8_165 textbox "Search products by name, SKU..."
+                                  uid=8_166 ignored
+                                  uid=8_167 generic
+                              uid=8_168 button "Search"
+                                uid=8_169 StaticText "Search"
+                                  uid=8_170 InlineTextBox "Search"
+                            uid=8_171 ignored
+                              uid=8_172 combobox haspopup="menu" value="All Status"
+                                uid=8_173 MenuListPopup
+                                  uid=8_174 option "All Status" selectable selected value="All Status"
+                                  uid=8_175 option "Active" value="Active"
+                                  uid=8_176 option "Inactive" value="Inactive"
+                              uid=8_177 combobox haspopup="menu" value="20 per page"
+                                uid=8_178 MenuListPopup
+                                  uid=8_179 option "20 per page" selectable selected value="20 per page"
+                                  uid=8_180 option "50 per page" value="50 per page"
+                                  uid=8_181 option "100 per page" value="100 per page"
+                      uid=8_182 ignored
+                        uid=8_183 ignored
+                          uid=8_184 ignored
+                            uid=8_185 ignored
+                              uid=8_186 generic
+                                uid=8_187 StaticText "0"
+                                  uid=8_188 InlineTextBox "0"
+                              uid=8_189 generic
+                                uid=8_190 StaticText "Total Found"
+                                  uid=8_191 InlineTextBox "Total Found"
+                            uid=8_192 ignored
+                              uid=8_193 generic
+                                uid=8_194 StaticText "0"
+                                  uid=8_195 InlineTextBox "0"
+                              uid=8_196 generic
+                                uid=8_197 StaticText "Available to Import"
+                                  uid=8_198 InlineTextBox "Available to Import"
+                            uid=8_199 ignored
+                              uid=8_200 generic
+                                uid=8_201 StaticText "0"
+                                  uid=8_202 InlineTextBox "0"
+                              uid=8_203 generic
+                                uid=8_204 StaticText "Already Imported"
+                                  uid=8_205 InlineTextBox "Already Imported"
+                      uid=8_206 ignored
+                        uid=8_207 ignored
+                          uid=8_208 heading "Products" level="3"
+                            uid=8_209 StaticText "Products"
+                              uid=8_210 InlineTextBox "Products"
+                        uid=8_211 ignored
+                          uid=8_212 generic
+                            uid=8_213 StaticText "No products found. Try adjusting your search criteria."
+                              uid=8_214 InlineTextBox "No products found. Try adjusting your search criteria."
+            uid=8_215 generic
+              uid=8_216 ignored
+        uid=8_217 ignored
+          uid=8_218 generic
+            uid=8_219 generic
+              uid=8_220 button "Open Tanstack query devtools"
+                uid=8_221 image
+                  uid=8_222 ignored
+                  uid=8_223 ignored
+                  uid=8_224 ignored
+                  uid=8_225 ignored
+        uid=8_226 generic

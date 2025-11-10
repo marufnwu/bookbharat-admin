@@ -185,6 +185,9 @@ const navigation: NavigationItem[] = [
       { name: 'Settings', href: '/migration/settings', icon: Settings },
       { name: 'Conflicts', href: '/migration/conflicts', icon: Shield },
       { name: 'Logs', href: '/migration/logs', icon: FileText },
+      { name: 'Product Browser', href: '/migration/products', icon: ShoppingBag },
+      { name: 'Category Browser', href: '/migration/categories', icon: FolderOpen },
+      { name: 'Documentation', href: '/migration/documentation', icon: FileText },
     ]
   },
 

@@ -29,8 +29,8 @@ const MigrationLogs: React.FC = () => {
     queryFn: () => api.migration.getLogs(filters),
   });
 
-  const logs = logsResponse?.data?.data || [];
-  const pagination = logsResponse?.data?.pagination;
+  const logs = (logsResponse as any)?.data || [];
+  const pagination = (logsResponse as any)?.pagination;
 
   const handleFilterChange = (key: string, value: string) => {
     setFilters(prev => ({
