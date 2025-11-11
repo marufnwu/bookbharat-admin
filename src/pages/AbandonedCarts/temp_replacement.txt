@@ -1,0 +1,16 @@
+                  {/* Other tabs would be implemented here */}
+                  {activeModalTab === 'history' && (
+                    <RecoveryHistory cartId={selectedCart.id} />
+                  )}
+
+                  {activeModalTab === 'notes' && (
+                    <CartNotesManager cartId={selectedCart.id} />
+                  )}
+
+                  {activeModalTab === 'discounts' && (
+                    <DiscountManager cartId={selectedCart.id} />
+                  )}
+
+                  {activeModalTab === 'insights' && (
+                    <CartInsights cartId={selectedCart.id} />
+                  )}

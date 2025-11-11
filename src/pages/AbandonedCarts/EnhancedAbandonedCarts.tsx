@@ -47,6 +47,10 @@ import toast from 'react-hot-toast';
 import ValidationLogs from './ValidationLogs';
 import SmsRecoveryManager from './SmsRecoveryManager';
 import ABTestingManager from './ABTestingManager';
+import RecoveryHistory from './RecoveryHistory';
+import CartNotesManager from './CartNotesManager';
+import DiscountManager from './DiscountManager';
+import CartInsights from './CartInsights';
 
 interface FilterOptions {
   customer_segments: Array<{ value: string; label: string }>;
@@ -1586,33 +1590,20 @@ const AbandonedCarts: React.FC = () => {
                     </div>
                   )}
 
-                  {/* Other tabs would be implemented here */}
                   {activeModalTab === 'history' && (
-                    <div className="text-center py-12 text-gray-500">
-                      <History className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-                      <p>Recovery history coming soon...</p>
-                    </div>
+                    <RecoveryHistory cartId={selectedCart.id} />
                   )}
 
                   {activeModalTab === 'notes' && (
-                    <div className="text-center py-12 text-gray-500">
-                      <StickyNote className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-                      <p>Notes and communication coming soon...</p>
-                    </div>
+                    <CartNotesManager cartId={selectedCart.id} />
                   )}
 
                   {activeModalTab === 'discounts' && (
-                    <div className="text-center py-12 text-gray-500">
-                      <DiscountTag className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-                      <p>Discount management coming soon...</p>
-                    </div>
+                    <DiscountManager cartId={selectedCart.id} />
                   )}
 
                   {activeModalTab === 'insights' && (
-                    <div className="text-center py-12 text-gray-500">
-                      <Target className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-                      <p>Cart insights coming soon...</p>
-                    </div>
+                    <CartInsights cartId={selectedCart.id} />
                   )}
                 </div>
 

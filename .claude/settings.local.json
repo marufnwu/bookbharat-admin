@@ -35,7 +35,8 @@
       "mcp__chrome-devtools__click",
       "Bash(timeout 30 npm run build:*)",
       "mcp__chrome-devtools__evaluate_script",
-      "Bash(php:*)"
+      "Bash(php:*)",
+      "Bash(git checkout:*)"
     ],
     "deny": [],
     "ask": []
