@@ -284,6 +284,7 @@ export interface TableColumn<T = any> {
   title: string;
   sortable?: boolean;
   render?: (value: any, record: T) => React.ReactNode;
+  wrap?: boolean; // Allow text wrapping in this column
 }
 
 export interface TableProps<T = any> {

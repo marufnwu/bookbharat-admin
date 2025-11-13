@@ -259,68 +259,22 @@ export const authApiExtended = {
 
 // Settings API (kept as is)
 export const settingsApi = {
-  getGeneralSettings: () => api.get('/settings/general').then(res => res.data),
-  updateGeneralSettings: (settings: any) => api.put('/settings/general', settings).then(res => res.data),
-  getRoles: () => api.get('/settings/roles').then(res => res.data),
-  createRole: (role: any) => api.post('/settings/roles', role).then(res => res.data),
-  updateRole: (id: number, role: any) => api.put(`/settings/roles/${id}`, role).then(res => res.data),
-  deleteRole: (id: number) => api.delete(`/settings/roles/${id}`).then(res => res.data),
-  getEmailTemplates: () => api.get('/settings/email-templates').then(res => res.data),
-  updateEmailTemplate: (id: number, template: any) => api.put(`/settings/email-templates/${id}`, template).then(res => res.data),
   getPaymentSettings: () => api.get('/settings/payment').then(res => res.data),
   updatePaymentSettings: (settings: any) => api.put('/settings/payment', settings).then(res => res.data),
   updatePaymentGateway: (id: number, updates: any) => api.put(`/payment-methods/${id}`, updates).then(res => res.data),
   togglePaymentGateway: (id: number) => api.post(`/payment-methods/${id}/toggle`).then(res => res.data),
-  getShippingSettings: () => api.get('/settings/shipping').then(res => res.data),
-  updateShippingSettings: (settings: any) => api.put('/settings/shipping', settings).then(res => res.data),
-
-  // Alias methods for components
-  getGeneral: () => api.get('/settings/general').then(res => res.data),
-  updateGeneral: (settings: any) => api.put('/settings/general', settings).then(res => res.data),
   getPayment: () => api.get('/settings/payment').then(res => res.data),
-
-  // Configuration APIs
   getSiteConfig: () => api.get('/configuration/site-config').then(res => res.data),
   updateSiteConfig: (config: any) => api.put('/configuration/site-config', config).then(res => res.data),
-  getHomepageConfig: () => api.get('/configuration/homepage-config').then(res => res.data),
-  getNavigationConfig: () => api.get('/configuration/navigation-config').then(res => res.data),
-  getContentPage: (slug: string) => api.get(`/configuration/content-page/${slug}`).then(res => res.data),
-
-  // Content Management APIs
-  getContentSiteConfig: () => api.get('/content/site-config').then(res => res.data),
-  updateContentSiteConfig: (config: any) => api.put('/content/site-config', config).then(res => res.data),
-  getContentHomepageConfig: () => api.get('/content/homepage-config').then(res => res.data),
-  updateContentHomepageConfig: (config: any) => api.put('/content/homepage-config', config).then(res => res.data),
-  getContentNavigationConfig: () => api.get('/content/navigation-config').then(res => res.data),
-  updateContentNavigationConfig: (config: any) => api.put('/content/navigation-config', config).then(res => res.data),
-
-  // System Management APIs
-  getSystemHealth: () => api.get('/system/health').then(res => res.data),
-  clearCache: () => api.post('/system/cache/clear').then(res => res.data),
-  optimizeSystem: () => api.post('/system/optimize').then(res => res.data),
-  getBackups: () => api.get('/system/backup').then(res => res.data),
-  createBackup: () => api.post('/system/backup/create').then(res => res.data),
-  restoreBackup: (backupId: string) => api.post('/system/backup/restore', { backup_id: backupId }).then(res => res.data),
-  getSystemLogs: () => api.get('/system/logs').then(res => res.data),
-  getQueueStatus: () => api.get('/system/queue-status').then(res => res.data),
-
-  getShipping: () => api.get('/settings/shipping').then(res => res.data),
-
-  // Payment Flow Settings
   getPaymentFlowSettings: () => api.get('/admin-settings/payment-flow').then(res => res.data),
   updatePaymentFlowSettings: (settings: {
     flow_type?: string;
     default_type?: string;
     cod_enabled?: string;
     online_payment_enabled?: string;
-  }) =>
-    api.put('/admin-settings/payment-flow', settings).then(res => res.data),
-
-  // Payment Configuration Management
-  updatePaymentConfiguration: (id: number, updates: any) =>
-    api.put(`/settings/payment-configurations/${id}`, updates).then(res => res.data),
-  togglePaymentConfiguration: (id: number) =>
-    api.post(`/settings/payment-configurations/${id}/toggle`).then(res => res.data),
+  }) => api.put('/admin-settings/payment-flow', settings).then(res => res.data),
+  updatePaymentConfiguration: (id: number, updates: any) => api.put(`/settings/payment-configurations/${id}`, updates).then(res => res.data),
+  togglePaymentConfiguration: (id: number) => api.post(`/settings/payment-configurations/${id}/toggle`).then(res => res.data),
 };
 
 // Roles API

@@ -212,6 +212,7 @@ const ProductList: React.FC = () => {
       key: 'title',
       title: 'Product',
       sortable: true,
+      wrap: true,
       render: (value, record) => (
         <div className="flex items-start space-x-3">
           <div className="h-12 w-12 bg-gray-100 rounded-lg flex-shrink-0 overflow-hidden">
@@ -232,13 +233,13 @@ const ProductList: React.FC = () => {
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center space-x-2">
-              <div className="font-medium text-gray-900 truncate">{record.name || value}</div>
+              <div className="font-medium text-gray-900 truncate max-w-[200px] sm:max-w-[300px]" title={record.name || value}>{record.name || value}</div>
               {record.is_featured && (
                 <Badge variant="warning" size="sm">Featured</Badge>
               )}
             </div>
-            <div className="text-sm text-gray-500">SKU: {record.sku}</div>
-            <div className="flex items-center space-x-2 mt-1">
+            <div className="text-sm text-gray-500 truncate max-w-[200px] sm:max-w-[300px]">SKU: {record.sku}</div>
+            <div className="flex items-center flex-wrap gap-1 mt-1">
               {record.category?.name && (
                 <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded">
                   {record.category.name}

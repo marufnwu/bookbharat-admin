@@ -36,7 +36,8 @@
       "Bash(timeout 30 npm run build:*)",
       "mcp__chrome-devtools__evaluate_script",
       "Bash(php:*)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(app/Http/Controllers/Admin/MigrationController.php)"
     ],
     "deny": [],
     "ask": []

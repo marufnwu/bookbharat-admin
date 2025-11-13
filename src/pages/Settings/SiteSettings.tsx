@@ -11,6 +11,7 @@ import {
 import { Button, LoadingSpinner, Badge } from '../../components';
 import { useNotificationStore } from '../../store/notificationStore';
 import { settingsApi } from '../../api';
+import type { ApiResponse } from '../../types';
 
 interface SiteConfig {
   site: {
@@ -92,7 +93,7 @@ const SiteSettings: React.FC = () => {
   };
 
   // Fetch site configuration from API
-  const { data: siteConfigData, isLoading: siteConfigLoading } = useQuery({
+  const { data: siteConfigData, isLoading: siteConfigLoading } = useQuery<ApiResponse<SiteConfig>>({
     queryKey: ['configuration', 'site-config'],
     queryFn: settingsApi.getSiteConfig,
   });
@@ -112,7 +113,7 @@ const SiteSettings: React.FC = () => {
 
   if (siteConfigLoading) return <LoadingSpinner />;
 
-  const siteConfig: SiteConfig = siteConfigData?.data || {};
+  const siteConfig = siteConfigData?.data ?? ({} as SiteConfig);
 
   // Function to collect form data
   const collectFormData = () => {

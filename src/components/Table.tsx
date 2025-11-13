@@ -1,6 +1,6 @@
 import React from 'react';
 import { ChevronUpIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
-import { TableProps, TableColumn } from '../types';
+import { TableProps } from '../types';
 import LoadingSpinner from './LoadingSpinner';
 import Button from './Button';
 
@@ -50,7 +50,7 @@ function Table<T extends Record<string, any>>({
 
   return (
     <div className="space-y-4">
-      <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
+      <div className="overflow-x-auto shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
         <table className="min-w-full divide-y divide-gray-300">
           <thead className="bg-gray-50">
             <tr>
@@ -87,7 +87,9 @@ function Table<T extends Record<string, any>>({
                   {columns.map((column) => (
                     <td
                       key={String(column.key)}
-                      className="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
+                      className={`px-6 py-4 text-sm text-gray-900 ${
+                        column.wrap ? '' : 'whitespace-nowrap'
+                      }`}
                     >
                       {column.render
                         ? column.render(row[column.key], row)

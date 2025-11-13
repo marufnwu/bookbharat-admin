@@ -104,6 +104,13 @@ export const migrationApi = {
   getDashboard: (): Promise<ApiResponse<MigrationDashboard>> =>
     api.get('/migration/dashboard').then(res => res.data),
 
+  // System Health & Queue
+  getSystemHealth: (): Promise<ApiResponse<any>> =>
+    api.get('/migration/health').then(res => res.data),
+
+  getQueueStatus: (): Promise<ApiResponse<any>> =>
+    api.get('/migration/queue-status').then(res => res.data),
+
   // Connection Testing
   testConnection: (): Promise<ApiResponse<ConnectionTest>> =>
     api.post('/migration/test-connection').then(res => res.data),
@@ -181,9 +188,7 @@ export const migrationApi = {
   getSettings: (): Promise<ApiResponse<MigrationSettings>> =>
     api.get('/migration/settings').then(res => res.data),
 
-  updateSettings: (settings: {
-    settings: Partial<MigrationSettings>;
-  }): Promise<ApiResponse<MigrationSettings>> =>
+  updateSettings: (settings: Partial<MigrationSettings>): Promise<ApiResponse<MigrationSettings>> =>
     api.put('/migration/settings', settings).then(res => res.data),
 
   // Search and Browse Legacy Data
@@ -246,17 +251,16 @@ export const migrationApi = {
   }>> =>
     api.post('/migration/import/categories', data).then(res => res.data),
 
-  // Conflict Management
-  checkImportConflicts: (data: {
+  // Error and Duplicate Management
+  getMigrationErrors: (params: {
+    per_page?: number;
+    page?: number;
+    entity_type?: string;
+  } = {}): Promise<ApiResponse<any>> =>
+    api.get('/migration/errors', { params }).then(res => res.data),
+
+  detectDuplicates: (params: {
     entity_type: 'products' | 'categories';
-    entity_ids: number[];
-  }): Promise<ApiResponse<{
-    data: any[];
-    summary: {
-      total_checked: number;
-      conflicts_found: number;
-      can_import_safely: boolean;
-    };
-  }>> =>
-    api.post('/migration/conflicts/check', data).then(res => res.data),
+  }): Promise<ApiResponse<any>> =>
+    api.post('/migration/detect-duplicates', params).then(res => res.data),
 };
