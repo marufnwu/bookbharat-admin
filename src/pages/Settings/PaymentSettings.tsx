@@ -24,6 +24,20 @@ interface PaymentGateway {
   is_fallback: boolean;
   is_system: boolean;
   configuration: Record<string, any>;
+  credential_schema?: {
+    fields: Record<string, {
+      type?: string;
+      label?: string;
+      placeholder?: string;
+      description?: string;
+      options?: Array<{ value: string; label: string } | string>;
+      min?: number;
+      max?: number;
+      step?: number;
+    }>;
+    required: string[];
+    optional: string[];
+  };
   restrictions: Record<string, any>;
   priority: number;
   created_at: string;
@@ -144,6 +158,8 @@ const PaymentSettings: React.FC = () => {
         return '💰';
       case 'cashfree':
         return '📱';
+      case 'phonepe':
+        return '📲';
       case 'cod':
         return '🏦';
       default:
@@ -679,96 +695,10 @@ const GatewayConfigModal: React.FC<GatewayConfigModalProps> = ({
   };
 
   const renderConfigFields = () => {
-    switch (gateway.payment_method) {
-      case 'razorpay':
-        return (
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">API Key</label>
-              <input
-                type={showSecrets ? "text" : "password"}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                value={formData.configuration.key || ''}
-                onChange={(e) => updateConfig('key', e.target.value)}
-                placeholder="rzp_test_xxxxx"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">API Secret</label>
-              <input
-                type={showSecrets ? "text" : "password"}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                value={formData.configuration.secret || ''}
-                onChange={(e) => updateConfig('secret', e.target.value)}
-                placeholder="Enter Razorpay secret key"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Webhook Secret (Optional)</label>
-              <input
-                type={showSecrets ? "text" : "password"}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                value={formData.configuration.webhook_secret || ''}
-                onChange={(e) => updateConfig('webhook_secret', e.target.value)}
-                placeholder="Enter webhook secret"
-              />
-            </div>
-          </div>
-        );
-
-      case 'payu':
-        return (
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Merchant Key</label>
-              <input
-                type={showSecrets ? "text" : "password"}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                value={formData.configuration.merchant_key || ''}
-                onChange={(e) => updateConfig('merchant_key', e.target.value)}
-                placeholder="Enter PayU merchant key"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Merchant Salt</label>
-              <input
-                type={showSecrets ? "text" : "password"}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                value={formData.configuration.salt || ''}
-                onChange={(e) => updateConfig('salt', e.target.value)}
-                placeholder="Enter PayU salt"
-              />
-            </div>
-          </div>
-        );
-
-      case 'cashfree':
-        return (
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Client ID</label>
-              <input
-                type={showSecrets ? "text" : "password"}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                value={formData.configuration.app_id || ''}
-                onChange={(e) => updateConfig('app_id', e.target.value)}
-                placeholder="Enter Cashfree client ID"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Secret Key</label>
-              <input
-                type={showSecrets ? "text" : "password"}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                value={formData.configuration.secret_key || ''}
-                onChange={(e) => updateConfig('secret_key', e.target.value)}
-                placeholder="Enter Cashfree secret key"
-              />
-            </div>
-          </div>
-        );
-
-      case 'cod':
+    // Check if gateway has credential_schema
+    if (!gateway.credential_schema || !gateway.credential_schema.fields) {
+      // If no schema, check if it's COD (special handling for non-API gateways)
+      if (gateway.payment_method === 'cod') {
         return (
           <div className="space-y-4">
             <div>
@@ -803,14 +733,134 @@ const GatewayConfigModal: React.FC<GatewayConfigModalProps> = ({
             </div>
           </div>
         );
+      }
 
-      default:
-        return (
-          <div className="text-sm text-gray-500">
-            No specific configuration available for this gateway.
-          </div>
-        );
+      return (
+        <div className="text-sm text-gray-500">
+          No configuration schema available for this gateway.
+        </div>
+      );
     }
+
+    // Dynamically render form fields based on credential_schema
+    const schema = gateway.credential_schema;
+    const fields = schema.fields || {};
+    const requiredFields = schema.required || [];
+    const optionalFields = schema.optional || [];
+
+    // Combine required and optional fields
+    const allFieldKeys = [...requiredFields, ...optionalFields];
+
+    // If no fields defined in required/optional arrays, use all field keys
+    const fieldKeysToRender = allFieldKeys.length > 0 ? allFieldKeys : Object.keys(fields);
+
+    return (
+      <div className="space-y-4">
+        {fieldKeysToRender.map((fieldKey) => {
+          const fieldSchema = fields[fieldKey];
+          if (!fieldSchema) {
+            // If field schema not found, still render a basic input
+            return (
+              <div key={fieldKey}>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {fieldKey.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}
+                  {requiredFields.includes(fieldKey) && <span className="text-red-500 ml-1">*</span>}
+                </label>
+                <input
+                  type="text"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                  value={formData.configuration[fieldKey] || ''}
+                  onChange={(e) => updateConfig(fieldKey, e.target.value)}
+                  placeholder={`Enter ${fieldKey.replace(/_/g, ' ')}`}
+                />
+              </div>
+            );
+          }
+
+          const fieldType = fieldSchema.type || 'string';
+          const label = fieldSchema.label || fieldKey.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
+          const isRequired = requiredFields.includes(fieldKey);
+          const placeholder = fieldSchema.placeholder || `Enter ${label.toLowerCase()}`;
+          const description = fieldSchema.description || '';
+
+          // Determine if this field should be masked (for sensitive data)
+          const isSensitive = fieldType === 'password' ||
+                            fieldKey.includes('secret') ||
+                            fieldKey.includes('key') ||
+                            fieldKey.includes('salt') ||
+                            fieldKey.includes('password') ||
+                            fieldKey.includes('token');
+
+          return (
+            <div key={fieldKey}>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                {label}
+                {isRequired && <span className="text-red-500 ml-1">*</span>}
+                {!isRequired && <span className="text-gray-400 text-xs ml-2">(Optional)</span>}
+              </label>
+
+              {fieldType === 'select' && fieldSchema.options ? (
+                <select
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                  value={formData.configuration[fieldKey] || ''}
+                  onChange={(e) => updateConfig(fieldKey, e.target.value)}
+                >
+                  <option value="">Select {label}</option>
+                  {fieldSchema.options.map((option: any) => (
+                    <option key={option.value || option} value={option.value || option}>
+                      {option.label || option}
+                    </option>
+                  ))}
+                </select>
+              ) : fieldType === 'number' ? (
+                <input
+                  type="number"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                  value={formData.configuration[fieldKey] || ''}
+                  onChange={(e) => updateConfig(fieldKey, parseFloat(e.target.value) || 0)}
+                  placeholder={placeholder}
+                  min={fieldSchema.min}
+                  max={fieldSchema.max}
+                  step={fieldSchema.step}
+                />
+              ) : fieldType === 'boolean' ? (
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id={`field-${fieldKey}`}
+                    checked={formData.configuration[fieldKey] || false}
+                    onChange={(e) => updateConfig(fieldKey, e.target.checked)}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                  <label htmlFor={`field-${fieldKey}`} className="ml-2 text-sm text-gray-700">
+                    {description || 'Enable'}
+                  </label>
+                </div>
+              ) : (
+                <input
+                  type={isSensitive ? (showSecrets ? 'text' : 'password') : 'text'}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                  value={formData.configuration[fieldKey] || ''}
+                  onChange={(e) => updateConfig(fieldKey, e.target.value)}
+                  placeholder={placeholder}
+                  required={isRequired}
+                />
+              )}
+
+              {description && fieldType !== 'boolean' && (
+                <p className="mt-1 text-xs text-gray-500">{description}</p>
+              )}
+            </div>
+          );
+        })}
+
+        {fieldKeysToRender.length === 0 && (
+          <div className="text-sm text-gray-500">
+            No configuration fields defined for this gateway.
+          </div>
+        )}
+      </div>
+    );
   };
 
   return (
