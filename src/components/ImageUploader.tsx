@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Upload, X, Image as ImageIcon, Loader2 } from 'lucide-react';
+import { Upload, X, Image as ImageIcon, Loader2, RefreshCw } from 'lucide-react';
 import { api } from '../api/axios';
 import toast from 'react-hot-toast';
 import { getFullImageUrl, getBackendUrl } from '../utils/imageUrl';
@@ -11,6 +11,7 @@ interface ImageUploaderProps {
   accept?: string;
   maxSizeMB?: number;
   className?: string;
+  folder?: string;
 }
 
 const ImageUploader: React.FC<ImageUploaderProps> = ({
@@ -20,6 +21,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
   accept = 'image/jpeg,image/jpg,image/png,image/webp',
   maxSizeMB = 5,
   className = '',
+  folder = 'media',
 }) => {
   const [uploading, setUploading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
@@ -28,10 +30,19 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
   const maxSizeBytes = maxSizeMB * 1024 * 1024;
 
   const validateFile = (file: File): string | null => {
-    // Check file type
+    // Check file size first
+    if (file.size > maxSizeBytes) {
+      return `File size must be less than ${maxSizeMB}MB`;
+    }
+
+    // Check file type by MIME type and extension
     const acceptedTypes = accept.split(',').map(t => t.trim());
     const fileType = file.type;
-    const isValidType = acceptedTypes.some(type => {
+    const fileName = file.name.toLowerCase();
+    const fileExtension = fileName.substring(fileName.lastIndexOf('.'));
+
+    // Check MIME type
+    const isValidMimeType = acceptedTypes.some(type => {
       if (type.includes('*')) {
         const baseType = type.split('/')[0];
         return fileType.startsWith(baseType);
@@ -39,21 +50,29 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
       return fileType === type;
     });
 
-    if (!isValidType) {
-      return `Invalid file type. Accepted types: ${accept}`;
-    }
+    // Check file extension as fallback (important for .ico files which may have inconsistent MIME types)
+    const acceptedExtensions = [];
+    if (accept.includes('image/x-icon') || accept.includes('image/vnd.microsoft.icon')) acceptedExtensions.push('.ico');
+    if (accept.includes('image/png')) acceptedExtensions.push('.png');
+    if (accept.includes('image/jpeg') || accept.includes('image/jpg')) acceptedExtensions.push('.jpg', '.jpeg');
+    if (accept.includes('image/webp')) acceptedExtensions.push('.webp');
+    if (accept.includes('image/svg+xml')) acceptedExtensions.push('.svg');
 
-    // Check file size
-    if (file.size > maxSizeBytes) {
-      return `File size must be less than ${maxSizeMB}MB`;
+    const isValidExtension = acceptedExtensions.length === 0 || acceptedExtensions.includes(fileExtension);
+
+    if (!isValidMimeType && !isValidExtension) {
+      return `Invalid file type. Please select a valid image file.`;
     }
 
     return null;
   };
 
   const uploadFile = async (file: File) => {
+    console.log('Upload file called:', { fileName: file.name, fileType: file.type, fileSize: file.size });
+
     const error = validateFile(file);
     if (error) {
+      console.error('Validation error:', error);
       toast.error(error);
       return;
     }
@@ -63,7 +82,9 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
     try {
       const formData = new FormData();
       formData.append('file', file);
-      formData.append('type', 'image');
+      formData.append('folder', folder);
+
+      console.log('Uploading to /media-library/upload with folder:', folder);
 
       const response = await api.post('/media-library/upload', formData, {
         headers: {
@@ -71,24 +92,33 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
         },
       });
 
+      console.log('Upload response:', response.data);
+
       if (response.data.success && response.data.data?.url) {
+        console.log('Upload successful, URL:', response.data.data.url);
         onChange(response.data.data.url);
         toast.success('Image uploaded successfully');
       } else {
-        throw new Error('Upload failed');
+        console.error('Upload failed - invalid response structure:', response.data);
+        throw new Error('Upload failed - no URL returned');
       }
     } catch (error: any) {
       console.error('Upload error:', error);
-      toast.error(error.response?.data?.message || 'Failed to upload image');
+      console.error('Error response:', error.response?.data);
+      toast.error(error.response?.data?.message || error.message || 'Failed to upload image');
     } finally {
       setUploading(false);
     }
   };
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    console.log('File input changed, files:', e.target.files);
     const file = e.target.files?.[0];
     if (file) {
+      console.log('File selected:', file.name);
       uploadFile(file);
+    } else {
+      console.log('No file selected');
     }
   };
 
@@ -128,6 +158,15 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
         </label>
       )}
 
+      <input
+        ref={inputRef}
+        type="file"
+        accept={accept}
+        onChange={handleFileInput}
+        className="hidden"
+        disabled={uploading}
+      />
+
       {value ? (
         // Preview Mode
         <div className="relative">
@@ -140,12 +179,22 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
                 (e.target as HTMLImageElement).src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="100"%3E%3Crect fill="%23f3f4f6" width="100" height="100"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill="%239ca3af"%3EBroken Image%3C/text%3E%3C/svg%3E';
               }}
             />
-            <div className="absolute inset-0 bg-black bg-opacity-0 hover:bg-opacity-30 transition-opacity flex items-center justify-center opacity-0 hover:opacity-100">
+            <div className="absolute inset-0 bg-black bg-opacity-0 hover:bg-opacity-30 transition-opacity flex items-center justify-center gap-2 opacity-0 hover:opacity-100">
+              <button
+                type="button"
+                onClick={() => !uploading && inputRef.current?.click()}
+                className="bg-blue-600 text-white p-2 rounded-full hover:bg-blue-700 transition-colors"
+                title="Change image"
+                disabled={uploading}
+              >
+                <RefreshCw className="h-5 w-5" />
+              </button>
               <button
                 type="button"
                 onClick={handleRemove}
                 className="bg-red-600 text-white p-2 rounded-full hover:bg-red-700 transition-colors"
                 title="Remove image"
+                disabled={uploading}
               >
                 <X className="h-5 w-5" />
               </button>
@@ -169,15 +218,6 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
           `}
           onClick={() => !uploading && inputRef.current?.click()}
         >
-          <input
-            ref={inputRef}
-            type="file"
-            accept={accept}
-            onChange={handleFileInput}
-            className="hidden"
-            disabled={uploading}
-          />
-
           <div className="text-center">
             {uploading ? (
               <div className="flex flex-col items-center">

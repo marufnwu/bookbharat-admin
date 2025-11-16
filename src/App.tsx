@@ -212,6 +212,7 @@ const App: React.FC = () => {
               <Route path="settings/charges" element={<Settings key="settings-charges" />} />
               <Route path="settings/taxes" element={<Settings key="settings-taxes" />} />
               <Route path="settings/system" element={<Settings key="settings-system" />} />
+              <Route path="settings/cache" element={<Settings key="settings-cache" />} />
               <Route path="settings/notifications" element={<Navigate to="/notifications" replace />} />
 
               {/* Communication Configuration */}

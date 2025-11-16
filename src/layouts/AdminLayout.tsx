@@ -144,6 +144,7 @@ const navigation: NavigationItem[] = [
       { name: 'Order Charges', href: '/settings/charges', icon: Receipt },
       { name: 'Tax Configuration', href: '/settings/taxes', icon: DollarSign },
       { name: 'Email Templates', href: '/settings/email', icon: Mail },
+      { name: 'Cache Management', href: '/settings/cache', icon: Server },
     ]
   },
 

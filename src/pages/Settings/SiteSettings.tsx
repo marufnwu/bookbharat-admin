@@ -12,6 +12,7 @@ import { Button, LoadingSpinner, Badge } from '../../components';
 import { useNotificationStore } from '../../store/notificationStore';
 import { settingsApi } from '../../api';
 import type { ApiResponse } from '../../types';
+import ImageUploader from '../../components/ImageUploader';
 
 interface SiteConfig {
   site: {
@@ -76,6 +77,8 @@ const SiteSettings: React.FC = () => {
   const queryClient = useQueryClient();
   const { showSuccess, showError } = useNotificationStore();
   const formRef = useRef<HTMLFormElement>(null);
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [faviconUrl, setFaviconUrl] = useState<string | null>(null);
 
   // Read initial section from URL hash
   useEffect(() => {
@@ -111,6 +114,15 @@ const SiteSettings: React.FC = () => {
     },
   });
 
+  // Initialize logo and favicon when data loads
+  useEffect(() => {
+    const siteData = siteConfigData?.data?.site;
+    if (siteData) {
+      setLogoUrl(siteData.logo || null);
+      setFaviconUrl(siteData.favicon || null);
+    }
+  }, [siteConfigData]);
+
   if (siteConfigLoading) return <LoadingSpinner />;
 
   const siteConfig = siteConfigData?.data ?? ({} as SiteConfig);
@@ -121,7 +133,10 @@ const SiteSettings: React.FC = () => {
 
     const formData = new FormData(formRef.current);
     const data: any = {
-      site: {},
+      site: {
+        logo: logoUrl || '',
+        favicon: faviconUrl || '',
+      },
       theme: {},
       features: {},
       social: {},
@@ -200,24 +215,67 @@ const SiteSettings: React.FC = () => {
               defaultValue={siteConfig.site?.contact_phone}
             />
           </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Logo URL</label>
-            <input
-              type="url"
-              name="site.logo"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-              defaultValue={siteConfig.site?.logo}
+            <ImageUploader
+              label="Site Logo"
+              value={logoUrl}
+              onChange={setLogoUrl}
+              accept="image/png,image/jpeg,image/jpg,image/svg+xml,image/webp"
+              maxSizeMB={2}
+              folder="site"
             />
+            <p className="text-xs text-gray-500 mt-1">
+              Recommended: PNG or SVG, max 2MB. Best size: 200x50px
+            </p>
+          </div>
+          <div>
+            <ImageUploader
+              label="Favicon"
+              value={faviconUrl}
+              onChange={setFaviconUrl}
+              accept="image/x-icon,image/vnd.microsoft.icon,image/png,image/jpeg"
+              maxSizeMB={1}
+              folder="site"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Recommended: ICO or PNG, max 1MB. Best size: 32x32px or 16x16px
+            </p>
           </div>
         </div>
-        <div className="mt-4">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Site Description</label>
-          <textarea
-            rows={3}
-            name="site.description"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-            defaultValue={siteConfig.site?.description}
-          />
+      </div>
+
+      <div className="bg-white p-6 rounded-lg shadow">
+        <h3 className="text-lg font-medium text-gray-900 mb-4">Site Description</h3>
+        <textarea
+          rows={3}
+          name="site.description"
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+          defaultValue={siteConfig.site?.description}
+        />
+      </div>
+
+      <div className="bg-white p-6 rounded-lg shadow">
+        <h3 className="text-lg font-medium text-gray-900 mb-4">Preview</h3>
+        <div className="space-y-4">
+          {logoUrl && (
+            <div>
+              <p className="text-sm font-medium text-gray-700 mb-2">Logo Preview:</p>
+              <div className="inline-block p-4 bg-gray-50 rounded border border-gray-200">
+                <img src={logoUrl} alt="Logo preview" className="h-12 max-w-xs object-contain" />
+              </div>
+            </div>
+          )}
+          {faviconUrl && (
+            <div>
+              <p className="text-sm font-medium text-gray-700 mb-2">Favicon Preview:</p>
+              <div className="inline-block p-4 bg-gray-50 rounded border border-gray-200">
+                <img src={faviconUrl} alt="Favicon preview" className="h-8 w-8 object-contain" />
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

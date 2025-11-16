@@ -28,6 +28,7 @@ import OrderCharges from './OrderCharges';
 import TaxConfigurations from './TaxConfigurations';
 import EmailTemplates from '../Content/EmailTemplates';
 import AbandonedCartRecoverySettings from './AbandonedCartRecoverySettings';
+import CacheManagement from './CacheManagement';
 
 const Settings: React.FC = () => {
   const location = useLocation();
@@ -400,6 +401,7 @@ const Settings: React.FC = () => {
       case 'roles': return 'Roles & Permissions';
       case 'system': return 'System Management';
       case 'recovery': return 'Abandoned Cart Recovery';
+      case 'cache': return 'Cache Management';
       default: return 'Settings';
     }
   };
@@ -416,6 +418,7 @@ const Settings: React.FC = () => {
       case 'roles': return 'Manage user roles and permissions';
       case 'system': return 'System configuration and maintenance settings';
       case 'recovery': return 'Configure abandoned cart recovery and email settings';
+      case 'cache': return 'Manage frontend and backend cache invalidation';
       default: return 'Manage your application settings';
     }
   };
@@ -442,6 +445,8 @@ const Settings: React.FC = () => {
         return <SystemSettings />;
       case 'recovery':
         return <AbandonedCartRecoverySettings />;
+      case 'cache':
+        return <CacheManagement />;
       default:
         return renderGeneralSettings();
     }
