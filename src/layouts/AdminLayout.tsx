@@ -148,24 +148,30 @@ const navigation: NavigationItem[] = [
     ]
   },
 
-  // Communication & Notifications (Unified)
+  // Channel Setup (Provider Configuration)
   {
-    name: 'Communication',
+    name: 'Channel Setup',
     href: '/communication',
-    icon: MessageSquare,
+    icon: Settings,
     children: [
-      // Provider Configuration Section
-      { name: 'Provider Overview', href: '/communication', icon: Activity },
-      { name: 'Email Providers', href: '/communication/email', icon: Mail },
-      { name: 'SMS Providers', href: '/communication/sms', icon: Phone },
-      { name: 'WhatsApp Providers', href: '/communication/whatsapp', icon: MessageSquare },
-      // Event Configuration Section
-      { name: 'Event Preferences', href: '/notifications/preferences', icon: Bell },
-      { name: 'Notification History', href: '/notifications/history', icon: Clock },
-      { name: 'Analytics', href: '/notifications/analytics', icon: BarChart3 },
+      { name: 'Overview & Status', href: '/communication', icon: Activity },
+      { name: 'Email Configuration', href: '/communication/email', icon: Mail },
+      { name: 'SMS Configuration', href: '/communication/sms', icon: Phone },
+      { name: 'WhatsApp Configuration', href: '/communication/whatsapp', icon: MessageSquare },
+    ]
+  },
+
+  // Notifications (Event Management & Monitoring)
+  {
+    name: 'Notifications',
+    href: '/notifications/preferences',
+    icon: Bell,
+    children: [
+      { name: 'Event Configuration', href: '/notifications/preferences', icon: Settings },
+      { name: 'History & Logs', href: '/notifications/history', icon: Clock },
+      { name: 'Analytics & Reports', href: '/notifications/analytics', icon: BarChart3 },
       { name: 'Webhooks', href: '/notifications/webhooks', icon: Webhook },
       { name: 'WhatsApp Templates', href: '/notifications/whatsapp-templates', icon: MessageSquare },
-      { name: 'Channel Status', href: '/communication/status', icon: CheckCircle },
     ]
   },
 
