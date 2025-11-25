@@ -14,6 +14,7 @@ import {
   Eye,
   Settings,
   X,
+  Trash2,
 } from 'lucide-react';
 import { api } from '../../api/axios';
 import { showToast } from '../../utils/toast';
@@ -24,6 +25,8 @@ const whatsappTemplateApi = {
   getStructures: () => api.get('/notifications/whatsapp/templates/structures'),
   createTemplate: (data: any) => api.post('/notifications/whatsapp/templates/create', data),
   testTemplate: (data: any) => api.post('/notifications/whatsapp/templates/test', data),
+  deleteTemplate: (templateName: string) =>
+    api.delete('/notifications/whatsapp/templates', { data: { template_name: templateName } }),
 };
 
 const WhatsAppTemplateManager: React.FC = () => {
@@ -31,6 +34,7 @@ const WhatsAppTemplateManager: React.FC = () => {
   const [showCreateModal, setShowCreateModal] = useState<boolean>(false);
   const [showTestModal, setShowTestModal] = useState<boolean>(false);
   const [showDetailModal, setShowDetailModal] = useState<boolean>(false);
+  const [showDeleteModal, setShowDeleteModal] = useState<boolean>(false);
   const [testNumber, setTestNumber] = useState<string>('');
 
   // Fetch real-time template data from Meta
@@ -74,6 +78,21 @@ const WhatsAppTemplateManager: React.FC = () => {
     },
     onError: (error: any) => {
       const errorMsg = error.response?.data?.message || 'Failed to send test message';
+      showToast.error(errorMsg);
+    },
+  });
+
+  // Delete template mutation
+  const deleteMutation = useMutation({
+    mutationFn: whatsappTemplateApi.deleteTemplate,
+    onSuccess: () => {
+      showToast.success('Template deleted successfully!');
+      setShowDeleteModal(false);
+      setSelectedTemplate('');
+      refetch();
+    },
+    onError: (error: any) => {
+      const errorMsg = error.response?.data?.error || 'Failed to delete template';
       showToast.error(errorMsg);
     },
   });
@@ -288,16 +307,28 @@ const WhatsAppTemplateManager: React.FC = () => {
                         View Details
                       </button>
                       {isCreated ? (
-                        <button
-                          onClick={() => {
-                            setSelectedTemplate(template.name);
-                            setShowTestModal(true);
-                          }}
-                          className="flex items-center justify-center gap-1 px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-xs"
-                        >
-                          <Send className="w-3 h-3" />
-                          Test
-                        </button>
+                        <>
+                          <button
+                            onClick={() => {
+                              setSelectedTemplate(template.name);
+                              setShowTestModal(true);
+                            }}
+                            className="flex items-center justify-center gap-1 px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-xs"
+                          >
+                            <Send className="w-3 h-3" />
+                            Test
+                          </button>
+                          <button
+                            onClick={() => {
+                              setSelectedTemplate(template.name);
+                              setShowDeleteModal(true);
+                            }}
+                            className="flex items-center justify-center px-2 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 text-xs"
+                            title="Delete template from Meta"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </>
                       ) : (
                         <button
                           onClick={() => {
@@ -634,6 +665,55 @@ const WhatsAppTemplateManager: React.FC = () => {
                 className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
               >
                 {testMutation.isPending ? 'Sending...' : 'Send Test'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && selectedTemplate && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="flex items-start mb-4">
+              <div className="flex-shrink-0">
+                <AlertCircle className="w-6 h-6 text-red-600" />
+              </div>
+              <div className="ml-3">
+                <h3 className="text-lg font-semibold text-gray-900">Delete WhatsApp Template</h3>
+                <p className="text-sm text-gray-600 mt-1">
+                  Are you sure you want to delete this template from Meta?
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-gray-50 rounded-md p-3 mb-4">
+              <p className="text-sm font-medium text-gray-900">Template: {selectedTemplate}</p>
+            </div>
+
+            <div className="p-3 bg-red-50 rounded-md mb-4">
+              <p className="text-sm text-red-800">
+                <strong>Warning:</strong> This action cannot be undone. The template will be permanently deleted from Meta WhatsApp Business API and your local database.
+              </p>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setSelectedTemplate('');
+                }}
+                disabled={deleteMutation.isPending}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => deleteMutation.mutate(selectedTemplate)}
+                disabled={deleteMutation.isPending}
+                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
+              >
+                {deleteMutation.isPending ? 'Deleting...' : 'Delete Template'}
               </button>
             </div>
           </div>
