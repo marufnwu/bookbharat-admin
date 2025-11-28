@@ -534,10 +534,17 @@ const CreateShipment: React.FC = () => {
                   Delivery
                 </div>
                 <p className="text-sm">
-                  {order?.shipping_address?.first_name} {order?.shipping_address?.last_name}<br />
-                  {order?.shipping_address?.address_line_1}<br />
+                  <span className="font-medium">
+                    {order?.shipping_address?.name ||
+                     `${order?.shipping_address?.first_name || ''} ${order?.shipping_address?.last_name || ''}`.trim() ||
+                     order?.customer_name || 'Customer'}
+                  </span><br />
+                  {order?.shipping_address?.address_line_1 || order?.shipping_address?.address}<br />
                   {order?.shipping_address?.city}, {order?.shipping_address?.state}<br />
                   {order?.shipping_address?.pincode}
+                  {order?.shipping_address?.phone && (
+                    <><br /><span className="text-gray-500">📞 {order.shipping_address.phone}</span></>
+                  )}
                 </p>
               </div>
             </div>
@@ -560,8 +567,16 @@ const CreateShipment: React.FC = () => {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Payment</span>
-                  <span className="uppercase">{order?.payment_method}</span>
+                  <span className={`uppercase font-medium ${order?.payment_method === 'cod' ? 'text-orange-600' : 'text-green-600'}`}>
+                    {order?.payment_method === 'cod' ? '💵 COD' : '✅ Prepaid'}
+                  </span>
                 </div>
+                {order?.payment_method === 'cod' && (
+                  <div className="flex justify-between text-orange-600">
+                    <span className="text-gray-600">COD Amount</span>
+                    <span className="font-medium">₹{Number(order?.total_amount || 0).toFixed(2)}</span>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -574,7 +589,7 @@ const CreateShipment: React.FC = () => {
                     <p className="font-medium">{selectedCarrier.carrier_name}</p>
                     <p className="text-gray-600">{selectedCarrier.service_name}</p>
                     <p className="text-lg font-bold text-blue-600 mt-2">
-                      ₹{selectedCarrier.total_charge}
+                      ₹{Number(selectedCarrier.total_charge).toFixed(2)}
                     </p>
                   </div>
                 </div>
@@ -1004,7 +1019,7 @@ const CreateShipment: React.FC = () => {
               <div className="bg-white p-4 rounded-lg shadow">
                 <p className="text-sm text-gray-600">Price Range</p>
                 <p className="text-lg font-semibold">
-                  ₹{ratesData.summary.price_range.min} - ₹{ratesData.summary.price_range.max}
+                  ₹{Number(ratesData.summary.price_range.min).toFixed(2)} - ₹{Number(ratesData.summary.price_range.max).toFixed(2)}
                 </p>
               </div>
               <div className="bg-white p-4 rounded-lg shadow">
@@ -1015,7 +1030,7 @@ const CreateShipment: React.FC = () => {
               </div>
               <div className="bg-white p-4 rounded-lg shadow">
                 <p className="text-sm text-gray-600">Avg Price</p>
-                <p className="text-2xl font-bold">₹{ratesData.summary.average_price}</p>
+                <p className="text-2xl font-bold">₹{Number(ratesData.summary.average_price).toFixed(2)}</p>
               </div>
             </div>
           )}
@@ -1046,9 +1061,9 @@ const CreateShipment: React.FC = () => {
 
                 <div className="flex items-center justify-center">
                   <div className="text-center">
-                    <p className="text-2xl font-bold text-blue-600">₹{recommended.total_charge}</p>
+                    <p className="text-2xl font-bold text-blue-600">₹{Number(recommended.total_charge).toFixed(2)}</p>
                     {recommended.has_discount && (
-                      <p className="text-sm text-gray-500 line-through">₹{recommended.original_charge}</p>
+                      <p className="text-sm text-gray-500 line-through">₹{Number(recommended.original_charge).toFixed(2)}</p>
                     )}
                   </div>
                 </div>
@@ -1111,12 +1126,12 @@ const CreateShipment: React.FC = () => {
                   <div className="flex items-center justify-center">
                     <div className="text-center">
                       <p className="text-2xl font-bold">
-                        ₹{carrier.total_charge}
+                        ₹{Number(carrier.total_charge).toFixed(2)}
                       </p>
                       {carrier.has_discount && (
                         <>
-                          <p className="text-sm text-gray-500 line-through">₹{carrier.original_charge}</p>
-                          <p className="text-xs text-green-600">Save ₹{carrier.discount}</p>
+                          <p className="text-sm text-gray-500 line-through">₹{Number(carrier.original_charge).toFixed(2)}</p>
+                          <p className="text-xs text-green-600">Save ₹{Number(carrier.discount).toFixed(2)}</p>
                         </>
                       )}
                       {carrier.is_free_shipping && (
@@ -1177,10 +1192,11 @@ const CreateShipment: React.FC = () => {
                     </button>
                     <button
                       onClick={() => handleAddToComparison(carrier)}
-                      className="p-2 border border-gray-300 text-gray-600 rounded-md hover:bg-gray-50"
+                      className="px-3 py-2 border border-gray-300 text-gray-600 rounded-md hover:bg-gray-50 text-sm flex items-center"
                       title="Add to comparison"
                     >
-                      <TrendingUp className="h-4 w-4" />
+                      <TrendingUp className="h-4 w-4 mr-1" />
+                      Compare
                     </button>
                   </div>
                 </div>
@@ -1190,11 +1206,31 @@ const CreateShipment: React.FC = () => {
                   <div className="mt-3 pt-3 border-t flex items-center gap-4">
                     <span className="text-sm text-gray-600">Features:</span>
                     <div className="flex flex-wrap gap-2">
-                      {carrier.features.map((feature: string, idx: number) => (
-                        <span key={idx} className="text-xs bg-gray-100 px-2 py-1 rounded">
-                          {feature}
-                        </span>
-                      ))}
+                      {carrier.features.map((feature: string, idx: number) => {
+                        const featureConfig: Record<string, { label: string; color: string; icon?: React.ReactNode }> = {
+                          'tracking': { label: 'Live Tracking', color: 'bg-blue-50 text-blue-700 border-blue-200' },
+                          'cod': { label: 'COD Available', color: 'bg-green-50 text-green-700 border-green-200' },
+                          'doorstep_delivery': { label: 'Doorstep Delivery', color: 'bg-purple-50 text-purple-700 border-purple-200' },
+                          'priority_handling': { label: 'Priority Handling', color: 'bg-orange-50 text-orange-700 border-orange-200' },
+                          'insurance_optional': { label: 'Insurance Available', color: 'bg-yellow-50 text-yellow-700 border-yellow-200' },
+                          'insurance': { label: 'Insured', color: 'bg-yellow-50 text-yellow-700 border-yellow-200' },
+                          'sms_updates': { label: 'SMS Updates', color: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
+                          'express': { label: 'Express', color: 'bg-red-50 text-red-700 border-red-200' },
+                          'signature_required': { label: 'Signature Required', color: 'bg-gray-50 text-gray-700 border-gray-200' },
+                        };
+                        const config = featureConfig[feature] || {
+                          label: feature.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+                          color: 'bg-gray-50 text-gray-700 border-gray-200'
+                        };
+                        return (
+                          <span
+                            key={idx}
+                            className={`text-xs px-2 py-1 rounded-full border ${config.color}`}
+                          >
+                            {config.label}
+                          </span>
+                        );
+                      })}
                     </div>
                   </div>
                 )}
@@ -1258,7 +1294,7 @@ const CreateShipment: React.FC = () => {
                       <td className="p-2 font-medium">Price</td>
                       {comparisonCarriers.map((carrier, idx) => (
                         <td key={idx} className="text-center p-2">
-                          <p className="text-lg font-bold">₹{carrier.total_charge}</p>
+                          <p className="text-lg font-bold">₹{Number(carrier.total_charge).toFixed(2)}</p>
                         </td>
                       ))}
                     </tr>

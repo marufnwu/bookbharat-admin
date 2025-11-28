@@ -34,6 +34,8 @@ interface PaymentGateway {
       min?: number;
       max?: number;
       step?: number;
+      value?: string;
+      is_masked?: boolean;
     }>;
     required: string[];
     optional: string[];
@@ -54,7 +56,7 @@ interface PaymentSettingsData {
 }
 
 const PaymentSettings: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'gateways' | 'flow' | 'cod'>('flow');
+  const [activeTab, setActiveTab] = useState<'gateways' | 'flow' | 'cod'>('gateways');
   const [showSecrets, setShowSecrets] = useState<Record<string, boolean>>({});
   const [editingGateway, setEditingGateway] = useState<PaymentGateway | null>(null);
   const [paymentFlowType, setPaymentFlowType] = useState<string>('two_tier');
@@ -222,268 +224,143 @@ const PaymentSettings: React.FC = () => {
         </div>
       </div>
 
-      {/* Stats Cards - Only show on gateways tab */}
-      {activeTab === 'gateways' && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white p-4 rounded-lg shadow border">
-          <div className="flex items-center">
-            <CurrencyRupeeIcon className="h-8 w-8 text-green-600" />
-            <div className="ml-3">
-              <p className="text-sm font-medium text-gray-500">Total Gateways</p>
-              <p className="text-lg font-semibold text-gray-900">{stats.total_methods}</p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white p-4 rounded-lg shadow border">
-          <div className="flex items-center">
-            <ShieldCheckIcon className="h-8 w-8 text-blue-600" />
-            <div className="ml-3">
-              <p className="text-sm font-medium text-gray-500">Enabled Methods</p>
-              <p className="text-lg font-semibold text-gray-900">{stats.enabled_methods}</p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white p-4 rounded-lg shadow border">
-          <div className="flex items-center">
-            <CogIcon className="h-8 w-8 text-purple-600" />
-            <div className="ml-3">
-              <p className="text-sm font-medium text-gray-500">Payment Methods</p>
-              <p className="text-lg font-semibold text-gray-900">{stats.enabled_methods}</p>
-            </div>
-          </div>
-        </div>
-        </div>
-      )}
-
       {/* Tab Content: Payment Gateways */}
       {activeTab === 'gateways' && (
-      <div className="bg-white rounded-lg shadow">
-        <div className="p-6 border-b border-gray-200">
-          <h3 className="text-lg font-medium text-gray-900">Payment Gateways (Master Switches)</h3>
-          <p className="text-sm text-gray-500 mt-1">Configure your payment gateways and API settings</p>
-          <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-            <p className="text-sm text-blue-900">
-              <strong>📌 Single Source of Truth - Hierarchical System:</strong>
-            </p>
-            <ul className="text-xs text-blue-800 mt-2 space-y-1 ml-4">
-              <li>• <strong>Gateway Toggle (below)</strong> = Master switch for entire gateway (Razorpay, Cashfree, etc.)</li>
-              <li>• <strong>Method Configuration</strong> = Individual method switch (go to "COD Configuration" tab)</li>
-              <li>• <strong>Visibility Rule:</strong> Customers see a payment method ONLY if BOTH Gateway AND Method are enabled</li>
-            </ul>
+      <div className="space-y-6">
+        {/* Summary Stats */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
+            <div className="text-2xl font-bold text-gray-900">{stats.total_methods}</div>
+            <div className="text-sm text-gray-500">Total Gateways</div>
+          </div>
+          <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
+            <div className="text-2xl font-bold text-green-600">{stats.enabled_methods}</div>
+            <div className="text-sm text-gray-500">Active</div>
+          </div>
+          <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
+            <div className="text-2xl font-bold text-gray-400">{stats.total_methods - stats.enabled_methods}</div>
+            <div className="text-sm text-gray-500">Inactive</div>
+          </div>
+          <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
+            <div className="text-2xl font-bold text-blue-600">{stats.system_methods}</div>
+            <div className="text-sm text-gray-500">System</div>
           </div>
         </div>
-        <div className="p-6">
-          <div className="space-y-4">
-            {gateways.length > 0 ? gateways.map((gateway: PaymentGateway) => (
-              <div key={gateway.id} className="border rounded-lg p-4">
-                <div className="flex justify-between items-start">
-                  <div className="flex items-start">
-                    <div className="mr-4 mt-1">
-                      <label className="relative inline-flex items-center cursor-pointer">
-                        <input
-                          type="checkbox"
-                          className="sr-only peer"
-                          checked={gateway.is_enabled}
-                          onChange={() => togglePaymentGatewayMutation.mutate(gateway)}
-                          disabled={togglePaymentGatewayMutation.isPending}
-                        />
-                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                      </label>
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-xl">{getGatewayIcon(gateway.payment_method)}</span>
-                        <h4 className="font-medium text-gray-900">{gateway.display_name}</h4>
-                      </div>
-                      <p className="text-sm text-gray-500 mb-2">{gateway.description}</p>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        {gateway.is_enabled ? (
-                          <Badge variant="success" size="sm">Gateway Active</Badge>
-                        ) : (
-                          <Badge variant="secondary" size="sm">Gateway Inactive</Badge>
-                        )}
-                        {gateway.is_production_mode ? (
-                          <Badge variant="danger" size="sm">Production</Badge>
-                        ) : (
-                          <Badge variant="warning" size="sm">Test Mode</Badge>
-                        )}
-                        {/* Single Source of Truth: Show if customers can see this */}
-                        {(() => {
-                          const linkedMethods = methodsByGateway[gateway.payment_method] || [];
-                          const enabledMethods = linkedMethods.filter((m: any) => m.is_enabled);
-                          const canCustomersSee = gateway.is_enabled && enabledMethods.length > 0;
 
-                          if (canCustomersSee) {
-                            return <Badge variant="success" size="sm">✓ Visible to Customers</Badge>;
-                          } else if (!gateway.is_enabled && enabledMethods.length > 0) {
-                            return <Badge variant="warning" size="sm">⚠ Config Enabled But Gateway Off</Badge>;
-                          } else if (gateway.is_enabled && enabledMethods.length === 0) {
-                            return <Badge variant="secondary" size="sm">No Payment Methods</Badge>;
-                          } else {
-                            return <Badge variant="secondary" size="sm">Hidden from Customers</Badge>;
-                          }
-                        })()}
-                        <span className="text-xs text-gray-400">Priority: {gateway.priority}</span>
-                        <div className="flex gap-1">
-                          <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
-                            INR
-                          </span>
-                        </div>
-                      </div>
+        {/* Gateway List */}
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          {gateways.length > 0 ? (
+            <div className="divide-y divide-gray-100">
+              {gateways.map((gateway: PaymentGateway) => (
+                <div
+                  key={gateway.id}
+                  className={`p-4 hover:bg-gray-50 transition-colors ${
+                    !gateway.is_enabled ? 'opacity-60' : ''
+                  }`}
+                >
+                  <div className="flex items-center gap-4">
+                    {/* Icon */}
+                    <div className={`w-12 h-12 rounded-lg flex items-center justify-center text-2xl flex-shrink-0 ${
+                      gateway.is_enabled ? 'bg-green-50' : 'bg-gray-100'
+                    }`}>
+                      {getGatewayIcon(gateway.payment_method)}
                     </div>
-                  </div>
-                  <div className="flex items-center gap-2">
+
+                    {/* Main Content */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="font-semibold text-gray-900">{gateway.display_name}</h3>
+                        <span className="text-xs text-gray-400">({gateway.payment_method})</span>
+                      </div>
+                      <p className="text-sm text-gray-500 truncate">{gateway.description}</p>
+                    </div>
+
+                    {/* Status Badges */}
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {gateway.is_enabled ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700">
+                          Active
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-500">
+                          Inactive
+                        </span>
+                      )}
+                      {gateway.is_production_mode ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700">
+                          Live
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-700">
+                          Test
+                        </span>
+                      )}
+                      {gateway.is_default && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700">
+                          Default
+                        </span>
+                      )}
+                      {gateway.credential_schema && (
+                        gateway.credential_schema.required?.every(key =>
+                          gateway.credential_schema?.fields[key]?.value
+                        ) ? (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-50 text-green-600">
+                            <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                            </svg>
+                            Configured
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-50 text-amber-600">
+                            <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                            </svg>
+                            Setup
+                          </span>
+                        )
+                      )}
+                    </div>
+
+                    {/* Priority */}
+                    <div className="text-xs text-gray-400 w-16 text-center flex-shrink-0">
+                      Priority: {gateway.priority}
+                    </div>
+
+                    {/* Toggle */}
+                    <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
+                      <input
+                        type="checkbox"
+                        className="sr-only peer"
+                        checked={gateway.is_enabled}
+                        onChange={() => togglePaymentGatewayMutation.mutate(gateway)}
+                        disabled={togglePaymentGatewayMutation.isPending}
+                      />
+                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all after:shadow-sm peer-checked:bg-green-500"></div>
+                    </label>
+
+                    {/* Configure Button */}
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => setEditingGateway(gateway)}
+                      className="flex-shrink-0"
                     >
-                      <CogIcon className="h-4 w-4 mr-1" />
-                      Configure
+                      <CogIcon className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>
-
-                {/* CUSTOMER VISIBILITY - HIERARCHICAL SINGLE SOURCE OF TRUTH */}
-                <div className="mt-4 pt-4 border-t-2 border-blue-100 bg-blue-50 rounded-lg p-4">
-                  <div className="flex items-start gap-3">
-                    <div className="flex-1">
-                      <h5 className="text-sm font-semibold text-blue-900 mb-2">
-                        🛒 Customer Checkout Visibility (SINGLE SOURCE OF TRUTH)
-                      </h5>
-                      <div className="text-xs text-blue-700 mb-3 bg-blue-100 p-2 rounded">
-                        <strong>Visibility Rule:</strong> Gateway (this toggle) AND Method (configuration) must BOTH be ON
-                      </div>
-                      {(() => {
-                        const linkedMethods = methodsByGateway[gateway.payment_method] || [];
-                        const enabledMethods = linkedMethods.filter((m: any) => m.is_enabled);
-                        const canCustomersSee = gateway.is_enabled && enabledMethods.length > 0;
-
-                        if (canCustomersSee) {
-                          return (
-                            <div className="space-y-2">
-                              <div className="flex items-center gap-2 text-green-700 font-medium">
-                                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                                </svg>
-                                <span>VISIBLE - Customers can select this payment method</span>
-                              </div>
-                              <div className="text-sm text-gray-700 ml-7">
-                                <strong>Payment Methods Available:</strong>
-                                <ul className="list-disc list-inside mt-1 space-y-1">
-                                  {enabledMethods.map((method: any) => (
-                                    <li key={method.id}>{method.display_name}</li>
-                                  ))}
-                                </ul>
-                              </div>
-                            </div>
-                          );
-                        } else if (!gateway.is_enabled && enabledMethods.length > 0) {
-                          return (
-                            <div className="space-y-2">
-                              <div className="flex items-center gap-2 text-red-700 font-medium">
-                                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                                </svg>
-                                <span>❌ BLOCKED - Gateway Master Switch is OFF</span>
-                              </div>
-                              <div className="text-sm text-gray-700 ml-7">
-                                <p className="mb-2 font-semibold text-red-800">⚠️ CRITICAL: These methods are enabled but customers CANNOT see them because the gateway is disabled!</p>
-                                <p className="mb-2 bg-yellow-50 border border-yellow-200 p-2 rounded">
-                                  <strong>Action Required:</strong> Turn ON the gateway toggle above (Master Switch) to enable these {enabledMethods.length} method(s):
-                                </p>
-                                <ul className="list-disc list-inside space-y-1">
-                                  {enabledMethods.map((method: any) => (
-                                    <li key={method.id} className="text-gray-900">{method.display_name}</li>
-                                  ))}
-                                </ul>
-                              </div>
-                            </div>
-                          );
-                        } else if (gateway.is_enabled && enabledMethods.length === 0) {
-                          return (
-                            <div className="space-y-2">
-                              <div className="flex items-center gap-2 text-red-700 font-medium">
-                                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                                </svg>
-                                <span>HIDDEN - Gateway is ON but NO payment methods configured</span>
-                              </div>
-                              <div className="text-sm text-gray-700 ml-7">
-                                <p className="text-red-600 font-medium">⚠️ Action Required:</p>
-                                <p className="mt-1">This gateway is active but customers cannot use it because no payment method is configured.</p>
-                                <p className="mt-2">
-                                  {linkedMethods.length > 0 ? (
-                                    <>Found {linkedMethods.length} disabled method(s). Enable them or create a new payment method configuration.</>
-                                  ) : (
-                                    <>No payment methods found. You need to create a payment method configuration for this gateway in the database.</>
-                                  )}
-                                </p>
-                              </div>
-                            </div>
-                          );
-                        } else {
-                          return (
-                            <div className="flex items-center gap-2 text-gray-600">
-                              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.781zm4.261 4.26l1.514 1.515a2.003 2.003 0 012.45 2.45l1.514 1.514a4 4 0 00-5.478-5.478z" clipRule="evenodd" />
-                                <path d="M12.454 16.697L9.75 13.992a4 4 0 01-3.742-3.741L2.335 6.578A9.98 9.98 0 00.458 10c1.274 4.057 5.065 7 9.542 7 .847 0 1.669-.105 2.454-.303z" />
-                              </svg>
-                              <span>HIDDEN - Not visible to customers</span>
-                            </div>
-                          );
-                        }
-                      })()}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Configuration Preview */}
-                {gateway.configuration && Object.keys(gateway.configuration).length > 0 && (
-                  <div className="mt-4 pt-4 border-t border-gray-100">
-                    <div className="flex items-center gap-2 mb-3">
-                      <KeyIcon className="h-4 w-4 text-gray-400" />
-                      <span className="text-sm font-medium text-gray-600">Configuration</span>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => toggleSecretVisibility(gateway.id)}
-                      >
-                        {showSecrets[gateway.id] ? (
-                          <EyeSlashIcon className="h-4 w-4" />
-                        ) : (
-                          <EyeIcon className="h-4 w-4" />
-                        )}
-                      </Button>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-                      {Object.entries(gateway.configuration).map(([key, value]) => (
-                        <div key={key} className="flex justify-between">
-                          <span className="text-gray-500 capitalize">{key.replace('_', ' ')}:</span>
-                          <span className="font-mono text-xs text-gray-800">
-                            {typeof value === 'string' && (key.includes('key') || key.includes('secret') || key.includes('salt'))
-                              ? maskSecret(value, showSecrets[gateway.id] || false)
-                              : String(value)
-                            }
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )) : (
-              <div className="text-center py-8">
-                <CurrencyRupeeIcon className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No Payment Gateways</h3>
-                <p className="text-gray-500 mb-4">Run the payment seeders to set up payment gateways.</p>
-                <div className="text-sm text-gray-400 bg-gray-50 p-3 rounded-lg">
-                  <code>php artisan db:seed --class=PaymentSettingSeeder</code><br />
-                  <code>php artisan db:seed --class=EnablePaymentGatewaysSeeder</code>
-                </div>
-              </div>
-            )}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <div className="p-12 text-center">
+              <CurrencyRupeeIcon className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No Payment Gateways</h3>
+              <p className="text-gray-500 mb-4 text-sm">Run the payment seeders to set up payment gateways.</p>
+              <code className="text-xs text-gray-400 bg-gray-100 px-3 py-2 rounded-lg inline-block">
+                php artisan db:seed --class=PaymentMethodSeeder
+              </code>
+            </div>
+          )}
         </div>
       </div>
       )}
@@ -675,13 +552,30 @@ const GatewayConfigModal: React.FC<GatewayConfigModalProps> = ({
   showSecrets,
   onToggleSecrets
 }) => {
+  // Extract credential values from credential_schema.fields
+  const getInitialCredentials = () => {
+    const credentials: Record<string, any> = {};
+    if (gateway.credential_schema?.fields) {
+      Object.entries(gateway.credential_schema.fields).forEach(([key, field]: [string, any]) => {
+        // Use the value from the schema if it exists and is not masked
+        if (field.value !== undefined && !field.is_masked) {
+          credentials[key] = field.value;
+        } else if (field.value !== undefined && field.is_masked) {
+          // For masked values, show empty to allow user to enter new value
+          credentials[key] = '';
+        }
+      });
+    }
+    return credentials;
+  };
+
   const [formData, setFormData] = useState({
     name: gateway.display_name,
     description: gateway.description,
     is_enabled: gateway.is_enabled,
     is_production_mode: gateway.is_production_mode,
     priority: gateway.priority,
-    configuration: { ...gateway.configuration },
+    configuration: { ...gateway.configuration, ...getInitialCredentials() },
   });
 
   const updateConfig = (key: string, value: any) => {
@@ -780,7 +674,11 @@ const GatewayConfigModal: React.FC<GatewayConfigModalProps> = ({
           const fieldType = fieldSchema.type || 'string';
           const label = fieldSchema.label || fieldKey.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
           const isRequired = requiredFields.includes(fieldKey);
-          const placeholder = fieldSchema.placeholder || `Enter ${label.toLowerCase()}`;
+          const isMasked = fieldSchema.is_masked === true;
+          const maskedValue = isMasked && fieldSchema.value ? fieldSchema.value : null;
+          const placeholder = isMasked && maskedValue
+            ? `Current: ${maskedValue} (leave empty to keep)`
+            : (fieldSchema.placeholder || `Enter ${label.toLowerCase()}`);
           const description = fieldSchema.description || '';
 
           // Determine if this field should be masked (for sensitive data)
@@ -843,10 +741,13 @@ const GatewayConfigModal: React.FC<GatewayConfigModalProps> = ({
                   value={formData.configuration[fieldKey] || ''}
                   onChange={(e) => updateConfig(fieldKey, e.target.value)}
                   placeholder={placeholder}
-                  required={isRequired}
+                  required={isRequired && !isMasked}
                 />
               )}
 
+              {isMasked && maskedValue && (
+                <p className="mt-1 text-xs text-green-600">✓ Value already set (showing masked). Leave empty to keep current value.</p>
+              )}
               {description && fieldType !== 'boolean' && (
                 <p className="mt-1 text-xs text-gray-500">{description}</p>
               )}

@@ -78,7 +78,8 @@ const Warehouses: React.FC = () => {
     queryFn: shippingApi.getWarehouses,
   });
 
-  const warehouses = (warehousesResponse as any)?.warehouses?.data || [];
+  // Backend returns { success: true, data: { data: [...], ... } } (paginated)
+  const warehouses = (warehousesResponse as any)?.data?.data || (warehousesResponse as any)?.data || [];
 
   // Create mutation
   const createMutation = useMutation({

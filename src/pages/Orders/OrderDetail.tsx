@@ -684,20 +684,20 @@ const OrderDetail: React.FC = () => {
                   <MapPin className="h-4 w-4 text-gray-400 mt-1" />
                   <div>
                     <p className="font-medium">
-                      {order.shipping_address?.first_name} {order.shipping_address?.last_name}
+                      {order.shipping_address?.name || `${order.shipping_address?.first_name || ''} ${order.shipping_address?.last_name || ''}`.trim() || 'N/A'}
                     </p>
                     <p className="text-sm text-gray-600">
-                      {order.shipping_address?.address_line_1}
-                      {order.shipping_address?.address_line_2 && (
-                        <>, {order.shipping_address.address_line_2}</>
+                      {order.shipping_address?.address_line_1 || order.shipping_address?.address_1 || order.shipping_address?.address}
+                      {(order.shipping_address?.address_line_2 || order.shipping_address?.address_2) && (
+                        <>, {order.shipping_address.address_line_2 || order.shipping_address.address_2}</>
                       )}
                     </p>
                     <p className="text-sm text-gray-600">
-                      {order.shipping_address?.city}, {order.shipping_address?.state} {order.shipping_address?.pincode}
+                      {order.shipping_address?.city}, {order.shipping_address?.state} {order.shipping_address?.pincode || order.shipping_address?.postal_code}
                     </p>
                     <p className="text-sm text-gray-600">{order.shipping_address?.country}</p>
-                    {order.shipping_address?.phone && (
-                      <p className="text-sm text-gray-600">Phone: {order.shipping_address.phone}</p>
+                    {(order.shipping_address?.phone || order.shipping_address?.mobile) && (
+                      <p className="text-sm text-gray-600">Phone: {order.shipping_address.phone || order.shipping_address.mobile}</p>
                     )}
                   </div>
                 </div>
@@ -718,20 +718,20 @@ const OrderDetail: React.FC = () => {
                 <MapPin className="h-4 w-4 text-gray-400 mt-1" />
                 <div>
                   <p className="font-medium">
-                    {order.billing_address?.first_name} {order.billing_address?.last_name}
+                    {order.billing_address?.name || `${order.billing_address?.first_name || ''} ${order.billing_address?.last_name || ''}`.trim() || 'N/A'}
                   </p>
                   <p className="text-sm text-gray-600">
-                    {order.billing_address?.address_line_1}
-                    {order.billing_address?.address_line_2 && (
-                      <>, {order.billing_address.address_line_2}</>
+                    {order.billing_address?.address_line_1 || order.billing_address?.address_1 || order.billing_address?.address}
+                    {(order.billing_address?.address_line_2 || order.billing_address?.address_2) && (
+                      <>, {order.billing_address.address_line_2 || order.billing_address.address_2}</>
                     )}
                   </p>
                   <p className="text-sm text-gray-600">
-                    {order.billing_address?.city}, {order.billing_address?.state} {order.billing_address?.pincode}
+                    {order.billing_address?.city}, {order.billing_address?.state} {order.billing_address?.pincode || order.billing_address?.postal_code}
                   </p>
                   <p className="text-sm text-gray-600">{order.billing_address?.country}</p>
-                  {order.billing_address?.phone && (
-                    <p className="text-sm text-gray-600">Phone: {order.billing_address.phone}</p>
+                  {(order.billing_address?.phone || order.billing_address?.mobile) && (
+                    <p className="text-sm text-gray-600">Phone: {order.billing_address.phone || order.billing_address.mobile}</p>
                   )}
                 </div>
               </div>
@@ -745,19 +745,55 @@ const OrderDetail: React.FC = () => {
             </div>
             <div className="p-6">
               <div className="space-y-4">
-                {order.activities?.map((activity: any, index: number) => (
-                  <div key={index} className="flex items-start gap-3">
-                    <div className="w-2 h-2 bg-blue-500 rounded-full mt-2"></div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">{activity.description}</p>
-                      <p className="text-xs text-gray-500">{formatDate(activity.created_at)}</p>
-                      {activity.note && (
-                        <p className="text-sm text-gray-600 mt-1">{activity.note}</p>
-                      )}
+                {order.activities && order.activities.length > 0 ? (
+                  order.activities.map((activity: any, index: number) => (
+                    <div key={activity.id || index} className="flex items-start gap-3">
+                      <div className="flex flex-col items-center">
+                        <div className={`w-3 h-3 rounded-full ${
+                          activity.type === 'status_change' ? 'bg-blue-500' :
+                          activity.type === 'shipment_created' ? 'bg-green-500' :
+                          activity.type === 'shipment_cancelled' ? 'bg-red-500' :
+                          activity.type === 'order_created' ? 'bg-purple-500' :
+                          activity.type === 'payment_update' ? 'bg-yellow-500' :
+                          'bg-gray-400'
+                        }`}></div>
+                        {index !== order.activities.length - 1 && (
+                          <div className="w-0.5 flex-1 bg-gray-200 mt-1 min-h-[20px]"></div>
+                        )}
+                      </div>
+                      <div className="flex-1 pb-3">
+                        <p className="text-sm font-medium text-gray-900">{activity.description}</p>
+                        {activity.old_value && activity.new_value && (
+                          <p className="text-xs text-gray-600 mt-0.5">
+                            <span className="text-red-600 line-through">{activity.old_value}</span>
+                            {' → '}
+                            <span className="text-green-600 font-medium">{activity.new_value}</span>
+                          </p>
+                        )}
+                        {activity.note && (
+                          <p className="text-xs text-gray-600 mt-1 italic bg-gray-50 p-2 rounded">
+                            {activity.note}
+                          </p>
+                        )}
+                        {activity.metadata?.tracking_number && (
+                          <p className="text-xs text-blue-600 mt-1 font-mono">
+                            AWB: {activity.metadata.tracking_number}
+                          </p>
+                        )}
+                        <div className="flex items-center gap-2 mt-1">
+                          <p className="text-xs text-gray-400">{formatDate(activity.created_at)}</p>
+                          {activity.performed_by && activity.performed_by !== 'System' && (
+                            <span className="text-xs text-gray-400">• by {activity.performed_by}</span>
+                          )}
+                        </div>
+                      </div>
                     </div>
+                  ))
+                ) : (
+                  <div className="text-center py-4">
+                    <Clock className="h-8 w-8 text-gray-300 mx-auto mb-2" />
+                    <p className="text-sm text-gray-500">No activity recorded yet</p>
                   </div>
-                )) || (
-                  <p className="text-sm text-gray-500">No activity recorded</p>
                 )}
               </div>
             </div>
