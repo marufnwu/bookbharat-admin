@@ -192,31 +192,28 @@ const PaymentSettings: React.FC = () => {
           <nav className="flex -mb-px">
             <button
               onClick={() => setActiveTab('flow')}
-              className={`py-4 px-6 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === 'flow'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
+              className={`py-4 px-6 text-sm font-medium border-b-2 transition-colors ${activeTab === 'flow'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
             >
               Payment Flow & Visibility
             </button>
             <button
               onClick={() => setActiveTab('cod')}
-              className={`py-4 px-6 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === 'cod'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
+              className={`py-4 px-6 text-sm font-medium border-b-2 transition-colors ${activeTab === 'cod'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
             >
               COD Configuration
             </button>
             <button
               onClick={() => setActiveTab('gateways')}
-              className={`py-4 px-6 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === 'gateways'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
+              className={`py-4 px-6 text-sm font-medium border-b-2 transition-colors ${activeTab === 'gateways'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
             >
               Payment Gateways
             </button>
@@ -226,289 +223,287 @@ const PaymentSettings: React.FC = () => {
 
       {/* Tab Content: Payment Gateways */}
       {activeTab === 'gateways' && (
-      <div className="space-y-6">
-        {/* Summary Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
-            <div className="text-2xl font-bold text-gray-900">{stats.total_methods}</div>
-            <div className="text-sm text-gray-500">Total Gateways</div>
+        <div className="space-y-6">
+          {/* Summary Stats */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
+              <div className="text-2xl font-bold text-gray-900">{stats.total_methods}</div>
+              <div className="text-sm text-gray-500">Total Gateways</div>
+            </div>
+            <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
+              <div className="text-2xl font-bold text-green-600">{stats.enabled_methods}</div>
+              <div className="text-sm text-gray-500">Active</div>
+            </div>
+            <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
+              <div className="text-2xl font-bold text-gray-400">{stats.total_methods - stats.enabled_methods}</div>
+              <div className="text-sm text-gray-500">Inactive</div>
+            </div>
+            <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
+              <div className="text-2xl font-bold text-blue-600">{stats.system_methods}</div>
+              <div className="text-sm text-gray-500">System</div>
+            </div>
           </div>
-          <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
-            <div className="text-2xl font-bold text-green-600">{stats.enabled_methods}</div>
-            <div className="text-sm text-gray-500">Active</div>
-          </div>
-          <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
-            <div className="text-2xl font-bold text-gray-400">{stats.total_methods - stats.enabled_methods}</div>
-            <div className="text-sm text-gray-500">Inactive</div>
-          </div>
-          <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
-            <div className="text-2xl font-bold text-blue-600">{stats.system_methods}</div>
-            <div className="text-sm text-gray-500">System</div>
-          </div>
-        </div>
 
-        {/* Gateway List */}
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          {gateways.length > 0 ? (
-            <div className="divide-y divide-gray-100">
-              {gateways.map((gateway: PaymentGateway) => (
-                <div
-                  key={gateway.id}
-                  className={`p-4 hover:bg-gray-50 transition-colors ${
-                    !gateway.is_enabled ? 'opacity-60' : ''
-                  }`}
-                >
-                  <div className="flex items-center gap-4">
-                    {/* Icon */}
-                    <div className={`w-12 h-12 rounded-lg flex items-center justify-center text-2xl flex-shrink-0 ${
-                      gateway.is_enabled ? 'bg-green-50' : 'bg-gray-100'
-                    }`}>
-                      {getGatewayIcon(gateway.payment_method)}
-                    </div>
-
-                    {/* Main Content */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h3 className="font-semibold text-gray-900">{gateway.display_name}</h3>
-                        <span className="text-xs text-gray-400">({gateway.payment_method})</span>
+          {/* Gateway List */}
+          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+            {gateways.length > 0 ? (
+              <div className="divide-y divide-gray-100">
+                {gateways.map((gateway: PaymentGateway) => (
+                  <div
+                    key={gateway.id}
+                    className={`p-4 hover:bg-gray-50 transition-colors ${!gateway.is_enabled ? 'opacity-60' : ''
+                      }`}
+                  >
+                    <div className="flex items-center gap-4">
+                      {/* Icon */}
+                      <div className={`w-12 h-12 rounded-lg flex items-center justify-center text-2xl flex-shrink-0 ${gateway.is_enabled ? 'bg-green-50' : 'bg-gray-100'
+                        }`}>
+                        {getGatewayIcon(gateway.payment_method)}
                       </div>
-                      <p className="text-sm text-gray-500 truncate">{gateway.description}</p>
-                    </div>
 
-                    {/* Status Badges */}
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      {gateway.is_enabled ? (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700">
-                          Active
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-500">
-                          Inactive
-                        </span>
-                      )}
-                      {gateway.is_production_mode ? (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700">
-                          Live
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-700">
-                          Test
-                        </span>
-                      )}
-                      {gateway.is_default && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700">
-                          Default
-                        </span>
-                      )}
-                      {gateway.credential_schema && (
-                        gateway.credential_schema.required?.every(key =>
-                          gateway.credential_schema?.fields[key]?.value
-                        ) ? (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-50 text-green-600">
-                            <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
-                            </svg>
-                            Configured
+                      {/* Main Content */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h3 className="font-semibold text-gray-900">{gateway.display_name}</h3>
+                          <span className="text-xs text-gray-400">({gateway.payment_method})</span>
+                        </div>
+                        <p className="text-sm text-gray-500 truncate">{gateway.description}</p>
+                      </div>
+
+                      {/* Status Badges */}
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        {gateway.is_enabled ? (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700">
+                            Active
                           </span>
                         ) : (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-50 text-amber-600">
-                            <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                            </svg>
-                            Setup
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-500">
+                            Inactive
                           </span>
-                        )
-                      )}
+                        )}
+                        {gateway.is_production_mode ? (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700">
+                            Live
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-700">
+                            Test
+                          </span>
+                        )}
+                        {gateway.is_default && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700">
+                            Default
+                          </span>
+                        )}
+                        {gateway.credential_schema && (
+                          gateway.credential_schema.required?.every(key =>
+                            gateway.credential_schema?.fields[key]?.value
+                          ) ? (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-50 text-green-600">
+                              <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                              </svg>
+                              Configured
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-50 text-amber-600">
+                              <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                              </svg>
+                              Setup
+                            </span>
+                          )
+                        )}
+                      </div>
+
+                      {/* Priority */}
+                      <div className="text-xs text-gray-400 w-16 text-center flex-shrink-0">
+                        Priority: {gateway.priority}
+                      </div>
+
+                      {/* Toggle */}
+                      <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
+                        <input
+                          type="checkbox"
+                          className="sr-only peer"
+                          checked={gateway.is_enabled}
+                          onChange={() => togglePaymentGatewayMutation.mutate(gateway)}
+                          disabled={togglePaymentGatewayMutation.isPending}
+                        />
+                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all after:shadow-sm peer-checked:bg-green-500"></div>
+                      </label>
+
+                      {/* Configure Button */}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setEditingGateway(gateway)}
+                        className="flex-shrink-0"
+                      >
+                        <CogIcon className="h-4 w-4" />
+                      </Button>
                     </div>
-
-                    {/* Priority */}
-                    <div className="text-xs text-gray-400 w-16 text-center flex-shrink-0">
-                      Priority: {gateway.priority}
-                    </div>
-
-                    {/* Toggle */}
-                    <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
-                      <input
-                        type="checkbox"
-                        className="sr-only peer"
-                        checked={gateway.is_enabled}
-                        onChange={() => togglePaymentGatewayMutation.mutate(gateway)}
-                        disabled={togglePaymentGatewayMutation.isPending}
-                      />
-                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all after:shadow-sm peer-checked:bg-green-500"></div>
-                    </label>
-
-                    {/* Configure Button */}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setEditingGateway(gateway)}
-                      className="flex-shrink-0"
-                    >
-                      <CogIcon className="h-4 w-4" />
-                    </Button>
                   </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="p-12 text-center">
-              <CurrencyRupeeIcon className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No Payment Gateways</h3>
-              <p className="text-gray-500 mb-4 text-sm">Run the payment seeders to set up payment gateways.</p>
-              <code className="text-xs text-gray-400 bg-gray-100 px-3 py-2 rounded-lg inline-block">
-                php artisan db:seed --class=PaymentMethodSeeder
-              </code>
-            </div>
-          )}
+                ))}
+              </div>
+            ) : (
+              <div className="p-12 text-center">
+                <CurrencyRupeeIcon className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No Payment Gateways</h3>
+                <p className="text-gray-500 mb-4 text-sm">Run the payment seeders to set up payment gateways.</p>
+                <code className="text-xs text-gray-400 bg-gray-100 px-3 py-2 rounded-lg inline-block">
+                  php artisan db:seed --class=PaymentMethodSeeder
+                </code>
+              </div>
+            )}
+          </div>
         </div>
-      </div>
       )}
 
       {/* Tab Content: Payment Flow Settings */}
       {activeTab === 'flow' && (
-      <div className="bg-white rounded-lg shadow">
-        <div className="p-6 border-b border-gray-200">
-          <h3 className="text-lg font-medium text-gray-900">Payment Flow Settings</h3>
-          <p className="text-sm text-gray-500 mt-1">Control how payment options are presented to customers</p>
-        </div>
-        <div className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Payment Flow Type */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Payment Flow Type
-              </label>
-              <select
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50"
-                value={paymentFlowType}
-                onChange={(e) => handleFlowTypeChange(e.target.value)}
-                disabled={updatePaymentFlowMutation.isPending}
-              >
-                <option value="two_tier">Two-Tier Selection (Full Payment vs COD)</option>
-                <option value="single_list">Single Gateway List (All options together)</option>
-                <option value="cod_first">COD First (Show COD prominently)</option>
-              </select>
-              <p className="mt-2 text-xs text-gray-500">
-                <strong>Two-Tier:</strong> Shows "Full Payment" vs "COD" choice first<br />
-                <strong>Single List:</strong> All gateways including COD in one list<br />
-                <strong>COD First:</strong> Prominently displays COD option first
-              </p>
-            </div>
-
-            {/* Default Payment Type */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Default Payment Selection
-              </label>
-              <select
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50"
-                value={defaultPaymentType}
-                onChange={(e) => handleDefaultTypeChange(e.target.value)}
-                disabled={updatePaymentFlowMutation.isPending}
-              >
-                <option value="none">No Default (User must choose)</option>
-                <option value="online">Full Payment (Online)</option>
-                <option value="cod">Cash on Delivery</option>
-              </select>
-              <p className="mt-2 text-xs text-gray-500">
-                Pre-select a payment type when customers reach the payment page
-              </p>
-            </div>
+        <div className="bg-white rounded-lg shadow">
+          <div className="p-6 border-b border-gray-200">
+            <h3 className="text-lg font-medium text-gray-900">Payment Flow Settings</h3>
+            <p className="text-sm text-gray-500 mt-1">Control how payment options are presented to customers</p>
           </div>
-
-          {/* Payment Type Visibility Controls */}
-          <div className="mt-6 pt-6 border-t border-gray-200">
-            <h4 className="text-sm font-semibold text-gray-900 mb-4">Payment Type Visibility</h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Online Payment Toggle */}
-              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
-                <div className="flex-1">
-                  <label className="block text-sm font-medium text-gray-700">
-                    Online Payment (Full Payment)
-                  </label>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Show "Full Payment (Pay Online Now)" option
-                  </p>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer ml-4">
-                  <input
-                    type="checkbox"
-                    className="sr-only peer"
-                    checked={onlinePaymentEnabled}
-                    onChange={(e) => {
-                      setOnlinePaymentEnabled(e.target.checked);
-                      updatePaymentFlowMutation.mutate({
-                        online_payment_enabled: e.target.checked ? '1' : '0'
-                      });
-                    }}
-                    disabled={updatePaymentFlowMutation.isPending}
-                  />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+          <div className="p-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Payment Flow Type */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Payment Flow Type
                 </label>
+                <select
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50"
+                  value={paymentFlowType}
+                  onChange={(e) => handleFlowTypeChange(e.target.value)}
+                  disabled={updatePaymentFlowMutation.isPending}
+                >
+                  <option value="two_tier">Two-Tier Selection (Full Payment vs COD)</option>
+                  <option value="single_list">Single Gateway List (All options together)</option>
+                  <option value="cod_first">COD First (Show COD prominently)</option>
+                </select>
+                <p className="mt-2 text-xs text-gray-500">
+                  <strong>Two-Tier:</strong> Shows "Full Payment" vs "COD" choice first<br />
+                  <strong>Single List:</strong> All gateways including COD in one list<br />
+                  <strong>COD First:</strong> Prominently displays COD option first
+                </p>
               </div>
 
-              {/* COD Toggle */}
-              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
-                <div className="flex-1">
-                  <label className="block text-sm font-medium text-gray-700">
-                    Cash on Delivery (COD)
-                  </label>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Show "Cash on Delivery" option
-                  </p>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer ml-4">
-                  <input
-                    type="checkbox"
-                    className="sr-only peer"
-                    checked={codEnabled}
-                    onChange={(e) => {
-                      setCodEnabled(e.target.checked);
-                      updatePaymentFlowMutation.mutate({
-                        cod_enabled: e.target.checked ? '1' : '0'
-                      });
-                    }}
-                    disabled={updatePaymentFlowMutation.isPending}
-                  />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+              {/* Default Payment Type */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Default Payment Selection
                 </label>
-              </div>
-            </div>
-            <p className="text-xs text-gray-500 mt-3">
-              💡 <strong>Tip:</strong> You can hide payment options to force customers to use a specific payment method. For example, turn off COD to only accept online payments.
-            </p>
-          </div>
-
-          {/* Success Message */}
-          {updatePaymentFlowMutation.isSuccess && (
-            <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-              <div className="flex items-start gap-3">
-                <CheckCircle className="h-5 w-5 text-green-600 mt-0.5" />
-                <div className="text-sm">
-                  <p className="font-medium text-green-900">Settings Saved!</p>
-                  <p className="text-green-700">
-                    Payment flow settings have been updated successfully. Changes will take effect immediately on the customer checkout page.
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Info Message */}
-          <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-            <div className="flex items-start gap-3">
-              <CogIcon className="h-5 w-5 text-blue-600 mt-0.5" />
-              <div className="text-sm">
-                <p className="font-medium text-blue-900 mb-1">💡 How It Works</p>
-                <p className="text-blue-700">
-                  These settings control the payment selection UI on your checkout page. Changes are saved automatically when you select an option.
+                <select
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50"
+                  value={defaultPaymentType}
+                  onChange={(e) => handleDefaultTypeChange(e.target.value)}
+                  disabled={updatePaymentFlowMutation.isPending}
+                >
+                  <option value="none">No Default (User must choose)</option>
+                  <option value="online">Full Payment (Online)</option>
+                  <option value="cod">Cash on Delivery</option>
+                </select>
+                <p className="mt-2 text-xs text-gray-500">
+                  Pre-select a payment type when customers reach the payment page
                 </p>
               </div>
             </div>
+
+            {/* Payment Type Visibility Controls */}
+            <div className="mt-6 pt-6 border-t border-gray-200">
+              <h4 className="text-sm font-semibold text-gray-900 mb-4">Payment Type Visibility</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Online Payment Toggle */}
+                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
+                  <div className="flex-1">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Online Payment (Full Payment)
+                    </label>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Show "Full Payment (Pay Online Now)" option
+                    </p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer ml-4">
+                    <input
+                      type="checkbox"
+                      className="sr-only peer"
+                      checked={onlinePaymentEnabled}
+                      onChange={(e) => {
+                        setOnlinePaymentEnabled(e.target.checked);
+                        updatePaymentFlowMutation.mutate({
+                          online_payment_enabled: e.target.checked ? '1' : '0'
+                        });
+                      }}
+                      disabled={updatePaymentFlowMutation.isPending}
+                    />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                  </label>
+                </div>
+
+                {/* COD Toggle */}
+                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
+                  <div className="flex-1">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Cash on Delivery (COD)
+                    </label>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Show "Cash on Delivery" option
+                    </p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer ml-4">
+                    <input
+                      type="checkbox"
+                      className="sr-only peer"
+                      checked={codEnabled}
+                      onChange={(e) => {
+                        setCodEnabled(e.target.checked);
+                        updatePaymentFlowMutation.mutate({
+                          cod_enabled: e.target.checked ? '1' : '0'
+                        });
+                      }}
+                      disabled={updatePaymentFlowMutation.isPending}
+                    />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                  </label>
+                </div>
+              </div>
+              <p className="text-xs text-gray-500 mt-3">
+                💡 <strong>Tip:</strong> You can hide payment options to force customers to use a specific payment method. For example, turn off COD to only accept online payments.
+              </p>
+            </div>
+
+            {/* Success Message */}
+            {updatePaymentFlowMutation.isSuccess && (
+              <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+                <div className="flex items-start gap-3">
+                  <CheckCircle className="h-5 w-5 text-green-600 mt-0.5" />
+                  <div className="text-sm">
+                    <p className="font-medium text-green-900">Settings Saved!</p>
+                    <p className="text-green-700">
+                      Payment flow settings have been updated successfully. Changes will take effect immediately on the customer checkout page.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Info Message */}
+            <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-start gap-3">
+                <CogIcon className="h-5 w-5 text-blue-600 mt-0.5" />
+                <div className="text-sm">
+                  <p className="font-medium text-blue-900 mb-1">💡 How It Works</p>
+                  <p className="text-blue-700">
+                    These settings control the payment selection UI on your checkout page. Changes are saved automatically when you select an option.
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
       )}
 
       {/* Tab Content: COD Payment Methods Configuration */}
@@ -683,11 +678,11 @@ const GatewayConfigModal: React.FC<GatewayConfigModalProps> = ({
 
           // Determine if this field should be masked (for sensitive data)
           const isSensitive = fieldType === 'password' ||
-                            fieldKey.includes('secret') ||
-                            fieldKey.includes('key') ||
-                            fieldKey.includes('salt') ||
-                            fieldKey.includes('password') ||
-                            fieldKey.includes('token');
+            fieldKey.includes('secret') ||
+            fieldKey.includes('key') ||
+            fieldKey.includes('salt') ||
+            fieldKey.includes('password') ||
+            fieldKey.includes('token');
 
           return (
             <div key={fieldKey}>
@@ -875,7 +870,7 @@ const CODMethodsSection: React.FC<CODMethodsSectionProps> = ({ methods, onRefres
   const mainCodMethod = methods.find((m) => m.payment_method === 'cod');
 
   const toggleMethodMutation = useMutation({
-    mutationFn: (id: number) => settingsApi.togglePaymentConfiguration(id),
+    mutationFn: (id: number) => settingsApi.togglePaymentGateway(id),
     onSuccess: () => {
       showSuccess('COD status updated successfully');
       onRefresh();
@@ -887,7 +882,7 @@ const CODMethodsSection: React.FC<CODMethodsSectionProps> = ({ methods, onRefres
 
   const updateMethodMutation = useMutation({
     mutationFn: ({ id, updates }: { id: number; updates: any }) =>
-      settingsApi.updatePaymentConfiguration(id, updates),
+      settingsApi.updatePaymentGateway(id, updates),
     onSuccess: () => {
       showSuccess('COD configuration saved successfully');
       onRefresh();
