@@ -335,7 +335,7 @@ const AbandonedCarts: React.FC = () => {
   // Enhanced mutations
   const generateDiscountMutation = useMutation({
     mutationFn: async ({ cartId, formData }: { cartId: number; formData: any }) => {
-      const response = await api.post(`/abandoned-carts/${cartId}/generate-discount-code`, formData);
+      const response = await api.post(`/abandoned-carts/${cartId}/generate-discount`, formData);
       return response.data;
     },
     onSuccess: (data) => {
@@ -400,7 +400,7 @@ const AbandonedCarts: React.FC = () => {
 
   const applyTemplateMutation = useMutation({
     mutationFn: async ({ cartId, templateName, sendImmediately }: { cartId: number; templateName: string; sendImmediately: boolean }) => {
-      const response = await api.post(`/abandoned-carts/${cartId}/apply-recovery-template`, {
+      const response = await api.post(`/abandoned-carts/${cartId}/apply-template`, {
         template_name: templateName,
         send_immediately: sendImmediately
       });

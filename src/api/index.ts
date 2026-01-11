@@ -666,10 +666,10 @@ export const systemApi = {
 // Content API
 export const contentApi = {
   getSiteConfig: (): Promise<ApiResponse<any>> =>
-    api.get('/content/site-config').then(res => res.data),
+    api.get('/configuration/site-config').then(res => res.data),
 
   updateSiteConfig: (config: any): Promise<ApiResponse> =>
-    api.put('/content/site-config', config).then(res => res.data),
+    api.put('/configuration/site-config', config).then(res => res.data),
 
   getHomepageConfig: (): Promise<ApiResponse<any>> =>
     api.get('/content/homepage-config').then(res => res.data),

@@ -41,8 +41,11 @@ import MediaLibrary from './pages/MediaLibrary';
 import PromotionalBanners from './pages/PromotionalBanners';
 import Newsletter from './pages/Newsletter';
 import ContentBlocks from './pages/Content/ContentBlocks';
+import EmailTemplates from './pages/Content/EmailTemplates';
 import InvoiceTemplates from './pages/Content/InvoiceTemplates';
 import AbandonedCarts from './pages/AbandonedCarts';
+import CartDetailView from './pages/AbandonedCarts/CartDetailView';
+import AbandonedCartRecoverySettings from './pages/Settings/AbandonedCartRecoverySettings';
 
 // Documentation Pages
 import DynamicDocumentationPage from './pages/Documentation/DynamicDocumentationPage';
@@ -188,6 +191,8 @@ const App: React.FC = () => {
 
               {/* Abandoned Carts */}
               <Route path="abandoned-carts" element={<AbandonedCarts />} />
+              <Route path="abandoned-carts/:id" element={<CartDetailView />} />
+              <Route path="abandoned-carts/settings" element={<AbandonedCartRecoverySettings />} />
 
               {/* Content Pages */}
               <Route path="content-pages" element={<ContentPages />} />
@@ -201,6 +206,9 @@ const App: React.FC = () => {
               {/* Invoice Templates */}
               <Route path="invoice-templates" element={<InvoiceTemplates />} />
 
+              {/* Email Templates */}
+              <Route path="email-templates" element={<EmailTemplates />} />
+
               {/* Settings - with sub-routes */}
               <Route path="settings/*" element={<Settings key="settings-default" />} />
               <Route path="settings/general" element={<Settings key="settings-general" />} />
@@ -213,6 +221,7 @@ const App: React.FC = () => {
               <Route path="settings/taxes" element={<Settings key="settings-taxes" />} />
               <Route path="settings/system" element={<Settings key="settings-system" />} />
               <Route path="settings/cache" element={<Settings key="settings-cache" />} />
+              <Route path="settings/recovery" element={<AbandonedCartRecoverySettings />} />
               <Route path="settings/notifications" element={<Navigate to="/notifications" replace />} />
 
               {/* Communication Configuration */}

@@ -32,6 +32,7 @@ import {
   Search,
   TrendingDown,
   Download,
+  Settings,
 } from 'lucide-react';
 import { api } from '../../api/axios';
 import toast from 'react-hot-toast';
@@ -44,6 +45,7 @@ import {
 } from '../../constants/abandonedCarts';
 import EnhancedAbandonedCartsTable from './EnhancedAbandonedCartsTable';
 import ErrorDisplay from './ErrorDisplay';
+import { Link } from 'react-router-dom';
 
 interface Cart {
   id: number;
@@ -211,8 +213,8 @@ const RecoveryDashboard: React.FC = () => {
   };
 
   const handleViewDetails = (cart: Cart) => {
-    // Modal functionality removed - user will implement themselves
-    console.log('View cart details:', cart.id);
+    // Navigate to dedicated cart detail page
+    window.location.href = `/abandoned-carts/${cart.id}`;
   };
 
   const handleRowSelect = (cartId: number, selected: boolean) => {
@@ -312,6 +314,13 @@ const RecoveryDashboard: React.FC = () => {
             <Download className="h-4 w-4" />
             Export
           </button>
+          <Link
+            to="/settings/recovery"
+            className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 flex items-center gap-2"
+          >
+            <Settings className="h-4 w-4" />
+            Detection Settings
+          </Link>
         </div>
       </div>
 

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api } from '../../api/axios';
 import toast from 'react-hot-toast';
 import { calculateDiscount, formatDiscount } from '../../utils/discountCalculator';
@@ -14,6 +15,8 @@ import {
   CheckCircle,
   RefreshCw,
   Bell,
+  Trash2,
+  ExternalLink,
 } from 'lucide-react';
 import ErrorDisplay from './ErrorDisplay';
 import {
@@ -74,10 +77,12 @@ const EnhancedAbandonedCartsTable: React.FC<EnhancedAbandonedCartsTableProps> = 
   onSelectAll,
   selectAll,
 }) => {
-    const [generatingDiscount, setGeneratingDiscount] = useState<number | null>(null);
+  const [generatingDiscount, setGeneratingDiscount] = useState<number | null>(null);
   const [sendingEmail, setSendingEmail] = useState<number | null>(null);
   const [loadingInsights, setLoadingInsights] = useState<number | null>(null);
   const [actionError, setActionError] = useState<any>(null);
+  const [selectedCart, setSelectedCart] = useState<Cart | null>(null);
+  const [markingRecovered, setMarkingRecovered] = useState<number | null>(null);
 
   const getDeviceIcon = (deviceType?: string) => {
     switch (deviceType) {
@@ -114,8 +119,27 @@ const EnhancedAbandonedCartsTable: React.FC<EnhancedAbandonedCartsTableProps> = 
   };
 
   const handleViewDetails = (cart: Cart) => {
-    // Modal functionality removed - user will implement themselves
-    console.log('View cart details:', cart.id);
+    // Navigate to dedicated cart detail page
+    window.location.href = `/abandoned-carts/${cart.id}`;
+  };
+
+  const handleMarkRecovered = async (cartId: number) => {
+    setMarkingRecovered(cartId);
+    try {
+      const response = await api.post(`/abandoned-carts/${cartId}/mark-as-recovered`, {
+        notes: 'Manually marked as recovered from admin panel'
+      });
+      if (response.data.success) {
+        toast.success('Cart marked as recovered');
+        onRefresh();
+      } else {
+        toast.error(response.data.message || 'Failed to mark as recovered');
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to mark as recovered');
+    } finally {
+      setMarkingRecovered(null);
+    }
   };
 
   const handleQuickDiscount = async (cartId: number) => {
@@ -444,6 +468,22 @@ const EnhancedAbandonedCartsTable: React.FC<EnhancedAbandonedCartsTableProps> = 
                       )}
                     </button>
 
+                    {/* Mark as Recovered */}
+                    {cart.status !== 'recovered' && (
+                      <button
+                        onClick={() => handleMarkRecovered(cart.id)}
+                        disabled={markingRecovered === cart.id}
+                        className="text-green-600 hover:text-green-900 p-1 disabled:opacity-50"
+                        title="Mark as Recovered"
+                      >
+                        {markingRecovered === cart.id ? (
+                          <RefreshCw className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <CheckCircle className="h-4 w-4" />
+                        )}
+                      </button>
+                    )}
+
                     {/* Quick Template */}
                     <button
                       onClick={() => handleQuickTemplate(cart.id)}
@@ -459,6 +499,93 @@ const EnhancedAbandonedCartsTable: React.FC<EnhancedAbandonedCartsTableProps> = 
           </tbody>
         </table>
       </div>
+
+      {/* Cart Details Modal */}
+      {selectedCart && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold">Cart #{selectedCart.id} Details</h3>
+                <button
+                  onClick={() => setSelectedCart(null)}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  ✕
+                </button>
+              </div>
+              
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm text-gray-500">Customer</p>
+                    <p className="font-medium">{selectedCart.user?.email || 'Guest'}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">Status</p>
+                    <p className="font-medium">{selectedCart.status}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">Total Value</p>
+                    <p className="font-medium text-lg">₹{selectedCart.total?.toLocaleString()}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">Items</p>
+                    <p className="font-medium">{selectedCart.total_items} items</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">Segment</p>
+                    <span className={`px-2 py-1 text-xs rounded-full ${getSegmentColor(selectedCart.customer_segment)}`}>
+                      {selectedCart.customer_segment}
+                    </span>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">Recovery Emails Sent</p>
+                    <p className="font-medium">{selectedCart.recovery_email_count || 0}</p>
+                  </div>
+                </div>
+
+                {selectedCart.recovery_token && (
+                  <div className="bg-blue-50 p-3 rounded-lg">
+                    <p className="text-sm text-gray-500 mb-1">Recovery Link</p>
+                    <a
+                      href={`${window.location.origin.replace(':3003', ':3000')}/cart/recover/${selectedCart.recovery_token}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:underline text-sm flex items-center gap-1"
+                    >
+                      Open Recovery Link <ExternalLink className="h-3 w-3" />
+                    </a>
+                  </div>
+                )}
+
+                <div className="flex gap-2 pt-4 border-t">
+                  <button
+                    onClick={() => { handleQuickEmail(selectedCart.id); setSelectedCart(null); }}
+                    className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 flex items-center gap-2"
+                  >
+                    <Mail className="h-4 w-4" /> Send Email
+                  </button>
+                  <button
+                    onClick={() => { handleQuickDiscount(selectedCart.id); setSelectedCart(null); }}
+                    className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center gap-2"
+                  >
+                    <Gift className="h-4 w-4" /> Generate Discount
+                  </button>
+                  {selectedCart.status !== 'recovered' && (
+                    <button
+                      onClick={() => { handleMarkRecovered(selectedCart.id); setSelectedCart(null); }}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center gap-2"
+                    >
+                      <CheckCircle className="h-4 w-4" /> Mark Recovered
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       </>
   );
