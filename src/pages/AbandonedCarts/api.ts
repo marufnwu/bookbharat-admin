@@ -159,6 +159,16 @@ export const applyTemplate = async (
 
 export const adminApi = {
   getCartDetails: fetchCartDetail,
+
+  getActiveCarts: async (params?: any) => {
+      const response = await api.get('/carts', { params });
+      return response.data;
+  },
+
+  getActiveCartDetails: async (cartId: number) => {
+      const response = await api.get(`/carts/${cartId}`);
+      return response.data;
+  },
   
   addCartItem: async (cartId: number, data: { product_id: number; variant_id?: number; quantity: number; unit_price?: number}) => {
       const response = await api.post(`/carts/${cartId}/items`, data);

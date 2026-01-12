@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, X, Package, Loader } from 'lucide-react';
-import { adminApi } from '../../pages/AbandonedCarts/api'; // Or general API
+import { Search, X, Package, Loader } from 'lucide-react';
+import { productsApi } from '../../api';
+import { Product, ProductVariant } from '../../types';
+import { getFullImageUrl } from '../../utils/imageUrl';
 
 interface ProductSearchModalProps {
   isOpen: boolean;
@@ -8,25 +10,9 @@ interface ProductSearchModalProps {
   onAdd: (productId: number, variantId?: number, quantity?: number, unitPrice?: number) => Promise<void>;
 }
 
-interface ProductResult {
-  id: number;
-  name: string;
-  sku: string;
-  price: number;
-  image_url?: string;
-  stock: number;
-  variants?: {
-      id: number;
-      sku: string;
-      price: number;
-      stock: number;
-      attribute_values: Record<string, string>;
-  }[];
-}
-
 export default function ProductSearchModal({ isOpen, onClose, onAdd }: ProductSearchModalProps) {
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<ProductResult[]>([]);
+  const [results, setResults] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
   const [addingId, setAddingId] = useState<number | null>(null);
 
@@ -43,20 +29,9 @@ export default function ProductSearchModal({ isOpen, onClose, onAdd }: ProductSe
   const searchProducts = async (q: string) => {
     setLoading(true);
     try {
-      // Assuming a generic product search endpoint exists. 
-      // If not, we might need to create one or use the one from Products page.
-      // For now, let's assume a dedicated search endpoint for this component or reuse existing.
-      // Since I don't recall seeing a specific one, I'll mock the call structure or use a placeholder.
-      // Ideally: /api/admin/products/search?q=...
-      const response = await fetch(`http://localhost:8000/api/v1/admin/products?search=${q}`, {
-          headers: {
-              'Authorization': `Bearer ${JSON.parse(localStorage.getItem('auth-storage') || '{}')?.state?.token}`,
-              'Accept': 'application/json'
-          }
-      });
-      const data = await response.json();
-      if (data.data) {
-          setResults(data.data);
+      const response = await productsApi.getProducts({ search: q, per_page: 20 });
+      if (response.success) {
+        setResults(response.data.data);
       }
     } catch (error) {
       console.error('Search failed:', error);
@@ -65,12 +40,17 @@ export default function ProductSearchModal({ isOpen, onClose, onAdd }: ProductSe
     }
   };
 
-  const handleAddClick = async (product: ProductResult, variantId?: number, price?: number) => {
+  const handleAddClick = async (product: Product, variantId?: number, price?: number) => {
       const idKey = variantId ? variantId : product.id;
       setAddingId(idKey);
       await onAdd(product.id, variantId, 1, price);
       setAddingId(null);
   };
+
+  const getVariantName = (variant: ProductVariant) => {
+      if (!variant.attributes) return variant.sku;
+      return Object.values(variant.attributes).join(' / ');
+  }
 
   if (!isOpen) return null;
 
@@ -117,8 +97,8 @@ export default function ProductSearchModal({ isOpen, onClose, onAdd }: ProductSe
                           <li key={product.id} className="py-3">
                               <div className="flex items-center justify-between">
                                   <div className="flex items-center">
-                                      {product.image_url ? (
-                                           <img src={product.image_url} alt="" className="h-10 w-10 rounded object-cover mr-3" />
+                                      {product.images && product.images.length > 0 ? (
+                                           <img src={getFullImageUrl(product.images[0].image_url) || ''} alt="" className="h-10 w-10 rounded object-cover mr-3" />
                                       ) : (
                                           <div className="h-10 w-10 rounded bg-gray-100 flex items-center justify-center mr-3">
                                               <Package className="h-5 w-5 text-gray-400" />
@@ -126,7 +106,7 @@ export default function ProductSearchModal({ isOpen, onClose, onAdd }: ProductSe
                                       )}
                                       <div>
                                           <p className="text-sm font-medium text-gray-900">{product.name}</p>
-                                          <p className="text-xs text-gray-500">SKU: {product.sku} | Stock: {product.stock}</p>
+                                          <p className="text-xs text-gray-500">SKU: {product.sku} | Stock: {product.stock_quantity}</p>
                                       </div>
                                   </div>
                                   {(!product.variants || product.variants.length === 0) && (
@@ -145,7 +125,7 @@ export default function ProductSearchModal({ isOpen, onClose, onAdd }: ProductSe
                                       {product.variants.map((variant) => (
                                           <div key={variant.id} className="flex justify-between items-center bg-gray-50 p-2 rounded text-xs">
                                               <span className="text-gray-600">
-                                                  {Object.values(variant.attribute_values || {}).join(' / ')} - SKU: {variant.sku}
+                                                  {getVariantName(variant)} - SKU: {variant.sku}
                                               </span>
                                               <button
                                                   onClick={() => handleAddClick(product, variant.id, variant.price)}

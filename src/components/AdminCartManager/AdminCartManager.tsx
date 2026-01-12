@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { ShoppingCart, Plus, Tag, RefreshCw, Save, X, Edit2 } from 'lucide-react';
-import { Cart, CartItem } from '../../pages/AbandonedCarts/types'; // Assuming shared types
+import { ShoppingCart, Plus, Tag, RefreshCw } from 'lucide-react';
+import { Cart } from '../../pages/AbandonedCarts/types'; // Assuming shared types
 import { adminApi } from '../../pages/AbandonedCarts/api'; // Or a new dedicated API file
 import CartItemRow from './CartItemRow';
 import CouponManager from './CouponManager';
@@ -11,13 +11,15 @@ interface AdminCartManagerProps {
   initialCartData?: Cart;
   isReadOnly?: boolean;
   onUpdate?: () => void;
+  fetchCartDetails?: (id: number) => Promise<{ success: boolean; data: Cart }>;
 }
 
 export default function AdminCartManager({ 
   cartId, 
   initialCartData, 
   isReadOnly = false,
-  onUpdate 
+  onUpdate,
+  fetchCartDetails
 }: AdminCartManagerProps) {
   const [cart, setCart] = useState<Cart | undefined>(initialCartData);
   const [loading, setLoading] = useState(false);
@@ -28,9 +30,12 @@ export default function AdminCartManager({
   const fetchCart = async () => {
     setLoading(true);
     try {
-      const response = await adminApi.getCartDetails(cartId);
-      if (response.success) {
+      const fetcher = fetchCartDetails || adminApi.getCartDetails;
+      const response = await fetcher(cartId);
+      if (response && response.success) { // Added check for response existence
         setCart(response.data);
+      } else {
+        console.error('Fetch failed or invalid response:', response);
       }
     } catch (error) {
       console.error('Failed to fetch cart:', error);
@@ -38,6 +43,12 @@ export default function AdminCartManager({
       setLoading(false);
     }
   };
+
+  React.useEffect(() => {
+    if (cartId) {
+        fetchCart();
+    }
+  }, [cartId]);
 
   // Handlers for child components
   const handleItemUpdate = async (itemId: number, updates: { quantity?: number; unit_price?: number }) => {

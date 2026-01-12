@@ -520,24 +520,43 @@ export default function CommunicationConfig() {
     }
   };
 
-  const handleTestConnection = async (channel: string, testTo?: string) => {
+  const handleTestConnection = async (channel: string, source: 'button' | 'dialog' = 'button') => {
+    // If clicked from main button, just open dialog to get input
+    if (source === 'button') {
+      setSelectedChannel(channel);
+      setIsTestDialogOpen(true);
+      setTestResults({});
+      // Pre-fill phone/email if available from currently selected setting or user profile could go here
+      return;
+    }
+
     setIsTesting({ ...isTesting, [channel]: true });
     try {
       const payload: any = {};
-      if (testTo) {
-        if (channel === 'whatsapp') {
-          payload.test_to = testPhone;
-        } else if (channel === 'sms') {
-          payload.test_to = testPhone;
-        } else if (channel === 'email') {
-          payload.test_to = testEmail;
+      if (channel === 'whatsapp' || channel === 'sms') {
+        if (!testPhone) {
+          toast.error('Please enter a phone number');
+          setIsTesting({ ...isTesting, [channel]: false });
+          return;
         }
+        payload.test_to = testPhone;
+      } else if (channel === 'email') {
+        if (!testEmail) {
+          toast.error('Please enter an email address');
+          setIsTesting({ ...isTesting, [channel]: false });
+          return;
+        }
+        payload.test_to = testEmail;
       }
 
       const response = await api.post(`/communication/test/${channel}`, payload);
       setTestResults({ ...testResults, [channel]: response.data });
 
-      toast(response.data.success ? 'Connection test successful' : response.data.error || 'Test failed');
+      if (response.data.success) {
+        toast.success('Connection test successful');
+      } else {
+        toast.error(response.data.error || 'Test failed');
+      }
     } catch (error: any) {
       const errorMsg = error.response?.data?.error || 'Test failed';
       setTestResults({ ...testResults, [channel]: { success: false, error: errorMsg } });
@@ -1176,62 +1195,9 @@ export default function CommunicationConfig() {
             </div>
             <div className="p-6 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Test Phone Number
-                </label>
-                <Input
-                  value={testPhone}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTestPhone(e.target.value)}
-                  placeholder="919876543210"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Test Email Address
-                </label>
-                <Input
-                  type="email"
-                  value={testEmail}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTestEmail(e.target.value)}
-                  placeholder="test@example.com"
-                />
-              </div>
-              <div className="flex flex-col space-y-2">
-                <Button
-                  onClick={() => handleTestConnection('email', testEmail)}
-                  disabled={isTesting.email || !testEmail}
-                >
-                  {isTesting.email ? (
-                    <RefreshCw className="h-4 w-4 animate-spin mr-2" />
-                  ) : (
-                    <Mail className="h-4 w-4 mr-2" />
-                  )}
-                  Test Email
-                </Button>
-                <Button
-                  onClick={() => handleTestConnection('sms', testPhone)}
-                  disabled={isTesting.sms || !testPhone}
-                >
-                  {isTesting.sms ? (
-                    <RefreshCw className="h-4 w-4 animate-spin mr-2" />
-                  ) : (
-                    <Phone className="h-4 w-4 mr-2" />
-                  )}
-                  Test SMS
-                </Button>
-                <Button
-                  onClick={() => handleTestConnection('whatsapp', testPhone)}
-                  disabled={isTesting.whatsapp || !testPhone}
-                >
-                  {isTesting.whatsapp ? (
-                    <RefreshCw className="h-4 w-4 animate-spin mr-2" />
-                  ) : (
-                    <MessageSquare className="h-4 w-4 mr-2" />
-                  )}
-                  Test WhatsApp
-                </Button>
-              </div>
+              {/* Legacy inline test UI removed in favor of Dialog */}
             </div>
+          </div>
             <div className="p-6 border-t border-gray-200 flex justify-end">
               <Button onClick={() => setIsTestDialogOpen(false)}>Close</Button>
             </div>

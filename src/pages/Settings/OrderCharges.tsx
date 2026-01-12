@@ -13,6 +13,7 @@ import {
   GripVertical,
   AlertCircle,
 } from 'lucide-react';
+import HelpTooltip from '../../components/HelpTooltip';
 
 interface OrderCharge {
   id: number;
@@ -413,7 +414,10 @@ const OrderCharges: React.FC = () => {
 
                     {/* Apply To */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Apply To *</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">
+                        Apply To *
+                        <HelpTooltip text="Determines under which conditions this charge applies. 'Conditional' allows complex rules like order value thresholds." className="ml-2" />
+                      </label>
                       <select
                         value={formData.apply_to}
                         onChange={(e) => setFormData({ ...formData, apply_to: e.target.value as any })}
@@ -610,7 +614,10 @@ const OrderCharges: React.FC = () => {
                           onChange={(e) => setFormData({ ...formData, is_taxable: e.target.checked })}
                           className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                         />
-                        <span className="ml-2 text-sm text-gray-700">Is Taxable</span>
+                        <span className="ml-2 text-sm text-gray-700 flex items-center">
+                          Is Taxable
+                          <HelpTooltip text="If checked, the standard tax rate will be applied on top of this charge amount." className="ml-2" />
+                        </span>
                       </label>
                       <label className="flex items-center">
                         <input

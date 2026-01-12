@@ -62,6 +62,10 @@ import WhatsAppTemplateBuilder from './pages/Notifications/WhatsAppTemplateBuild
 import MarketingSettings from './pages/Marketing/MarketingSettings';
 import MarketingAnalytics from './pages/Marketing/MarketingAnalytics';
 import FeedManagement from './pages/Marketing/FeedManagement';
+import AnalyticsHub from './pages/Analytics';
+import PaymentAnalytics from './pages/Analytics/PaymentAnalytics';
+import ActiveCarts from './pages/ActiveCarts';
+import ActiveCartDetail from './pages/ActiveCarts/Detail';
 
 // Blog Pages
 import BlogPosts from './pages/Blog/BlogPosts';
@@ -189,6 +193,10 @@ const App: React.FC = () => {
               {/* Newsletter */}
               <Route path="newsletter" element={<Newsletter />} />
 
+              {/* Active Carts */}
+              <Route path="active-carts" element={<ActiveCarts />} />
+              <Route path="active-carts/:id" element={<ActiveCartDetail />} />
+
               {/* Abandoned Carts */}
               <Route path="abandoned-carts" element={<AbandonedCarts />} />
               <Route path="abandoned-carts/:id" element={<CartDetailView />} />
@@ -234,9 +242,6 @@ const App: React.FC = () => {
               {/* Notification Preferences */}
               <Route path="notifications" element={<NotificationPreferences />} />
               <Route path="notifications/preferences" element={<NotificationPreferences />} />
-              <Route path="notifications/events" element={<NotificationPreferences />} />
-              <Route path="notifications/rules" element={<NotificationPreferences />} />
-              <Route path="notifications/test" element={<NotificationPreferences />} />
 
               {/* Notification Management */}
               <Route path="notifications/history" element={<NotificationHistory />} />
@@ -248,6 +253,10 @@ const App: React.FC = () => {
               <Route path="marketing/settings" element={<MarketingSettings />} />
               <Route path="marketing/analytics" element={<MarketingAnalytics />} />
               <Route path="marketing/feeds" element={<FeedManagement />} />
+
+              {/* Analytics */}
+              <Route path="analytics" element={<AnalyticsHub />} />
+              <Route path="analytics/payments" element={<PaymentAnalytics />} />
 
               {/* Blog Management */}
               <Route path="blog/posts" element={<BlogPosts />} />
