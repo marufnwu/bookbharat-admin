@@ -138,7 +138,9 @@ const navigation: NavigationItem[] = [
     href: '/communication-hub', // Placeholder base route
     icon: MessageSquare,
     children: [
-      { name: 'Channel Setup', href: '/communication', icon: SettingsIcon },
+      { name: 'Settings', href: '/communication/settings', icon: SettingsIcon },
+      { name: 'Templates', href: '/communication/templates', icon: FileText },
+      { name: 'Logs', href: '/communication/logs', icon: Server },
       { name: 'Notifications', href: '/notifications/preferences', icon: Bell },
       { name: 'Email Templates', href: '/email-templates', icon: Mail },
       { name: 'WhatsApp Templates', href: '/notifications/whatsapp-templates', icon: MessageSquare },

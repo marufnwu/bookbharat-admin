@@ -51,15 +51,26 @@ import AbandonedCartRecoverySettings from './pages/Settings/AbandonedCartRecover
 import DynamicDocumentationPage from './pages/Documentation/DynamicDocumentationPage';
 
 // Communication & Notification Pages
+// Communication & Notification Pages
 import CommunicationConfig from './pages/Communication/CommunicationConfig';
+import CommunicationTemplates from './pages/Communication/CommunicationTemplates';
+import CommunicationLogs from './pages/Communication/CommunicationLogs';
 import NotificationPreferences from './pages/Notifications/NotificationPreferences';
 import NotificationHistory from './pages/Notifications/NotificationHistory';
 import NotificationAnalytics from './pages/Notifications/NotificationAnalytics';
 import WebhookManagement from './pages/Notifications/WebhookManagement';
 import WhatsAppTemplateBuilder from './pages/Notifications/WhatsAppTemplateBuilder';
 
-// Marketing Pages
-import MarketingSettings from './pages/Marketing/MarketingSettings';
+// ... (keep matches)
+
+              {/* Communication Configuration */}
+              <Route path="communication" element={<Navigate to="/communication/settings" replace />} />
+              <Route path="communication/settings" element={<CommunicationConfig />} />
+              <Route path="communication/templates" element={<CommunicationTemplates />} />
+              <Route path="communication/logs" element={<CommunicationLogs />} />
+              <Route path="communication/whatsapp" element={<CommunicationConfig />} />
+              <Route path="communication/email" element={<CommunicationConfig />} />
+              <Route path="communication/sms" element={<CommunicationConfig />} />
 import MarketingAnalytics from './pages/Marketing/MarketingAnalytics';
 import FeedManagement from './pages/Marketing/FeedManagement';
 import AnalyticsHub from './pages/Analytics';
@@ -233,7 +244,12 @@ const App: React.FC = () => {
               <Route path="settings/notifications" element={<Navigate to="/notifications" replace />} />
 
               {/* Communication Configuration */}
-              <Route path="communication" element={<CommunicationConfig />} />
+              <Route path="communication" element={<Navigate to="/communication/settings" replace />} />
+              <Route path="communication/settings" element={<CommunicationConfig />} />
+              <Route path="communication/templates" element={<CommunicationTemplates />} />
+              <Route path="communication/logs" element={<CommunicationLogs />} />
+              
+              {/* Legacy/Specific Alias Routes */}
               <Route path="communication/email" element={<CommunicationConfig />} />
               <Route path="communication/sms" element={<CommunicationConfig />} />
               <Route path="communication/whatsapp" element={<CommunicationConfig />} />
