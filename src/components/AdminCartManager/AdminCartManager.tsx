@@ -23,11 +23,10 @@ export default function AdminCartManager({
 }: AdminCartManagerProps) {
   const [cart, setCart] = useState<Cart | undefined>(initialCartData);
   const [loading, setLoading] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
 
   // Fetch cart data if not provided or to refresh
-  const fetchCart = async () => {
+  const fetchCart = React.useCallback(async () => {
     setLoading(true);
     try {
       const fetcher = fetchCartDetails || adminApi.getCartDetails;
@@ -42,13 +41,13 @@ export default function AdminCartManager({
     } finally {
       setLoading(false);
     }
-  };
+  }, [cartId, fetchCartDetails]); // Added dependencies
 
   React.useEffect(() => {
     if (cartId) {
         fetchCart();
     }
-  }, [cartId]);
+  }, [cartId, fetchCart]);
 
   // Handlers for child components
   const handleItemUpdate = async (itemId: number, updates: { quantity?: number; unit_price?: number }) => {

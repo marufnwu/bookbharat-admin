@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { adminApi } from '../AbandonedCarts/api';
 import { useNavigate } from 'react-router-dom';
-import { Search, ShoppingCart, Calendar, User, Eye } from 'lucide-react';
+import { Search, Calendar, User, Eye } from 'lucide-react';
 
 const ActiveCarts: React.FC = () => {
   const navigate = useNavigate();

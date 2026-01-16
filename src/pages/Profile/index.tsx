@@ -13,15 +13,11 @@ import {
   Save,
   Activity,
   Settings,
-  Bell,
   Key,
-  Globe,
   Moon,
   Sun,
   Monitor,
   CheckCircle,
-  AlertCircle,
-  Edit,
   X
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
@@ -129,7 +125,7 @@ const Profile: React.FC = () => {
         });
       }
     }
-  }, [profile]);
+  }, [profile, preferencesData]);
 
   // Update profile mutation
   const updateProfileMutation = useMutation({

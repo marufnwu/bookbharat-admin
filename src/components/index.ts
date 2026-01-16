@@ -6,7 +6,6 @@ export { default as IconPicker } from './IconPicker';
 export { default as ImageUploader } from './ImageUploader';
 export { default as Input } from './Input';
 export { default as LoadingSpinner } from './LoadingSpinner';
-export { default as NotificationToast } from './NotificationToast';
 export { default as ProductPicker } from './ProductPicker';
 export { default as ProtectedRoute } from './ProtectedRoute';
 export { default as RichTextEditor } from './RichTextEditor';

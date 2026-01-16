@@ -10,8 +10,7 @@ import {
   ToggleRight,
   Save,
   X,
-  GripVertical,
-  AlertCircle,
+  GripVertical
 } from 'lucide-react';
 import HelpTooltip from '../../components/HelpTooltip';
 

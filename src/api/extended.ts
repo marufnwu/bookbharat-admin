@@ -264,6 +264,7 @@ export const settingsApi = {
   updatePaymentGateway: (id: number, updates: any) => api.put(`/payment-methods/${id}`, updates).then(res => res.data),
   togglePaymentGateway: (id: number) => api.post(`/payment-methods/${id}/toggle`).then(res => res.data),
   getPayment: () => api.get('/settings/payment').then(res => res.data),
+  getPaymentWebhooks: () => api.get('/settings/payment/webhooks').then(res => res.data),
   getSiteConfig: () => api.get('/configuration/site-config').then(res => res.data),
   updateSiteConfig: (config: any) => api.put('/configuration/site-config', config).then(res => res.data),
   getPaymentFlowSettings: () => api.get('/admin-settings/payment-flow').then(res => res.data),

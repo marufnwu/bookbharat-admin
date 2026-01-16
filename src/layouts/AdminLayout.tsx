@@ -7,7 +7,6 @@ import {
   ShoppingBag,
   ShoppingCart,
   Users,
-  UserCheck,
   Settings,
   LogOut,
   ChevronDown,
@@ -21,23 +20,15 @@ import {
   Navigation,
   Layout,
   Shield,
+  Server,
   Settings as SettingsIcon,
   CreditCard,
-  Globe,
-  Webhook,
   BarChart3,
-  Clock,
-  Mail,
-  Bell,
-  Server,
   DollarSign,
   Receipt,
   Image,
   Tag,
   Newspaper,
-  MessageSquare,
-  Phone,
-  CheckCircle,
   Activity,
   Box,
   Share2,
@@ -46,11 +37,12 @@ import {
   BookOpen,
   Database,
   Book,
-  PieChart
+  AlertTriangle,
+  Mail,
+  MessageSquare
 } from 'lucide-react';
 import { Menu, Transition } from '@headlessui/react';
 import { useAuth } from '../auth/useAuth';
-import { NotificationToast } from '../components';
 
 interface NavigationItem {
   name: string;
@@ -71,7 +63,7 @@ const navigation: NavigationItem[] = [
     children: [
       { name: 'Orders', href: '/orders', icon: ShoppingCart },
       { name: 'Active Carts', href: '/active-carts', icon: ShoppingCart },
-      { name: 'Abandoned Carts', href: '/abandoned-carts', icon: LogOut },
+      { name: 'Abandoned Carts', href: '/marketing/abandoned-carts', icon: LogOut },
     ]
   },
 
@@ -132,20 +124,8 @@ const navigation: NavigationItem[] = [
     ]
   },
 
-  // Communication (Channels & Messages)
-  {
-    name: 'Communication',
-    href: '/communication-hub', // Placeholder base route
-    icon: MessageSquare,
-    children: [
-      { name: 'Settings', href: '/communication/settings', icon: SettingsIcon },
-      { name: 'Templates', href: '/communication/templates', icon: FileText },
-      { name: 'Logs', href: '/communication/logs', icon: Server },
-      { name: 'Notifications', href: '/notifications/preferences', icon: Bell },
-      { name: 'Email Templates', href: '/email-templates', icon: Mail },
-      { name: 'WhatsApp Templates', href: '/notifications/whatsapp-templates', icon: MessageSquare },
-    ]
-  },
+
+
 
   // Store Settings (Business Rules)
   {
@@ -154,10 +134,13 @@ const navigation: NavigationItem[] = [
     icon: Settings,
     children: [
       { name: 'General', href: '/settings', icon: Settings },
+      { name: 'Payment Settings', href: '/settings/payment', icon: CreditCard },
       { name: 'Shipping', href: '/shipping', icon: Truck },
       { name: 'Taxes', href: '/settings/taxes', icon: DollarSign },
       { name: 'Order Charges', href: '/settings/charges', icon: Receipt },
       { name: 'Invoice Templates', href: '/invoice-templates', icon: FileText },
+      { name: 'Messaging Channels', href: '/settings/messaging-channels', icon: MessageSquare },
+      { name: 'WhatsApp Templates', href: '/settings/whatsapp-templates', icon: MessageSquare },
     ]
   },
 
@@ -169,6 +152,7 @@ const navigation: NavigationItem[] = [
     children: [
       { name: 'Admin Users', href: '/users', icon: Users },
       { name: 'Roles & Permissions', href: '/settings/roles', icon: Shield },
+      { name: 'Error Logs', href: '/system/error-logs', icon: AlertTriangle },
       { name: 'Logs', href: '/settings/system', icon: Server },
       { name: 'Cache', href: '/settings/cache', icon: Database },
       { name: 'Migration', href: '/migration', icon: Database },
@@ -184,6 +168,7 @@ const navigation: NavigationItem[] = [
     children: [
       { name: 'Overview', href: '/analytics', icon: Activity },
       { name: 'Payment Analytics', href: '/analytics/payments', icon: CreditCard },
+      { name: 'Message Logs', href: '/analytics/message-logs', icon: Mail },
       // Marketing & Bundle Analytics are also linked within their respective modules, 
       // but could be centrally linked here too if desired.
     ]
@@ -207,7 +192,7 @@ const AdminLayout: React.FC = () => {
         }
       }
     });
-  }, [location.pathname]);
+  }, [location.pathname, expandedItems]);
 
   const handleLogout = () => {
     logout();
@@ -523,8 +508,7 @@ const AdminLayout: React.FC = () => {
         </main>
       </div>
 
-      {/* Notifications */}
-      <NotificationToast />
+
     </div>
   );
 };

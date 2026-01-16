@@ -8,6 +8,8 @@ import {
   EyeSlashIcon,
   KeyIcon,
   CheckCircleIcon as CheckCircle,
+  ClipboardDocumentIcon,
+  CheckIcon,
 } from '@heroicons/react/24/outline';
 import { Button, LoadingSpinner, Badge } from '../../components';
 import { useNotificationStore } from '../../store/notificationStore';
@@ -56,13 +58,14 @@ interface PaymentSettingsData {
 }
 
 const PaymentSettings: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'gateways' | 'flow' | 'cod'>('gateways');
+  const [activeTab, setActiveTab] = useState<'gateways' | 'flow' | 'cod' | 'webhooks'>('gateways');
   const [showSecrets, setShowSecrets] = useState<Record<string, boolean>>({});
   const [editingGateway, setEditingGateway] = useState<PaymentGateway | null>(null);
   const [paymentFlowType, setPaymentFlowType] = useState<string>('two_tier');
   const [defaultPaymentType, setDefaultPaymentType] = useState<string>('none');
   const [codEnabled, setCodEnabled] = useState<boolean>(true);
   const [onlinePaymentEnabled, setOnlinePaymentEnabled] = useState<boolean>(true);
+  const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const { showSuccess, showError } = useNotificationStore();
 
@@ -140,6 +143,17 @@ const PaymentSettings: React.FC = () => {
     updatePaymentFlowMutation.mutate({ default_type: newDefaultType });
   };
 
+  const copyToClipboard = async (text: string, identifier: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedUrl(identifier);
+      showSuccess('Webhook URL copied to clipboard!');
+      setTimeout(() => setCopiedUrl(null), 2000);
+    } catch (error) {
+      showError('Failed to copy to clipboard', 'Please copy manually');
+    }
+  };
+
   const toggleSecretVisibility = (gatewayId: number) => {
     setShowSecrets(prev => ({
       ...prev,
@@ -207,6 +221,15 @@ const PaymentSettings: React.FC = () => {
                 }`}
             >
               COD Configuration
+            </button>
+            <button
+              onClick={() => setActiveTab('webhooks')}
+              className={`py-4 px-6 text-sm font-medium border-b-2 transition-colors ${activeTab === 'webhooks'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+            >
+              Webhooks
             </button>
             <button
               onClick={() => setActiveTab('gateways')}
@@ -511,6 +534,14 @@ const PaymentSettings: React.FC = () => {
         <CODMethodsSection
           methods={paymentData.data.payment_methods.filter((m: any) => m.payment_method?.includes('cod'))}
           onRefresh={() => queryClient.invalidateQueries({ queryKey: ['settings', 'payment'] })}
+        />
+      )}
+
+      {/* Tab Content: Webhooks */}
+      {activeTab === 'webhooks' && (
+        <WebhooksSection
+          copiedUrl={copiedUrl}
+          onCopy={copyToClipboard}
         />
       )}
 
@@ -1374,6 +1405,221 @@ const CODConfigModal: React.FC<CODConfigModalProps> = ({ method, onClose, onSave
           <Button onClick={() => onSave(formData)} disabled={saving}>
             {saving ? 'Saving...' : 'Save Changes'}
           </Button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Webhooks Section Component
+interface WebhooksSectionProps {
+  copiedUrl: string | null;
+  onCopy: (url: string, identifier: string) => void;
+}
+
+const WebhooksSection: React.FC<WebhooksSectionProps> = ({ copiedUrl, onCopy }) => {
+  const { data: webhooksData, isLoading } = useQuery({
+    queryKey: ['settings', 'payment-webhooks'],
+    queryFn: settingsApi.getPaymentWebhooks,
+  });
+
+  if (isLoading) return <LoadingSpinner />;
+
+  const webhooks = webhooksData?.data?.webhooks || [];
+  const baseUrl = webhooksData?.data?.base_url || '';
+  const info = webhooksData?.data?.info || {};
+
+  return (
+    <div className="space-y-6">
+      {/* Header Info */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-5">
+        <div className="flex items-start gap-3">
+          <ShieldCheckIcon className="h-6 w-6 text-blue-600 mt-0.5 flex-shrink-0" />
+          <div>
+            <h3 className="text-sm font-semibold text-blue-900 mb-1">Payment Gateway Webhooks</h3>
+            <p className="text-sm text-blue-700">{info.description}</p>
+            <p className="text-xs text-blue-600 mt-2">
+              <strong>Security:</strong> {info.security_note}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Webhooks List */}
+      {webhooks.length > 0 ? (
+        <div className="grid gap-6">
+          {webhooks.map((webhook: any, index: number) => (
+            <div key={index} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+              {/* Gateway Header */}
+              <div className="bg-gradient-to-r from-gray-50 to-white px-6 py-4 border-b border-gray-200">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
+                      <KeyIcon className="h-5 w-5 text-blue-600" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-gray-900">{webhook.display_name}</h4>
+                      <p className="text-xs text-gray-500">Gateway: {webhook.gateway}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {webhook.is_enabled ? (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700">
+                        ✓ Enabled
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-500">
+                        Disabled
+                      </span>
+                    )}
+                    {webhook.is_production_mode ? (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700">
+                        Production
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-700">
+                        Test Mode
+                      </span>
+                    )}
+                    {webhook.has_secret_configured && (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700">
+                        ✓ Secret Configured
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Webhook URL */}
+              <div className="px-6 py-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Webhook URL
+                </label>
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 relative">
+                    <input
+                      type="text"
+                      value={webhook.webhook_url}
+                      readOnly
+                      className="w-full px-4 py-2.5 pr-10 border border-gray-300 rounded-lg bg-gray-50 text-sm font-mono text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                    <ClipboardDocumentIcon className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onCopy(webhook.webhook_url, `webhook-${webhook.gateway}`)}
+                    className="flex items-center gap-2 px-4 py-2.5"
+                  >
+                    {copiedUrl === `webhook-${webhook.gateway}` ? (
+                      <>
+                        <CheckIcon className="h-4 w-4 text-green-600" />
+                        <span className="text-green-600">Copied!</span>
+                      </>
+                    ) : (
+                      <>
+                        <ClipboardDocumentIcon className="h-4 w-4" />
+                        <span>Copy</span>
+                      </>
+                    )}
+                  </Button>
+                </div>
+
+                {/* Webhook Secret (if available) */}
+                {webhook.webhook_secret && (
+                  <div className="mt-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Webhook Secret
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={webhook.webhook_secret}
+                        readOnly
+                        className="flex-1 px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-sm font-mono text-gray-700 focus:outline-none"
+                      />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onCopy(webhook.webhook_secret, `secret-${webhook.gateway}`)}
+                        className="flex items-center gap-2"
+                      >
+                        {copiedUrl === `secret-${webhook.gateway}` ? (
+                          <>
+                            <CheckIcon className="h-4 w-4 text-green-600" />
+                            <span className="text-green-600">Copied!</span>
+                          </>
+                        ) : (
+                          <>
+                            <ClipboardDocumentIcon className="h-4 w-4" />
+                            <span>Copy</span>
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Configuration Instructions */}
+              {webhook.instructions && (
+                <div className="px-6 pb-4">
+                  <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                    <h5 className="text-sm font-semibold text-gray-900 mb-3">Configuration Steps</h5>
+                    <ol className="space-y-2">
+                      {webhook.instructions.steps.map((step: string, stepIndex: number) => (
+                        <li key={stepIndex} className="text-sm text-gray-700 flex gap-2">
+                          <span className="text-gray-400">{step}</span>
+                        </li>
+                      ))}
+                    </ol>
+
+                    {webhook.instructions.events && webhook.instructions.events.length > 0 && (
+                      <div className="mt-4 pt-4 border-t border-gray-200">
+                        <p className="text-xs font-medium text-gray-700 mb-2">Recommended events to subscribe:</p>
+                        <div className="flex flex-wrap gap-2">
+                          {webhook.instructions.events.map((event: string, eventIndex: number) => (
+                            <span
+                              key={eventIndex}
+                              className="inline-flex items-center px-2 py-1 rounded text-xs font-mono bg-blue-50 text-blue-700 border border-blue-200"
+                            >
+                              {event}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
+          <KeyIcon className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No Payment Gateways Enabled</h3>
+          <p className="text-gray-500 text-sm">
+            Enable payment gateways in the "Payment Gateways" tab to see their webhook URLs.
+          </p>
+        </div>
+      )}
+
+      {/* Additional Info */}
+      <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+        <div className="flex items-start gap-3">
+          <svg className="h-5 w-5 text-amber-600 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+          </svg>
+          <div className="text-sm text-amber-800">
+            <p className="font-medium mb-1">Important Notes:</p>
+            <ul className="list-disc list-inside space-y-1 text-xs">
+              <li>Configure these webhook URLs in your payment gateway dashboard to receive real-time payment notifications</li>
+              <li>Keep webhook secrets secure and never share them publicly</li>
+              <li>Webhooks are automatically verified using signatures to ensure authenticity</li>
+              <li>Test webhooks in test mode before enabling production mode</li>
+            </ul>
+          </div>
         </div>
       </div>
     </div>

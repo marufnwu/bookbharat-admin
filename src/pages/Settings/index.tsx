@@ -9,9 +9,6 @@ import {
   Shield,
   Users,
   FileText,
-  Bell,
-  Globe,
-  Server,
   Save,
   Plus,
   Edit,
@@ -78,14 +75,7 @@ const Settings: React.FC = () => {
     enabled: settingsType === 'shipping',
   });
 
-  const { data: emailTemplates, isLoading: emailLoading } = useQuery({
-    queryKey: ['settings', 'email'],
-    queryFn: async () => {
-      const response = await api.get('/email-templates');
-      return response.data.data;
-    },
-    enabled: settingsType === 'email',
-  });
+
 
   // Update general settings mutation
   const updateSettingsMutation = useMutation({
@@ -355,38 +345,7 @@ const Settings: React.FC = () => {
     return <EmailTemplates />;
   };
 
-  const renderNotificationSettings = () => {
-    return (
-      <div className="space-y-6">
-        <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Notification Settings</h3>
-          <div className="space-y-4">
-            {[
-              { key: 'new_order', label: 'New Order Notifications', desc: 'Receive alerts for new orders', enabled: true },
-              { key: 'low_stock', label: 'Low Stock Alerts', desc: 'Get notified when products are low in stock', enabled: true },
-              { key: 'reviews', label: 'Customer Reviews', desc: 'Notifications for new customer reviews', enabled: false },
-              { key: 'returns', label: 'Return Requests', desc: 'Alerts for new return requests', enabled: true },
-              { key: 'payments', label: 'Payment Issues', desc: 'Notifications for failed payments', enabled: true },
-            ].map((item) => (
-              <div key={item.key} className="flex items-center justify-between py-3 border-b last:border-0">
-                <div>
-                  <h4 className="font-medium">{item.label}</h4>
-                  <p className="text-sm text-gray-500">{item.desc}</p>
-                </div>
-                <button className="p-2">
-                  {item.enabled ? (
-                    <ToggleRight className="h-6 w-6 text-blue-600" />
-                  ) : (
-                    <ToggleLeft className="h-6 w-6 text-gray-400" />
-                  )}
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  };
+
 
   // Page titles mapping
   const getPageTitle = () => {
