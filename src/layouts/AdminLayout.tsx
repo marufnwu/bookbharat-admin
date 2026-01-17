@@ -39,7 +39,8 @@ import {
   Book,
   AlertTriangle,
   Mail,
-  MessageSquare
+  MessageSquare,
+  Globe
 } from 'lucide-react';
 import { Menu, Transition } from '@headlessui/react';
 import { useAuth } from '../auth/useAuth';
@@ -134,6 +135,7 @@ const navigation: NavigationItem[] = [
     icon: Settings,
     children: [
       { name: 'General', href: '/settings', icon: Settings },
+      { name: 'Site Settings', href: '/settings/site', icon: Globe },
       { name: 'Payment Settings', href: '/settings/payment', icon: CreditCard },
       { name: 'Shipping', href: '/shipping', icon: Truck },
       { name: 'Taxes', href: '/settings/taxes', icon: DollarSign },
