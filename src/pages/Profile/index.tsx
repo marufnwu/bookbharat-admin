@@ -13,15 +13,11 @@ import {
   Save,
   Activity,
   Settings,
-  Bell,
   Key,
-  Globe,
   Moon,
   Sun,
   Monitor,
   CheckCircle,
-  AlertCircle,
-  Edit,
   X
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
@@ -129,7 +125,7 @@ const Profile: React.FC = () => {
         });
       }
     }
-  }, [profile]);
+  }, [profile, preferencesData]);
 
   // Update profile mutation
   const updateProfileMutation = useMutation({
@@ -475,26 +471,7 @@ const Profile: React.FC = () => {
                 </button>
               </div>
 
-              <div className="border-t pt-6">
-                <h3 className="text-lg font-medium mb-4">Two-Factor Authentication</h3>
-                <div className="flex items-start gap-4">
-                  <div className="flex-1">
-                    <p className="text-sm text-gray-600">
-                      Add an extra layer of security to your account by requiring a verification code in addition to your password.
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => toast('2FA setup coming soon', { icon: 'ℹ️' })}
-                    className={`px-4 py-2 rounded-lg ${
-                      preferencesData.two_factor_enabled
-                        ? 'bg-red-100 text-red-700 hover:bg-red-200'
-                        : 'bg-green-100 text-green-700 hover:bg-green-200'
-                    }`}
-                  >
-                    {preferencesData.two_factor_enabled ? 'Disable 2FA' : 'Enable 2FA'}
-                  </button>
-                </div>
-              </div>
+              {/* 2FA Section Removed - Feature Incomplete */}
 
               <div className="border-t pt-6">
                 <h3 className="text-lg font-medium mb-4">Active Sessions</h3>

@@ -7,7 +7,6 @@ import {
   ShoppingBag,
   ShoppingCart,
   Users,
-  UserCheck,
   Settings,
   LogOut,
   ChevronDown,
@@ -21,28 +20,30 @@ import {
   Navigation,
   Layout,
   Shield,
+  Server,
   Settings as SettingsIcon,
   CreditCard,
-  Globe,
-  Webhook,
   BarChart3,
-  Clock,
-  Mail,
-  Bell,
-  Server,
   DollarSign,
   Receipt,
   Image,
   Tag,
   Newspaper,
-  MessageSquare,
-  Phone,
-  CheckCircle,
   Activity,
+  Box,
+  Share2,
+  Rss,
+  Megaphone,
+  BookOpen,
+  Database,
+  Book,
+  AlertTriangle,
+  Mail,
+  MessageSquare,
+  Globe
 } from 'lucide-react';
 import { Menu, Transition } from '@headlessui/react';
 import { useAuth } from '../auth/useAuth';
-import { NotificationToast } from '../components';
 
 interface NavigationItem {
   name: string;
@@ -55,158 +56,132 @@ interface NavigationItem {
 const navigation: NavigationItem[] = [
   { name: 'Dashboard', href: '/dashboard', icon: Home },
 
-  // Product Management
-  { name: 'Products', href: '/products', icon: ShoppingBag },
-  { name: 'Categories', href: '/categories', icon: FolderOpen },
-  { name: 'Reviews', href: '/reviews', icon: Star },
+  // Sales & Orders
+  {
+    name: 'Sales',
+    href: '/sales',
+    icon: ShoppingCart,
+    children: [
+      { name: 'Orders', href: '/orders', icon: ShoppingCart },
+      { name: 'Active Carts', href: '/active-carts', icon: ShoppingCart },
+      { name: 'Abandoned Carts', href: '/marketing/abandoned-carts', icon: LogOut },
+    ]
+  },
 
-  // Order Management
-  { name: 'Orders', href: '/orders', icon: ShoppingCart },
-  { name: 'Abandoned Carts', href: '/abandoned-carts', icon: ShoppingCart },
-  { name: 'Shipping', href: '/shipping', icon: Truck },
+  // Catalog
+  {
+    name: 'Catalog',
+    href: '/catalog',
+    icon: Tag,
+    children: [
+      { name: 'Products', href: '/products', icon: ShoppingBag },
+      { name: 'Categories', href: '/categories', icon: FolderOpen },
+      { name: 'Reviews', href: '/reviews', icon: Star },
+    ]
+  },
 
-  // Customer Management
+  // Customers (Single Item)
   { name: 'Customers', href: '/customers', icon: Users },
 
-  // Marketing & Promotions
-  { name: 'Coupons', href: '/coupons', icon: Ticket },
+  // Marketing
   {
     name: 'Marketing',
     href: '/marketing',
-    icon: BarChart3,
+    icon: Megaphone,
     children: [
-      { name: 'Settings', href: '/marketing/settings', icon: SettingsIcon },
+      { name: 'Coupons', href: '/coupons', icon: Ticket },
+      { name: 'Bundles', href: '/bundle-manager', icon: Sparkles },
+      { name: 'Newsletter', href: '/newsletter', icon: Newspaper },
+      { name: 'Social Commerce', href: '/social-commerce', icon: Share2 },
+      { name: 'Product Feeds', href: '/marketing/feeds', icon: Rss },
       { name: 'Analytics', href: '/marketing/analytics', icon: BarChart3 },
-      { name: 'Product Feeds', href: '/marketing/feeds', icon: ShoppingBag },
-    ]
-  },
-  {
-    name: 'Bundle Manager',
-    href: '/bundle-manager',
-    icon: Sparkles,
-    children: [
-      { name: 'Associations', href: '/bundle-manager/associations', icon: Sparkles },
-      { name: 'Discount Rules', href: '/bundle-manager/discount-rules', icon: CreditCard },
-      { name: 'Analytics', href: '/bundle-manager/analytics', icon: Star },
-    ]
-  },
-  {
-    name: 'Blog',
-    href: '/blog',
-    icon: FileText,
-    children: [
-      { name: 'Posts', href: '/blog/posts', icon: FileText },
-      { name: 'Categories', href: '/blog/categories', icon: FolderOpen },
-      { name: 'Comments', href: '/blog/comments', icon: MessageSquare },
-    ]
-  },
-  {
-    name: 'Social Commerce',
-    href: '/social-commerce',
-    icon: Users,
-    children: [
-      { name: 'Overview', href: '/social-commerce', icon: Activity },
-      { name: 'Social Accounts', href: '/social-commerce/accounts', icon: Users },
-      { name: 'Content', href: '/social-commerce/content', icon: Image },
+      { name: 'Settings', href: '/marketing/settings', icon: SettingsIcon },
     ]
   },
 
-  // Content Management
+  // Storefront (Targeting Look & Feel)
   {
-    name: 'Content Management',
+    name: 'Storefront',
+    href: '/storefront',
+    icon: Layout,
+    children: [
+      { name: 'Layout & Design', href: '/homepage-layout', icon: Layers },
+      { name: 'Banners', href: '/promotional-banners', icon: Tag },
+      { name: 'Hero Config', href: '/hero-config', icon: Image },
+      { name: 'Navigation Menu', href: '/navigation-menu', icon: Navigation },
+    ]
+  },
+
+  // Content (CMS)
+  {
+    name: 'Content',
     href: '/content',
     icon: FileText,
     children: [
-      { name: 'Hero Section', href: '/hero-config', icon: Layout },
-      { name: 'Homepage Layout', href: '/homepage-layout', icon: Layers },
-      { name: 'Promotional Banners', href: '/promotional-banners', icon: Tag },
-      { name: 'Navigation Menu', href: '/navigation-menu', icon: Navigation },
-      { name: 'Content Pages', href: '/content-pages', icon: FileText },
-      { name: 'Content Blocks', href: '/content-blocks', icon: FileText },
-      { name: 'Invoice Templates', href: '/invoice-templates', icon: FileText },
+      { name: 'Blog', href: '/blog', icon: BookOpen },
+      { name: 'Pages', href: '/content-pages', icon: FileText },
+      { name: 'Content Blocks', href: '/content-blocks', icon: Box },
       { name: 'Media Library', href: '/media-library', icon: Image },
     ]
   },
 
-  // Newsletter
-  { name: 'Newsletter', href: '/newsletter', icon: Newspaper },
 
-  // Settings & Configuration
+
+
+  // Store Settings (Business Rules)
   {
-    name: 'Settings',
+    name: 'Store Settings',
     href: '/settings',
     icon: Settings,
     children: [
-      { name: 'General', href: '/settings/general', icon: Settings },
+      { name: 'General', href: '/settings', icon: Settings },
       { name: 'Site Settings', href: '/settings/site', icon: Globe },
-      { name: 'Payment Gateways', href: '/settings/payment', icon: CreditCard },
-      { name: 'Shipping Zones', href: '/settings/shipping', icon: Truck },
+      { name: 'Payment Settings', href: '/settings/payment', icon: CreditCard },
+      { name: 'Shipping', href: '/shipping', icon: Truck },
+      { name: 'Taxes', href: '/settings/taxes', icon: DollarSign },
       { name: 'Order Charges', href: '/settings/charges', icon: Receipt },
-      { name: 'Tax Configuration', href: '/settings/taxes', icon: DollarSign },
-      { name: 'Email Templates', href: '/settings/email', icon: Mail },
-      { name: 'Cache Management', href: '/settings/cache', icon: Server },
+      { name: 'Invoice Templates', href: '/invoice-templates', icon: FileText },
+      { name: 'Messaging Channels', href: '/settings/messaging-channels', icon: MessageSquare },
+      { name: 'WhatsApp Templates', href: '/settings/whatsapp-templates', icon: MessageSquare },
     ]
   },
 
-  // Channel Setup (Provider Configuration)
-  {
-    name: 'Channel Setup',
-    href: '/communication',
-    icon: Settings,
-    children: [
-      { name: 'Overview & Status', href: '/communication', icon: Activity },
-      { name: 'Email Configuration', href: '/communication/email', icon: Mail },
-      { name: 'SMS Configuration', href: '/communication/sms', icon: Phone },
-      { name: 'WhatsApp Configuration', href: '/communication/whatsapp', icon: MessageSquare },
-    ]
-  },
-
-  // Notifications (Event Management & Monitoring)
-  {
-    name: 'Notifications',
-    href: '/notifications/preferences',
-    icon: Bell,
-    children: [
-      { name: 'Event Configuration', href: '/notifications/preferences', icon: Settings },
-      { name: 'History & Logs', href: '/notifications/history', icon: Clock },
-      { name: 'Analytics & Reports', href: '/notifications/analytics', icon: BarChart3 },
-      { name: 'Webhooks', href: '/notifications/webhooks', icon: Webhook },
-      { name: 'WhatsApp Templates', href: '/notifications/whatsapp-templates', icon: MessageSquare },
-    ]
-  },
-
-  // Documentation
-  {
-    name: 'Documentation',
-    href: '/docs',
-    icon: FileText,
-  },
-
-  // Migration
-  {
-    name: 'Migration',
-    href: '/migration',
-    icon: Activity,
-    children: [
-      { name: 'Dashboard', href: '/migration', icon: Activity },
-      { name: 'Settings', href: '/migration/settings', icon: Settings },
-      { name: 'Conflicts', href: '/migration/conflicts', icon: Shield },
-      { name: 'Logs', href: '/migration/logs', icon: FileText },
-      { name: 'Product Browser', href: '/migration/products', icon: ShoppingBag },
-      { name: 'Category Browser', href: '/migration/categories', icon: FolderOpen },
-      { name: 'Documentation', href: '/migration/documentation', icon: FileText },
-    ]
-  },
-
-  // System Administration
+  // System (Technical & Admin)
   {
     name: 'System',
     href: '/system',
     icon: Shield,
     children: [
-      { name: 'Admin Users', href: '/users', icon: UserCheck },
+      { name: 'Admin Users', href: '/users', icon: Users },
       { name: 'Roles & Permissions', href: '/settings/roles', icon: Shield },
-      { name: 'System Management', href: '/settings/system', icon: Server },
+      { name: 'Error Logs', href: '/system/error-logs', icon: AlertTriangle },
+      { name: 'Logs', href: '/settings/system', icon: Server },
+      { name: 'Cache', href: '/settings/cache', icon: Database },
+      { name: 'Cache', href: '/settings/cache', icon: Database },
+      {
+        name: 'Migration',
+        href: '/migration',
+        icon: Database,
+        children: [
+          { name: 'Dashboard', href: '/migration', icon: BarChart3 },
+          { name: 'Settings', href: '/migration/settings', icon: SettingsIcon },
+        ]
+      },
+      { name: 'Documentation', href: '/docs', icon: Book },
+    ]
+  },
+
+  // Analytics Hub
+  {
+    name: 'Analytics',
+    href: '/analytics',
+    icon: BarChart3,
+    children: [
+      { name: 'Overview', href: '/analytics', icon: Activity },
+      { name: 'Payment Analytics', href: '/analytics/payments', icon: CreditCard },
+      { name: 'Message Logs', href: '/analytics/message-logs', icon: Mail },
+      // Marketing & Bundle Analytics are also linked within their respective modules, 
+      // but could be centrally linked here too if desired.
     ]
   },
 ];
@@ -228,7 +203,7 @@ const AdminLayout: React.FC = () => {
         }
       }
     });
-  }, [location.pathname]);
+  }, [location.pathname, expandedItems]);
 
   const handleLogout = () => {
     logout();
@@ -544,8 +519,7 @@ const AdminLayout: React.FC = () => {
         </main>
       </div>
 
-      {/* Notifications */}
-      <NotificationToast />
+
     </div>
   );
 };

@@ -21,7 +21,6 @@ import {
   Activity,
   CreditCard,
   AlertCircle,
-  Download,
   Calendar,
   RefreshCw
 } from 'lucide-react';

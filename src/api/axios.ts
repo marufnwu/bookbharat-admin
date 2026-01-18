@@ -1,17 +1,8 @@
 import axios from 'axios';
 import { useAuthStore } from '../store/authStore';
+import { toast } from 'react-hot-toast';
 
-// Create axios instance
-export const axiosInstance = axios.create({
-  baseURL: process.env.REACT_APP_ADMIN_API_URL || 'http://localhost:8000/api/v1/admin',
-  timeout: 30000,
-  withCredentials: true,
-  headers: {
-    'Content-Type': 'application/json',
-    'Accept': 'application/json',
-  },
-});
-
+// Create single axios instance
 export const api = axios.create({
   baseURL: process.env.REACT_APP_ADMIN_API_URL || 'http://localhost:8000/api/v1/admin',
   timeout: 30000,
@@ -23,55 +14,6 @@ export const api = axios.create({
 });
 
 // Request interceptor to add auth token
-axiosInstance.interceptors.request.use(
-  (config) => {
-    const token = useAuthStore.getState().token;
-
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
-
-// Response interceptor to handle auth errors
-axiosInstance.interceptors.response.use(
-  (response) => {
-    return response;
-  },
-  async (error) => {
-    const originalRequest = error.config;
-
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      originalRequest._retry = true;
-
-      // Clear auth state and redirect to login
-      useAuthStore.getState().logout();
-      window.location.href = '/login';
-
-      return Promise.reject(error);
-    }
-
-    // Handle other error cases
-    if (error.response?.status === 403) {
-      // Forbidden - insufficient permissions
-      console.error('Insufficient permissions');
-    }
-
-    if (error.response?.status >= 500) {
-      // Server error
-      console.error('Server error occurred');
-    }
-
-    return Promise.reject(error);
-  }
-);
-
-// Also add interceptors to the original api instance
 api.interceptors.request.use(
   (config) => {
     const token = useAuthStore.getState().token;
@@ -87,6 +29,7 @@ api.interceptors.request.use(
   }
 );
 
+// Response interceptor to handle auth errors and global errors
 api.interceptors.response.use(
   (response) => {
     return response;
@@ -94,29 +37,39 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
+    // Handle 401 Unauthorized
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
 
       // Clear auth state and redirect to login
       useAuthStore.getState().logout();
       window.location.href = '/login';
+      toast.error('Session expired. Please login again.');
 
       return Promise.reject(error);
     }
 
-    // Handle other error cases
+    // Handle 403 Forbidden
     if (error.response?.status === 403) {
-      // Forbidden - insufficient permissions
-      console.error('Insufficient permissions');
+      toast.error('You do not have permission to perform this action.');
     }
 
+    // Handle 500 Server Error
     if (error.response?.status >= 500) {
-      // Server error
-      console.error('Server error occurred');
+      toast.error('A server error occurred. Please try again later.');
+      console.error('Server Error:', error.response?.data?.message || error.message);
+    }
+
+    // Handle Network Errors
+    if (!error.response && error.request) {
+       toast.error('Network error. Please check your connection.');
     }
 
     return Promise.reject(error);
   }
 );
+
+// Export strict alias if needed by other files, but prefer 'api'
+export const axiosInstance = api;
 
 export default api;

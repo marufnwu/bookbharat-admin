@@ -1,28 +1,16 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { couponsApi } from '../../api';
-import {
-  Plus,
-  Edit,
-  Trash2,
-  Search,
-  Copy,
-  Calendar,
-  Percent,
-  DollarSign,
-  Tag,
-  Users,
-  Package,
-  AlertCircle,
-  CheckCircle,
-  XCircle,
-  TrendingUp,
-  ShoppingCart,
-  Clock,
-  X,
-  Save
+import { 
+  Plus, Search, Tag, CheckCircle, ShoppingCart, 
+  TrendingUp, Calendar, AlertCircle, XCircle, 
+  Clock, DollarSign, Percent, Copy, Edit, Trash2, 
+  Save, X 
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { couponsApi, categoriesApi } from '../../api';
+import CategoryPicker from '../../components/CategoryPicker';
+import ProductPicker from '../../components/ProductPicker';
+import HelpTooltip from '../../components/HelpTooltip';
 
 interface Coupon {
   id: number;
@@ -40,6 +28,7 @@ interface Coupon {
   is_active: boolean;
   applicable_categories?: number[];
   applicable_products?: number[];
+  is_stackable?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -60,6 +49,7 @@ interface CouponForm {
   applicable_products: number[];
   free_shipping: boolean;
   new_customers_only: boolean;
+  is_stackable: boolean;
 }
 
 interface CouponStats {
@@ -71,6 +61,18 @@ interface CouponStats {
   average_discount: number;
 }
 
+
+// ... previous imports ...
+
+// Helper type for Category mapping
+interface CategoryNode {
+  id: number;
+  name: string;
+  slug: string;
+  image_url?: string;
+  children?: CategoryNode[];
+}
+
 const Coupons: React.FC = () => {
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
@@ -78,6 +80,27 @@ const Coupons: React.FC = () => {
   const [editingCoupon, setEditingCoupon] = useState<Coupon | null>(null);
   const [activeTab, setActiveTab] = useState('details');
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'expired' | 'disabled'>('all');
+
+  // Fetch Categories for Picker Mapping
+  const { data: categoriesResponse } = useQuery({
+    queryKey: ['categories-tree'],
+    queryFn: categoriesApi.getCategoryTree,
+  });
+
+  const flattenCategories = (cats: CategoryNode[], level = 0): Array<CategoryNode> => {
+    let result: Array<CategoryNode> = [];
+    cats.forEach(cat => {
+      result.push(cat);
+      if (cat.children && cat.children.length > 0) {
+        result = result.concat(flattenCategories(cat.children, level + 1));
+      }
+    });
+    return result;
+  };
+
+  const allCategories = flattenCategories(categoriesResponse?.data || categoriesResponse?.categories || []);
+  
+
 
   const [formData, setFormData] = useState<CouponForm>({
     code: '',
@@ -95,7 +118,18 @@ const Coupons: React.FC = () => {
     applicable_products: [],
     free_shipping: false,
     new_customers_only: false,
+    is_stackable: false,
   });
+
+  const categoryObjects = formData.applicable_categories.map(id => {
+      const cat = allCategories.find(c => c.id === id);
+      return cat ? {
+          id: cat.id.toString(),
+          name: cat.name,
+          image: cat.image_url || '',
+          href: ''
+      } : null;
+  }).filter((c): c is { id: string; name: string; image: string; href: string } => c !== null);
 
   // Fetch coupons
   const { data: couponsResponse, isLoading } = useQuery({
@@ -213,6 +247,7 @@ const Coupons: React.FC = () => {
       applicable_products: coupon.applicable_products || [],
       free_shipping: false,
       new_customers_only: false,
+      is_stackable: coupon.is_stackable || false,
     });
     setShowModal(true);
   };
@@ -249,6 +284,7 @@ const Coupons: React.FC = () => {
       applicable_products: [],
       free_shipping: false,
       new_customers_only: false,
+      is_stackable: false,
     });
   };
 
@@ -687,6 +723,24 @@ const Coupons: React.FC = () => {
                       <span className="text-sm font-medium text-gray-700">Active</span>
                     </label>
                   </div>
+
+                  <div>
+                    <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-2"
+                      checked={formData.is_stackable}
+                      onChange={(e) => setFormData({ ...formData, is_stackable: e.target.checked })}
+                    />
+                    <label className="text-sm text-gray-700 flex items-center">
+                      Is Stackable
+                      <HelpTooltip
+                        text="If checked, this coupon can be used in combination with other coupons in the same order."
+                        className="ml-2"
+                      />
+                    </label>
+                  </div>
+                  </div>
                 </>
               )}
 
@@ -735,35 +789,33 @@ const Coupons: React.FC = () => {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Total Usage Limit
-                      </label>
-                      <input
-                        type="number"
-                        name="usage_limit"
-                        value={formData.usage_limit}
-                        onChange={handleInputChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                      />
-                      <p className="text-xs text-gray-500 mt-1">
-                        Leave 0 for unlimited usage
-                      </p>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">
+                          Total Usage Limit
+                          <HelpTooltip text="Maximum number of times this coupon can be used by all customers combined. Leave 0 for unlimited." className="ml-2" />
+                        </label>
+                        <input
+                          type="number"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                          value={formData.usage_limit}
+                          onChange={(e) => setFormData({ ...formData, usage_limit: parseInt(e.target.value) })}
+                        />
+                      </div>
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Per User Usage Limit
-                      </label>
-                      <input
-                        type="number"
-                        name="user_usage_limit"
-                        value={formData.user_usage_limit}
-                        onChange={handleInputChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                      />
-                      <p className="text-xs text-gray-500 mt-1">
-                        How many times each user can use
-                      </p>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">
+                          Usage Limit Per User
+                          <HelpTooltip text="Maximum number of times a single customer can use this coupon. Default is 1." className="ml-2" />
+                        </label>
+                        <input
+                          type="number"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                          value={formData.user_usage_limit}
+                          onChange={(e) => setFormData({ ...formData, user_usage_limit: parseInt(e.target.value) })}
+                        />
+                      </div>
                     </div>
                   </div>
 
@@ -802,20 +854,29 @@ const Coupons: React.FC = () => {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Applicable Categories
-                    </label>
-                    <p className="text-xs text-gray-500">
-                      Feature coming soon - Select categories this coupon applies to
+                    <CategoryPicker
+                      label="Applicable Categories"
+                      selected={categoryObjects}
+                      onChange={(categories) => {
+                         const ids = categories.map(c => parseInt(c.id));
+                         setFormData(prev => ({ ...prev, applicable_categories: ids }));
+                      }}
+                      max={10}
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Leave empty to apply to all categories
                     </p>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Applicable Products
-                    </label>
-                    <p className="text-xs text-gray-500">
-                      Feature coming soon - Select specific products this coupon applies to
+                    <ProductPicker
+                      label="Applicable Products"
+                      selected={formData.applicable_products}
+                      onChange={(productIds) => setFormData(prev => ({ ...prev, applicable_products: productIds }))}
+                      max={20}
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Leave empty to apply to all products
                     </p>
                   </div>
                 </div>

@@ -13,6 +13,7 @@ import {
   Percent,
   Info,
 } from 'lucide-react';
+import HelpTooltip from '../../components/HelpTooltip';
 
 interface TaxConfiguration {
   id: number;
@@ -393,7 +394,10 @@ const TaxConfigurations: React.FC = () => {
 
                     {/* Apply On */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Apply Tax On *</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">
+                        Apply Tax On *
+                        <HelpTooltip text="Defines the base amount for tax calculation. 'Subtotal + Shipping' is common for regions taxing delivery." className="ml-2" />
+                      </label>
                       <select
                         value={formData.apply_on}
                         onChange={(e) => setFormData({ ...formData, apply_on: e.target.value as any })}
@@ -403,9 +407,6 @@ const TaxConfigurations: React.FC = () => {
                         <option value="subtotal_with_charges">Subtotal + Charges</option>
                         <option value="subtotal_with_shipping">Subtotal + Shipping</option>
                       </select>
-                      <p className="mt-1 text-xs text-gray-500">
-                        Determines the base amount on which tax will be calculated
-                      </p>
                     </div>
 
                     {/* Priority */}

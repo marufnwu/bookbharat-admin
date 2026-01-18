@@ -11,9 +11,347 @@ import {
   MessageSquare,
   Smartphone,
   Loader,
+  Target,
+  Sliders,
 } from 'lucide-react';
 import { api } from '../../api/axios';
 import toast from 'react-hot-toast';
+
+// Detection Criteria Section Component
+const DetectionCriteriaSection: React.FC = () => {
+  const queryClient = useQueryClient();
+  const [criteria, setCriteria] = useState({
+    min_inactive_minutes: 2,
+    max_inactive_hours: 24,
+    abandonment_score_threshold: 70,
+    high_value_cart_threshold: 1000,
+    time_weight: 30,
+    value_weight: 25,
+    session_weight: 20,
+    completion_weight: 15,
+    history_weight: 10,
+    value_thresholds: { tier1: 500, tier2: 1000, tier3: 2000, tier4: 5000 },
+    segment_thresholds: {
+      vip_spent: 50000,
+      vip_orders: 20,
+      high_value_spent: 20000,
+      high_value_orders: 10,
+      repeat_orders: 3,
+    },
+  });
+
+  const { data: settingsData, isLoading } = useQuery({
+    queryKey: ['abandoned-cart-detection-settings'],
+    queryFn: async () => {
+      const response = await api.get('/abandoned-carts/settings');
+      return response.data.data;
+    },
+  });
+
+  useEffect(() => {
+    if (settingsData) {
+      setCriteria((prev) => ({ ...prev, ...settingsData }));
+    }
+  }, [settingsData]);
+
+  const updateMutation = useMutation({
+    mutationFn: async (data: typeof criteria) => {
+      const response = await api.put('/abandoned-carts/settings', data);
+      return response.data;
+    },
+    onSuccess: () => {
+      toast.success('Detection criteria saved successfully');
+      queryClient.invalidateQueries({ queryKey: ['abandoned-cart-detection-settings'] });
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to save criteria');
+    },
+  });
+
+  const handleChange = (key: string, value: number) => {
+    setCriteria((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const handleNestedChange = (parent: 'value_thresholds' | 'segment_thresholds', key: string, value: number) => {
+    setCriteria((prev) => ({
+      ...prev,
+      [parent]: { ...prev[parent], [key]: value },
+    }));
+  };
+
+  const totalWeight = criteria.time_weight + criteria.value_weight + criteria.session_weight + criteria.completion_weight + criteria.history_weight;
+
+  if (isLoading) {
+    return (
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="flex items-center justify-center py-8">
+          <Loader className="h-6 w-6 text-blue-600 animate-spin mr-2" />
+          Loading detection criteria...
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white rounded-lg shadow-md p-6 space-y-6">
+      <h3 className="flex items-center gap-2 text-lg font-semibold text-gray-900">
+        <Target className="h-5 w-5 text-purple-600" />
+        Detection Criteria
+      </h3>
+      <p className="text-sm text-gray-600">Configure when and how carts are detected as abandoned.</p>
+
+      {/* Timing Settings */}
+      <div className="border-b pb-4">
+        <h4 className="flex items-center gap-2 text-md font-medium text-gray-800 mb-3">
+          <Clock className="h-4 w-4 text-gray-600" />
+          Detection Timing
+        </h4>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Min Inactive (minutes)</label>
+            <input
+              type="number"
+              value={criteria.min_inactive_minutes}
+              onChange={(e) => handleChange('min_inactive_minutes', parseInt(e.target.value) || 1)}
+              min={1}
+              max={1440}
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+            />
+            <p className="text-xs text-gray-500 mt-1">Wait time before detection</p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Max Lookback (hours)</label>
+            <input
+              type="number"
+              value={criteria.max_inactive_hours}
+              onChange={(e) => handleChange('max_inactive_hours', parseInt(e.target.value) || 1)}
+              min={1}
+              max={168}
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+            />
+            <p className="text-xs text-gray-500 mt-1">How far back to look</p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Auto-Abandon Score</label>
+            <input
+              type="number"
+              value={criteria.abandonment_score_threshold}
+              onChange={(e) => handleChange('abandonment_score_threshold', parseInt(e.target.value) || 50)}
+              min={1}
+              max={100}
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+            />
+            <p className="text-xs text-gray-500 mt-1">Score threshold (0-100)</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Score Weights */}
+      <div className="border-b pb-4">
+        <h4 className="flex items-center gap-2 text-md font-medium text-gray-800 mb-3">
+          <Sliders className="h-4 w-4 text-gray-600" />
+          Score Calculation Weights
+          <span className={`ml-2 px-2 py-0.5 text-xs rounded ${totalWeight === 100 ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+            Total: {totalWeight}%
+          </span>
+        </h4>
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Time Weight (%)</label>
+            <input
+              type="number"
+              value={criteria.time_weight}
+              onChange={(e) => handleChange('time_weight', parseInt(e.target.value) || 0)}
+              min={0}
+              max={100}
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Value Weight (%)</label>
+            <input
+              type="number"
+              value={criteria.value_weight}
+              onChange={(e) => handleChange('value_weight', parseInt(e.target.value) || 0)}
+              min={0}
+              max={100}
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Session Weight (%)</label>
+            <input
+              type="number"
+              value={criteria.session_weight}
+              onChange={(e) => handleChange('session_weight', parseInt(e.target.value) || 0)}
+              min={0}
+              max={100}
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Completion (%)</label>
+            <input
+              type="number"
+              value={criteria.completion_weight}
+              onChange={(e) => handleChange('completion_weight', parseInt(e.target.value) || 0)}
+              min={0}
+              max={100}
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">History (%)</label>
+            <input
+              type="number"
+              value={criteria.history_weight}
+              onChange={(e) => handleChange('history_weight', parseInt(e.target.value) || 0)}
+              min={0}
+              max={100}
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Value Thresholds */}
+      <div className="border-b pb-4">
+        <h4 className="flex items-center gap-2 text-md font-medium text-gray-800 mb-3">
+          <DollarSign className="h-4 w-4 text-gray-600" />
+          Cart Value Tiers (₹)
+        </h4>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Tier 1 (Low)</label>
+            <input
+              type="number"
+              value={criteria.value_thresholds.tier1}
+              onChange={(e) => handleNestedChange('value_thresholds', 'tier1', parseInt(e.target.value) || 0)}
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Tier 2</label>
+            <input
+              type="number"
+              value={criteria.value_thresholds.tier2}
+              onChange={(e) => handleNestedChange('value_thresholds', 'tier2', parseInt(e.target.value) || 0)}
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Tier 3</label>
+            <input
+              type="number"
+              value={criteria.value_thresholds.tier3}
+              onChange={(e) => handleNestedChange('value_thresholds', 'tier3', parseInt(e.target.value) || 0)}
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Tier 4 (High)</label>
+            <input
+              type="number"
+              value={criteria.value_thresholds.tier4}
+              onChange={(e) => handleNestedChange('value_thresholds', 'tier4', parseInt(e.target.value) || 0)}
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+        </div>
+        <div className="mt-2 px-3 py-2">
+          <label className="block text-sm font-medium text-gray-700 mb-1">High-Value Cart Threshold (₹)</label>
+          <input
+            type="number"
+            value={criteria.high_value_cart_threshold}
+            onChange={(e) => handleChange('high_value_cart_threshold', parseInt(e.target.value) || 0)}
+            className="block w-full md:w-1/3 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+          />
+          <p className="text-xs text-gray-500 mt-1">Carts above this get priority treatment</p>
+        </div>
+      </div>
+
+      {/* Customer Segment Thresholds */}
+      <div className="pb-4">
+        <h4 className="flex items-center gap-2 text-md font-medium text-gray-800 mb-3">
+          <Settings className="h-4 w-4 text-gray-600" />
+          Customer Segment Thresholds
+        </h4>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-purple-50 p-3 rounded-lg">
+            <p className="text-sm font-medium text-purple-800 mb-2">VIP Customers</p>
+            <div className="space-y-2">
+              <div>
+                <label className="text-xs text-gray-600">Total Spent (₹)</label>
+                <input
+                  type="number"
+                  value={criteria.segment_thresholds.vip_spent}
+                  onChange={(e) => handleNestedChange('segment_thresholds', 'vip_spent', parseInt(e.target.value) || 0)}
+                  className="mt-1 block w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-gray-600">OR Orders ≥</label>
+                <input
+                  type="number"
+                  value={criteria.segment_thresholds.vip_orders}
+                  onChange={(e) => handleNestedChange('segment_thresholds', 'vip_orders', parseInt(e.target.value) || 0)}
+                  className="mt-1 block w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+            </div>
+          </div>
+          <div className="bg-blue-50 p-3 rounded-lg">
+            <p className="text-sm font-medium text-blue-800 mb-2">High-Value Customers</p>
+            <div className="space-y-2">
+              <div>
+                <label className="text-xs text-gray-600">Total Spent (₹)</label>
+                <input
+                  type="number"
+                  value={criteria.segment_thresholds.high_value_spent}
+                  onChange={(e) => handleNestedChange('segment_thresholds', 'high_value_spent', parseInt(e.target.value) || 0)}
+                  className="mt-1 block w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-gray-600">OR Orders ≥</label>
+                <input
+                  type="number"
+                  value={criteria.segment_thresholds.high_value_orders}
+                  onChange={(e) => handleNestedChange('segment_thresholds', 'high_value_orders', parseInt(e.target.value) || 0)}
+                  className="mt-1 block w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+            </div>
+          </div>
+          <div className="bg-green-50 p-3 rounded-lg">
+            <p className="text-sm font-medium text-green-800 mb-2">Repeat Customers</p>
+            <div>
+              <label className="text-xs text-gray-600">Orders ≥</label>
+              <input
+                type="number"
+                value={criteria.segment_thresholds.repeat_orders}
+                onChange={(e) => handleNestedChange('segment_thresholds', 'repeat_orders', parseInt(e.target.value) || 0)}
+                className="mt-1 block w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Save Button */}
+      <div className="flex justify-end">
+        <button
+          onClick={() => updateMutation.mutate(criteria)}
+          disabled={updateMutation.isPending}
+          className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 font-medium flex items-center gap-2 disabled:opacity-50"
+        >
+          <Save className="h-4 w-4" />
+          {updateMutation.isPending ? 'Saving...' : 'Save Detection Criteria'}
+        </button>
+      </div>
+    </div>
+  );
+};
 
 interface RecoverySettings {
   recovery_enabled: boolean;
@@ -129,12 +467,6 @@ const AbandonedCartRecoverySettings: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h2 className="text-2xl font-semibold text-gray-900">Cart Recovery Settings</h2>
-        <p className="mt-1 text-sm text-gray-600">Configure abandoned cart recovery preferences</p>
-      </div>
-
       {/* Info Box */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
         <div className="flex gap-3">
@@ -146,6 +478,9 @@ const AbandonedCartRecoverySettings: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Detection Criteria Settings */}
+      <DetectionCriteriaSection />
 
       {/* Main Settings */}
       <div className="bg-white rounded-lg shadow-md p-6 space-y-6">
