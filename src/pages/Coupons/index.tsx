@@ -15,28 +15,36 @@ import HelpTooltip from '../../components/HelpTooltip';
 interface Coupon {
   id: number;
   code: string;
+  name: string;
   description?: string;
-  type: 'percentage' | 'fixed';
+  type: 'percentage' | 'fixed_amount' | 'free_shipping' | 'buy_x_get_y';
   value: number;
-  minimum_amount?: number;
-  maximum_discount?: number;
+  minimum_order_amount?: number;
+  maximum_discount_amount?: number;
   usage_limit?: number;
   usage_count: number;
-  user_usage_limit?: number;
-  valid_from: string;
-  valid_until?: string;
+  usage_limit_per_customer?: number;
+  starts_at: string;
+  expires_at?: string;
   is_active: boolean;
   applicable_categories?: number[];
   applicable_products?: number[];
   is_stackable?: boolean;
+  first_order_only?: 'yes' | 'no';
+  buy_x_get_y_config?: {
+    buy_quantity: number;
+    get_quantity: number;
+    product_id: number | null;
+  };
   created_at: string;
   updated_at: string;
 }
 
 interface CouponForm {
   code: string;
+  name: string;
   description: string;
-  type: 'percentage' | 'fixed';
+  type: 'percentage' | 'fixed' | 'buy_x_get_y';
   value: number;
   minimum_amount: number;
   maximum_discount: number;
@@ -45,11 +53,16 @@ interface CouponForm {
   valid_from: string;
   valid_until: string;
   is_active: boolean;
-  applicable_categories: number[];
-  applicable_products: number[];
+  is_stackable: boolean;
   free_shipping: boolean;
   new_customers_only: boolean;
-  is_stackable: boolean;
+  applicable_products: number[];
+  applicable_categories: number[];
+  buy_x_get_y_config?: {
+    buy_quantity: number;
+    get_quantity: number;
+    product_id: number | null;
+  };
 }
 
 interface CouponStats {
@@ -104,6 +117,7 @@ const Coupons: React.FC = () => {
 
   const [formData, setFormData] = useState<CouponForm>({
     code: '',
+    name: '',
     description: '',
     type: 'percentage',
     value: 0,
@@ -119,6 +133,11 @@ const Coupons: React.FC = () => {
     free_shipping: false,
     new_customers_only: false,
     is_stackable: false,
+    buy_x_get_y_config: {
+      buy_quantity: 1,
+      get_quantity: 1,
+      product_id: null,
+    },
   });
 
   const categoryObjects = formData.applicable_categories.map(id => {
@@ -143,16 +162,32 @@ const Coupons: React.FC = () => {
     queryFn: () => couponsApi.getStats(),
   });
 
-  const coupons = couponsResponse?.coupons || [];
+  const coupons = couponsResponse?.coupons?.data || [];
   const stats = statsResponse?.stats as CouponStats || {};
 
   // Create/Update mutation
   const saveMutation = useMutation({
     mutationFn: async (data: CouponForm) => {
+      // Transform data for backend
+      const payload = {
+        ...data,
+        type: data.free_shipping ? 'free_shipping' : (data.type === 'fixed' ? 'fixed_amount' : data.type),
+        value: data.free_shipping ? 0 : data.value,
+        minimum_order_amount: data.minimum_amount,
+        maximum_discount_amount: data.maximum_discount,
+        usage_limit_per_customer: data.user_usage_limit,
+        starts_at: data.valid_from,
+        expires_at: data.valid_until,
+        first_order_only: data.new_customers_only ? 'yes' : 'no',
+        is_active: data.is_active ? 1 : 0,
+        is_stackable: data.is_stackable ? 1 : 0,
+        buy_x_get_y_config: data.type === 'buy_x_get_y' ? data.buy_x_get_y_config : undefined,
+      };
+
       if (editingCoupon) {
-        return couponsApi.update(editingCoupon.id, data);
+        return couponsApi.update(editingCoupon.id, payload);
       }
-      return couponsApi.create(data);
+      return couponsApi.create(payload);
     },
     onSuccess: () => {
       toast.success(editingCoupon ? 'Coupon updated' : 'Coupon created');
@@ -213,10 +248,20 @@ const Coupons: React.FC = () => {
     }
   };
 
+  const handleBuyXGetYConfigChange = (field: keyof NonNullable<CouponForm['buy_x_get_y_config']>, value: any) => {
+    setFormData(prev => ({
+      ...prev,
+      buy_x_get_y_config: {
+        ...prev.buy_x_get_y_config!,
+        [field]: value,
+      },
+    }));
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.code || !formData.value) {
+    if (!formData.code || !formData.name || (!formData.free_shipping && !formData.value && formData.type !== 'buy_x_get_y')) {
       toast.error('Please fill in all required fields');
       return;
     }
@@ -226,6 +271,21 @@ const Coupons: React.FC = () => {
       return;
     }
 
+    if (formData.type === 'buy_x_get_y') {
+      if (!formData.buy_x_get_y_config?.buy_quantity || formData.buy_x_get_y_config.buy_quantity <= 0) {
+        toast.error('Buy quantity must be greater than 0');
+        return;
+      }
+      if (!formData.buy_x_get_y_config?.get_quantity || formData.buy_x_get_y_config.get_quantity <= 0) {
+        toast.error('Get quantity must be greater than 0');
+        return;
+      }
+      if (!formData.buy_x_get_y_config?.product_id) {
+        toast.error('Please select a product for Buy X Get Y');
+        return;
+      }
+    }
+
     saveMutation.mutate(formData);
   };
 
@@ -233,21 +293,27 @@ const Coupons: React.FC = () => {
     setEditingCoupon(coupon);
     setFormData({
       code: coupon.code,
+      name: coupon.name || '',
       description: coupon.description || '',
-      type: coupon.type,
+      type: (coupon.type === 'fixed_amount' ? 'fixed' : coupon.type) as CouponForm['type'],
       value: coupon.value,
-      minimum_amount: coupon.minimum_amount || 0,
-      maximum_discount: coupon.maximum_discount || 0,
+      minimum_amount: coupon.minimum_order_amount || 0,
+      maximum_discount: coupon.maximum_discount_amount || 0,
       usage_limit: coupon.usage_limit || 0,
-      user_usage_limit: coupon.user_usage_limit || 1,
-      valid_from: coupon.valid_from,
-      valid_until: coupon.valid_until || '',
+      user_usage_limit: coupon.usage_limit_per_customer || 1,
+      valid_from: coupon.starts_at,
+      valid_until: coupon.expires_at || '',
       is_active: coupon.is_active,
       applicable_categories: coupon.applicable_categories || [],
       applicable_products: coupon.applicable_products || [],
-      free_shipping: false,
-      new_customers_only: false,
+      free_shipping: coupon.type === 'free_shipping',
+      new_customers_only: coupon.first_order_only === 'yes',
       is_stackable: coupon.is_stackable || false,
+      buy_x_get_y_config: coupon.buy_x_get_y_config || {
+        buy_quantity: 1,
+        get_quantity: 1,
+        product_id: null,
+      },
     });
     setShowModal(true);
   };
@@ -270,6 +336,7 @@ const Coupons: React.FC = () => {
     setActiveTab('details');
     setFormData({
       code: '',
+      name: '',
       description: '',
       type: 'percentage',
       value: 0,
@@ -285,6 +352,11 @@ const Coupons: React.FC = () => {
       free_shipping: false,
       new_customers_only: false,
       is_stackable: false,
+      buy_x_get_y_config: {
+        buy_quantity: 1,
+        get_quantity: 1,
+        product_id: null,
+      },
     });
   };
 
@@ -295,8 +367,8 @@ const Coupons: React.FC = () => {
 
   const getCouponStatus = (coupon: Coupon) => {
     const now = new Date();
-    const validFrom = new Date(coupon.valid_from);
-    const validUntil = coupon.valid_until ? new Date(coupon.valid_until) : null;
+    const validFrom = new Date(coupon.starts_at);
+    const validUntil = coupon.expires_at ? new Date(coupon.expires_at) : null;
 
     if (!coupon.is_active) {
       return { label: 'Disabled', color: 'gray', icon: <XCircle className="h-4 w-4" /> };
@@ -450,30 +522,34 @@ const Coupons: React.FC = () => {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div>
                           <p className="font-mono font-semibold text-gray-900">{coupon.code}</p>
+                          <p className="text-sm font-medium text-gray-700">{coupon.name}</p>
                           {coupon.description && (
-                            <p className="text-sm text-gray-500">{coupon.description}</p>
+                            <p className="text-xs text-gray-500">{coupon.description}</p>
                           )}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center gap-1">
-                          {coupon.type === 'percentage' ? (
-                            <>
-                              <Percent className="h-4 w-4 text-gray-400" />
-                              <span className="font-medium">{coupon.value}%</span>
-                            </>
-                          ) : (
-                            <>
-                              <DollarSign className="h-4 w-4 text-gray-400" />
-                              <span className="font-medium">{formatCurrency(coupon.value)}</span>
-                            </>
-                          )}
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center gap-1">
+                             {coupon.type === 'percentage' && (
+                                <>
+                                  <Percent className="h-4 w-4 text-gray-400" />
+                                  <span className="font-medium">{coupon.value}%</span>
+                                </>
+                             )}
+                             {coupon.type === 'fixed_amount' && (
+                                <>
+                                  <DollarSign className="h-4 w-4 text-gray-400" />
+                                  <span className="font-medium">₹{coupon.value} off</span>
+                                </>
+                             )}
+                             {coupon.type === 'free_shipping' && <span className="font-medium">Free Shipping</span>}
+                             {coupon.type === 'buy_x_get_y' && <span className="font-medium">Buy X Get Y</span>}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {coupon.minimum_order_amount ? `Min. spend: ₹${coupon.minimum_order_amount}` : 'No min. spend'}
+                          </div>
                         </div>
-                        {coupon.minimum_amount && coupon.minimum_amount > 0 && (
-                          <p className="text-xs text-gray-500">
-                            Min: {formatCurrency(coupon.minimum_amount)}
-                          </p>
-                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div>
@@ -496,11 +572,11 @@ const Coupons: React.FC = () => {
                         <div className="text-sm">
                           <p className="flex items-center gap-1">
                             <Calendar className="h-3 w-3" />
-                            {new Date(coupon.valid_from).toLocaleDateString()}
+                            {new Date(coupon.starts_at).toLocaleDateString()}
                           </p>
-                          {coupon.valid_until && (
+                          {coupon.expires_at && (
                             <p className="text-gray-500">
-                              to {new Date(coupon.valid_until).toLocaleDateString()}
+                              to {new Date(coupon.expires_at).toLocaleDateString()}
                             </p>
                           )}
                         </div>
@@ -629,6 +705,21 @@ const Coupons: React.FC = () => {
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Coupon Name <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        name="name"
+                        value={formData.name}
+                        onChange={handleInputChange}
+                        placeholder="e.g., Summer Sale"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
                         Description
                       </label>
                       <input
@@ -654,33 +745,65 @@ const Coupons: React.FC = () => {
                       >
                         <option value="percentage">Percentage</option>
                         <option value="fixed">Fixed Amount</option>
+                        <option value="buy_x_get_y">Buy X Get Y</option>
                       </select>
                     </div>
 
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Discount Value <span className="text-red-500">*</span>
-                      </label>
-                      <div className="relative">
-                        <input
-                          type="number"
-                          name="value"
-                          value={formData.value}
-                          onChange={handleInputChange}
-                          step={formData.type === 'percentage' ? '1' : '0.01'}
-                          max={formData.type === 'percentage' ? '100' : undefined}
-                          className="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                          required
-                        />
-                        <div className="absolute left-3 top-2.5 text-gray-400">
-                          {formData.type === 'percentage' ? (
-                            <Percent className="h-4 w-4" />
-                          ) : (
-                            <span className="text-sm">₹</span>
-                          )}
+                    {formData.type === 'buy_x_get_y' ? (
+                      <div className="grid grid-cols-2 gap-4 bg-gray-50 p-3 rounded-lg border border-gray-200">
+                         <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Buy Quantity</label>
+                            <input
+                              type="number"
+                              min="1"
+                              value={formData.buy_x_get_y_config?.buy_quantity || 1}
+                              onChange={(e) => setFormData(prev => ({
+                                ...prev,
+                                buy_x_get_y_config: { ...prev.buy_x_get_y_config!, buy_quantity: parseInt(e.target.value) || 1 }
+                              }))}
+                              className="w-full px-3 py-2 border rounded-md"
+                            />
+                         </div>
+                         <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Get Free</label>
+                            <input
+                              type="number"
+                              min="1"
+                              value={formData.buy_x_get_y_config?.get_quantity || 1}
+                              onChange={(e) => setFormData(prev => ({
+                                ...prev,
+                                buy_x_get_y_config: { ...prev.buy_x_get_y_config!, get_quantity: parseInt(e.target.value) || 1 }
+                              }))}
+                              className="w-full px-3 py-2 border rounded-md"
+                            />
+                         </div>
+                      </div>
+                    ) : (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Discount Value <span className="text-red-500">*</span>
+                        </label>
+                        <div className="relative">
+                          <input
+                            type="number"
+                            name="value"
+                            value={formData.value}
+                            onChange={handleInputChange}
+                            step={formData.type === 'percentage' ? '1' : '0.01'}
+                            max={formData.type === 'percentage' ? '100' : undefined}
+                            className="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                            required
+                          />
+                          <div className="absolute left-3 top-2.5 text-gray-400">
+                            {formData.type === 'percentage' ? (
+                              <Percent className="h-4 w-4" />
+                            ) : (
+                              <span className="text-sm">₹</span>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
+                    )}
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">

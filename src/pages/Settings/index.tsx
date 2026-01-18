@@ -2,19 +2,10 @@ import React, { useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
-  Settings as SettingsIcon,
-  IndianRupee,
-  Mail,
-  Truck,
-  Shield,
-  Users,
-  FileText,
   Save,
   Plus,
   Edit,
-  Trash2,
-  ToggleLeft,
-  ToggleRight
+  Trash2
 } from 'lucide-react';
 import { api } from '../../api/axios';
 import toast from 'react-hot-toast';
