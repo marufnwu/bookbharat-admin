@@ -85,8 +85,8 @@ import MigrationDashboard from "./pages/Migration/Dashboard";
 import MigrationSettings from "./pages/Migration/Settings";
 import MigrationConflicts from "./pages/Migration/Conflicts";
 import MigrationLogs from "./pages/Migration/Logs";
-import { ProductBrowser } from "./pages/Migration/ProductBrowser";
-import { CategoryBrowser } from "./pages/Migration/CategoryBrowser";
+import { ProductBrowser } from "./pages/Migration/components/ProductBrowser";
+import { CategoryBrowser } from "./pages/Migration/components/CategoryBrowser";
 import MigrationDocumentation from "./pages/Migration/Documentation";
 
 // System Pages

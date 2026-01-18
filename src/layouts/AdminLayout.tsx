@@ -157,7 +157,16 @@ const navigation: NavigationItem[] = [
       { name: 'Error Logs', href: '/system/error-logs', icon: AlertTriangle },
       { name: 'Logs', href: '/settings/system', icon: Server },
       { name: 'Cache', href: '/settings/cache', icon: Database },
-      { name: 'Migration', href: '/migration', icon: Database },
+      { name: 'Cache', href: '/settings/cache', icon: Database },
+      {
+        name: 'Migration',
+        href: '/migration',
+        icon: Database,
+        children: [
+          { name: 'Dashboard', href: '/migration', icon: BarChart3 },
+          { name: 'Settings', href: '/migration/settings', icon: SettingsIcon },
+        ]
+      },
       { name: 'Documentation', href: '/docs', icon: Book },
     ]
   },

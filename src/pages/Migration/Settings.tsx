@@ -7,19 +7,14 @@ import {
   ClockIcon,
   CheckCircleIcon,
   ExclamationTriangleIcon,
-  DocumentTextIcon,
-  ArrowPathIcon,
-  FunnelIcon,
-  ShieldCheckIcon,
   MagnifyingGlassIcon,
 } from '@heroicons/react/24/outline';
 import api, { type MigrationSettings as MigrationSettingsType } from '../../api';
-import { LoadingSpinner, Badge } from '../../components';
+import { LoadingSpinner } from '../../components';
 import { toast } from 'react-hot-toast';
 
 const MigrationSettings: React.FC = () => {
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<'connection' | 'sync' | 'images' | 'advanced'>('connection');
   const isInitialized = useRef(false);
 
   // Fetch current settings
@@ -43,7 +38,7 @@ const MigrationSettings: React.FC = () => {
     syncable_entity_types: ['categories', 'products', 'product_images'],
   });
 
-  // Update form when settings are loaded (only on initial load)
+  // Update form when settings are loaded
   React.useEffect(() => {
     if (currentSettings && Object.keys(currentSettings).length > 0 && !isInitialized.current) {
       setFormData(currentSettings);
@@ -57,7 +52,6 @@ const MigrationSettings: React.FC = () => {
     onSuccess: () => {
       toast.success('Migration settings saved successfully');
       queryClient.invalidateQueries({ queryKey: ['migration', 'settings'] });
-      queryClient.invalidateQueries({ queryKey: ['migration', 'dashboard'] });
     },
     onError: () => {
       toast.error('Failed to save migration settings');
@@ -89,17 +83,6 @@ const MigrationSettings: React.FC = () => {
     updateSettingsMutation.mutate({ settings: formData });
   };
 
-  const handleTestConnection = () => {
-    testConnectionMutation.mutate();
-  };
-
-  const tabs = [
-    { id: 'connection', label: 'Connection', icon: ServerIcon },
-    { id: 'sync', label: 'Sync Settings', icon: ClockIcon },
-    { id: 'images', label: 'Images', icon: PhotoIcon },
-    { id: 'advanced', label: 'Advanced', icon: CogIcon },
-  ];
-
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -109,357 +92,247 @@ const MigrationSettings: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Page Header */}
-      <div className="flex items-center justify-between">
+    <div className="max-w-5xl mx-auto space-y-6 pb-20">
+      {/* Header */}
+      <div className="flex items-center justify-between pb-4 border-b border-gray-200">
         <div>
           <h1 className="text-2xl font-semibold text-gray-900">Migration Settings</h1>
-          <p className="mt-1 text-sm text-gray-600">
-            Configure migration parameters and system integration
+          <p className="mt-1 text-sm text-gray-500">
+            Configure how your new store talks to the legacy system.
           </p>
         </div>
-        <div className="flex space-x-3">
-          <button
-            onClick={handleTestConnection}
-            disabled={testConnectionMutation.isPending}
-            className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-          >
-            {testConnectionMutation.isPending ? (
-              <>
-                <LoadingSpinner size="sm" className="mr-2" />
-                Testing...
-              </>
-            ) : (
-              <>
-                <MagnifyingGlassIcon className="h-4 w-4 mr-2" />
-                Test Connection
-              </>
-            )}
-          </button>
-          <button
-            onClick={handleSaveSettings}
-            disabled={updateSettingsMutation.isPending}
-            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-          >
-            {updateSettingsMutation.isPending ? (
-              <>
-                <LoadingSpinner size="sm" className="mr-2" />
-                Saving...
-              </>
-            ) : (
-              <>
-                <CheckCircleIcon className="h-4 w-4 mr-2" />
-                Save Settings
-              </>
-            )}
-          </button>
-        </div>
+        <button
+          onClick={handleSaveSettings}
+          disabled={updateSettingsMutation.isPending}
+          className="inline-flex items-center px-6 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 transition-colors"
+        >
+          {updateSettingsMutation.isPending ? (
+            <>
+              <LoadingSpinner size="sm" className="mr-2" />
+              Saving...
+            </>
+          ) : (
+            <>
+              <CheckCircleIcon className="h-5 w-5 mr-2" />
+              Save Changes
+            </>
+          )}
+        </button>
       </div>
 
-      {/* Connection Test Result */}
-      {testConnectionMutation.data && (
-        <div className={`rounded-lg p-4 ${
-          (testConnectionMutation.data as any).data?.success
-            ? 'bg-green-50 border border-green-200'
-            : 'bg-red-50 border border-red-200'
-        }`}>
-          <div className="flex items-center">
-            <div className="flex-shrink-0">
-              {(testConnectionMutation.data as any).data?.success ? (
-                <CheckCircleIcon className="h-5 w-5 text-green-400" />
-              ) : (
-                <ExclamationTriangleIcon className="h-5 w-5 text-red-400" />
-              )}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        {/* Left Column: Connection (Critical) */}
+        <div className="lg:col-span-2 space-y-6">
+          <div className="bg-white shadow-sm rounded-xl border border-gray-200 overflow-hidden">
+            <div className="p-6 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-blue-100 rounded-lg text-blue-600">
+                  <ServerIcon className="h-6 w-6" />
+                </div>
+                <div>
+                  <h3 className="text-base font-semibold text-gray-900">Legacy Connection</h3>
+                  <p className="text-sm text-gray-500">API credentials for the old system</p>
+                </div>
+              </div>
+              <button
+                onClick={() => testConnectionMutation.mutate()}
+                disabled={testConnectionMutation.isPending}
+                 className="text-sm text-blue-600 hover:text-blue-800 font-medium disabled:opacity-50"
+              >
+                {testConnectionMutation.isPending ? 'Testing...' : 'Test Connection'}
+              </button>
             </div>
-            <div className="ml-3">
-              <h3 className={`text-sm font-medium ${
-                (testConnectionMutation.data as any).data?.success ? 'text-green-800' : 'text-red-800'
-              }`}>
-                Connection Test {(testConnectionMutation.data as any).data?.success ? 'Successful' : 'Failed'}
-              </h3>
-              <div className={`mt-1 text-sm ${
-                (testConnectionMutation.data as any).data?.success ? 'text-green-700' : 'text-red-700'
-              }`}>
-                {(testConnectionMutation.data as any).data?.message}
+            
+            <div className="p-6 space-y-6">
+               {/* Connection Status Feedback */}
+              {testConnectionMutation.data && (
+                <div className={`rounded-md p-4 mb-4 flex items-center gap-3 ${
+                  (testConnectionMutation.data as any).data?.success 
+                  ? 'bg-green-50 text-green-700 border border-green-200' 
+                  : 'bg-red-50 text-red-700 border border-red-200'
+                }`}>
+                  {(testConnectionMutation.data as any).data?.success 
+                    ? <CheckCircleIcon className="h-5 w-5 flex-shrink-0" />
+                    : <ExclamationTriangleIcon className="h-5 w-5 flex-shrink-0" />
+                  }
+                  <p className="text-sm font-medium">
+                    {(testConnectionMutation.data as any).data?.message}
+                  </p>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Legacy System URL</label>
+                <input
+                  type="url"
+                  value={formData.legacy_system_url || ''}
+                  onChange={(e) => handleInputChange('legacy_system_url', e.target.value)}
+                  placeholder="https://old-store.com"
+                  className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2.5"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">API Token</label>
+                <div className="relative">
+                  <input
+                    type="password"
+                    value={formData.legacy_system_token || ''}
+                    onChange={(e) => handleInputChange('legacy_system_token', e.target.value)}
+                    placeholder="••••••••••••••••"
+                    className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2.5"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white shadow-sm rounded-xl border border-gray-200 overflow-hidden">
+            <div className="p-6 border-b border-gray-100 bg-gray-50 flex items-center gap-3">
+              <div className="p-2 bg-purple-100 rounded-lg text-purple-600">
+                <ClockIcon className="h-6 w-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-semibold text-gray-900">Synchronization</h3>
+                <p className="text-sm text-gray-500">Automated background updates</p>
+              </div>
+            </div>
+            
+            <div className="p-6 space-y-6">
+              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
+                <div>
+                  <div className="font-medium text-gray-900">Data Auto-Sync</div>
+                  <div className="text-sm text-gray-500">Automatically pull changes every interval</div>
+                </div>
+                <button
+                    type="button"
+                    onClick={() => handleInputChange('auto_sync_enabled', !formData.auto_sync_enabled)}
+                    className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                      formData.auto_sync_enabled ? 'bg-blue-600' : 'bg-gray-200'
+                    }`}
+                  >
+                    <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                      formData.auto_sync_enabled ? 'translate-x-5' : 'translate-x-0'
+                    }`} />
+                  </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                 <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Interval (Minutes)</label>
+                    <input
+                      type="number"
+                      min="5"
+                      value={formData.auto_sync_interval || 15}
+                      onChange={(e) => handleInputChange('auto_sync_interval', parseInt(e.target.value))}
+                      className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2.5"
+                    />
+                 </div>
+                 <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Conflict Resolution</label>
+                    <select
+                      value={formData.conflict_resolution || 'old_system_priority'}
+                      onChange={(e) => handleInputChange('conflict_resolution', e.target.value)}
+                      className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2.5"
+                    >
+                      <option value="old_system_priority">Old System Priority (Safer)</option>
+                      <option value="new_system_priority">New System Priority</option>
+                      <option value="manual_review">Manual Review Required</option>
+                    </select>
+                 </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-3">Sync Entities</label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {['categories', 'products', 'product_images'].map((entityType) => (
+                    <label key={entityType} className={`
+                      relative flex items-center p-3 rounded-lg border cursor-pointer border-gray-200 hover:border-blue-300 transition-colors
+                      ${formData.syncable_entity_types?.includes(entityType) ? 'bg-blue-50 border-blue-200' : 'bg-white'}
+                    `}>
+                      <input
+                        type="checkbox"
+                        checked={formData.syncable_entity_types?.includes(entityType) || false}
+                        onChange={() => handleEntityTypeToggle(entityType)}
+                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-3"
+                      />
+                      <span className="text-sm font-medium text-gray-900 capitalize">{entityType.replace('_', ' ')}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
         </div>
-      )}
 
-      {/* Settings Tabs */}
-      <div className="bg-white shadow rounded-lg">
-        <div className="border-b border-gray-200">
-          <nav className="-mb-px flex space-x-8 px-6">
-            {tabs.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
-                className={`flex items-center py-4 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === tab.id
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                <tab.icon className="h-5 w-5 mr-2" />
-                {tab.label}
-              </button>
-            ))}
-          </nav>
-        </div>
-
-        <div className="p-6">
-          {/* Connection Settings */}
-          {activeTab === 'connection' && (
-            <div className="space-y-6">
-              <div>
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Legacy System Connection</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Legacy System URL
-                    </label>
-                    <input
-                      type="url"
-                      value={formData.legacy_system_url || ''}
-                      onChange={(e) => handleInputChange('legacy_system_url', e.target.value)}
-                      placeholder="https://legacy-system.com"
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 focus:ring-opacity-0 sm:text-sm"
-                    />
-                    <p className="mt-1 text-xs text-gray-500">
-                      Base URL of the legacy system API
-                    </p>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      API Token
-                    </label>
-                    <input
-                      type="password"
-                      value={formData.legacy_system_token || ''}
-                      onChange={(e) => handleInputChange('legacy_system_token', e.target.value)}
-                      placeholder="Enter secure API token"
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 focus:ring-opacity-0 sm:text-sm"
-                    />
-                    <p className="mt-1 text-xs text-gray-500">
-                      Secure token for API authentication
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="border-t pt-6">
-                <div className="flex items-center">
-                  <ShieldCheckIcon className="h-5 w-5 text-blue-500 mr-2" />
-                  <div>
-                    <h4 className="text-sm font-medium text-gray-900">Security Information</h4>
-                    <p className="text-sm text-gray-600">
-                      Ensure the legacy system API endpoint is properly secured and the token is kept confidential.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Sync Settings */}
-          {activeTab === 'sync' && (
-            <div className="space-y-6">
-              <div>
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Synchronization Configuration</h3>
-
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <label className="text-sm font-medium text-gray-700">Auto Sync Enabled</label>
-                      <p className="text-sm text-gray-500">Automatically sync data at regular intervals</p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleInputChange('auto_sync_enabled', !formData.auto_sync_enabled)}
-                      className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
-                        formData.auto_sync_enabled ? 'bg-blue-600' : 'bg-gray-200'
-                      }`}
-                    >
-                      <span
-                        aria-hidden="true"
-                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                          formData.auto_sync_enabled ? 'translate-x-5' : 'translate-x-0'
-                        }`}
-                      />
-                    </button>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Sync Interval (minutes)
-                    </label>
-                    <input
-                      type="number"
-                      min="5"
-                      max="1440"
-                      value={formData.auto_sync_interval || 15}
-                      onChange={(e) => handleInputChange('auto_sync_interval', parseInt(e.target.value))}
-                      disabled={!formData.auto_sync_enabled}
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 focus:ring-opacity-0 sm:text-sm disabled:opacity-50"
-                    />
-                    <p className="mt-1 text-xs text-gray-500">
-                      How often to run automatic sync (5-1440 minutes)
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="border-t pt-6">
-                <h4 className="text-md font-medium text-gray-900 mb-4">Entity Types to Sync</h4>
-                <div className="space-y-3">
-                  {['categories', 'products', 'product_images'].map((entityType) => (
-                    <div key={entityType} className="flex items-center">
-                      <input
-                        type="checkbox"
-                        id={entityType}
-                        checked={formData.syncable_entity_types?.includes(entityType) || false}
-                        onChange={() => handleEntityTypeToggle(entityType)}
-                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                      />
-                      <label htmlFor={entityType} className="ml-3 text-sm font-medium text-gray-700 capitalize">
-                        {entityType.replace('_', ' ')}
-                      </label>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="border-t pt-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Conflict Resolution Strategy
-                  </label>
-                  <select
-                    value={formData.conflict_resolution || 'old_system_priority'}
-                    onChange={(e) => handleInputChange('conflict_resolution', e.target.value)}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 focus:ring-opacity-0 sm:text-sm"
+        {/* Right Column: Optimization & Advanced */}
+        <div className="space-y-6">
+          <div className="bg-white shadow-sm rounded-xl border border-gray-200 overflow-hidden">
+             <div className="p-4 border-b border-gray-100 bg-gray-50 flex items-center gap-2">
+                <PhotoIcon className="h-5 w-5 text-gray-500" />
+                <h3 className="font-semibold text-gray-900 text-sm">Image Optimization</h3>
+             </div>
+             <div className="p-4 space-y-4">
+               <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-700">Optimize Images</span>
+                  <button
+                    type="button"
+                    onClick={() => handleInputChange('image_optimization_enabled', !formData.image_optimization_enabled)}
+                    className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                      formData.image_optimization_enabled ? 'bg-blue-600' : 'bg-gray-200'
+                    }`}
                   >
-                    <option value="old_system_priority">Old System Priority</option>
-                    <option value="new_system_priority">New System Priority</option>
-                    <option value="manual_review">Manual Review Required</option>
-                    <option value="merge_data">Merge Data</option>
-                  </select>
-                  <p className="mt-1 text-xs text-gray-500">
-                    How to handle conflicts when data exists in both systems
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Image Settings */}
-          {activeTab === 'images' && (
-            <div className="space-y-6">
-              <div>
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Image Processing</h3>
-
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <label className="text-sm font-medium text-gray-700">Image Optimization</label>
-                      <p className="text-sm text-gray-500">Optimize images during migration</p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleInputChange('image_optimization_enabled', !formData.image_optimization_enabled)}
-                      className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
-                        formData.image_optimization_enabled ? 'bg-blue-600' : 'bg-gray-200'
-                      }`}
-                    >
-                      <span
-                        aria-hidden="true"
-                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                          formData.image_optimization_enabled ? 'translate-x-5' : 'translate-x-0'
-                        }`}
+                    <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                      formData.image_optimization_enabled ? 'translate-x-4' : 'translate-x-0'
+                    }`} />
+                  </button>
+               </div>
+               
+               {formData.image_optimization_enabled && (
+                 <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Compression Quality</label>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="range"
+                        min="10"
+                        max="100"
+                        value={formData.image_quality || 85}
+                        onChange={(e) => handleInputChange('image_quality', parseInt(e.target.value))}
+                        className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
                       />
-                    </button>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Image Quality (%)
-                    </label>
-                    <input
-                      type="range"
-                      min="10"
-                      max="100"
-                      step="5"
-                      value={formData.image_quality || 85}
-                      onChange={(e) => handleInputChange('image_quality', parseInt(e.target.value))}
-                      disabled={!formData.image_optimization_enabled}
-                      className="mt-1 block w-full"
-                    />
-                    <div className="flex justify-between text-xs text-gray-500">
-                      <span>Lower quality (smaller files)</span>
-                      <span className="font-medium">{formData.image_quality}%</span>
-                      <span>Higher quality (larger files)</span>
+                      <span className="text-sm font-medium text-blue-600 w-8">{formData.image_quality}%</span>
                     </div>
-                  </div>
-                </div>
-              </div>
+                 </div>
+               )}
+               <p className="text-xs text-gray-500">
+                  Reduces file size during import. Original URLs are preserved in the legacy mapping.
+               </p>
+             </div>
+          </div>
 
-              <div className="border-t pt-6">
-                <div className="flex items-center">
-                  <PhotoIcon className="h-5 w-5 text-blue-500 mr-2" />
-                  <div>
-                    <h4 className="text-sm font-medium text-gray-900">Image Migration Info</h4>
-                    <p className="text-sm text-gray-600">
-                      Images will be copied from the legacy system to the new storage location.
-                      Original images are preserved regardless of optimization settings.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Advanced Settings */}
-          {activeTab === 'advanced' && (
-            <div className="space-y-6">
-              <div>
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Advanced Configuration</h3>
-
+          <div className="bg-white shadow-sm rounded-xl border border-gray-200 overflow-hidden">
+             <div className="p-4 border-b border-gray-100 bg-gray-50 flex items-center gap-2">
+                <CogIcon className="h-5 w-5 text-gray-500" />
+                <h3 className="font-semibold text-gray-900 text-sm">Performance</h3>
+             </div>
+             <div className="p-4 space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Maximum Batch Size
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Batch Size</label>
                   <input
                     type="number"
-                    min="10"
-                    max="1000"
-                    step="10"
                     value={formData.max_batch_size || 100}
                     onChange={(e) => handleInputChange('max_batch_size', parseInt(e.target.value))}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 focus:ring-opacity-0 sm:text-sm"
+                    className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2.5"
                   />
-                  <p className="mt-1 text-xs text-gray-500">
-                    Number of records to process in each batch (10-1000)
+                  <p className="mt-2 text-xs text-gray-500">
+                    Records per request. Lower this if you experience timeouts.
                   </p>
                 </div>
-              </div>
-
-              <div className="border-t pt-6">
-                <div className="flex items-center">
-                  <CogIcon className="h-5 w-5 text-blue-500 mr-2" />
-                  <div>
-                    <h4 className="text-sm font-medium text-gray-900">Performance Considerations</h4>
-                    <p className="text-sm text-gray-600">
-                      Larger batch sizes process faster but use more memory and may cause timeouts.
-                      Adjust based on your server capabilities and data volume.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
+             </div>
+          </div>
         </div>
+
       </div>
     </div>
   );

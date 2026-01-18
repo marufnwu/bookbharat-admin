@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Filter, Download, Eye, EyeOff, AlertCircle, CheckCircle, XCircle } from 'lucide-react';
-import { migrationApi } from '../../api/migration';
-import Button from '../../components/Button';
-import Input from '../../components/Input';
-import Badge from '../../components/Badge';
-import { Card, CardContent, CardHeader, CardTitle } from '../../components/Card';
-import { Checkbox } from '../../components/Checkbox';
+import { migrationApi } from '../../../api/migration';
+import Button from '../../../components/Button';
+import Input from '../../../components/Input';
+import Badge from '../../../components/Badge';
+import { Card, CardContent, CardHeader, CardTitle } from '../../../components/Card';
+import { Checkbox } from '../../../components/Checkbox';
 import { toast } from 'react-hot-toast';
 
 interface LegacyProduct {
