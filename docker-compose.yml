@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 services:
   admin:
@@ -8,6 +8,7 @@ services:
       args:
         # Change this to your production API URL
         REACT_APP_API_URL: ${REACT_APP_API_URL:-http://localhost:8000/api/v1/admin}
+    image: marufnwi/bookbharat-admin:latest
     container_name: bookbharat-admin
     restart: unless-stopped
     ports:
