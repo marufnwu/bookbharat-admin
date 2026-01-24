@@ -28,6 +28,8 @@ interface ZoneRate {
     courier_name: string;
     base_weight: number;
   };
+  fast_delivery_additional?: number;
+  fast_delivery_enabled?: boolean;
 }
 
 interface ZoneRateForm {
@@ -38,6 +40,8 @@ interface ZoneRateForm {
   aw_rate: number;
   cod_charges: number;
   cod_percentage: number;
+  fast_delivery_additional?: number;
+  fast_delivery_enabled?: boolean;
 }
 
 const ZoneRates: React.FC = () => {
@@ -58,6 +62,8 @@ const ZoneRates: React.FC = () => {
     aw_rate: 30,
     cod_charges: 20,
     cod_percentage: 2,
+    fast_delivery_additional: 0,
+    fast_delivery_enabled: false,
   });
 
   // Fetch weight slabs
@@ -138,6 +144,8 @@ const ZoneRates: React.FC = () => {
         aw_rate: rate.aw_rate,
         cod_charges: rate.cod_charges,
         cod_percentage: rate.cod_percentage,
+        fast_delivery_additional: rate.fast_delivery_additional || 0,
+        fast_delivery_enabled: rate.fast_delivery_enabled || false,
       },
     });
   };
@@ -159,7 +167,7 @@ const ZoneRates: React.FC = () => {
       ...formData,
       [rateId]: {
         ...formData[rateId],
-        [field]: parseFloat(value) || 0,
+        [field]: typeof value === 'boolean' ? value : (parseFloat(value) || 0),
       },
     });
   };
@@ -179,6 +187,8 @@ const ZoneRates: React.FC = () => {
       aw_rate: 30,
       cod_charges: 20,
       cod_percentage: 2,
+      fast_delivery_additional: 0,
+      fast_delivery_enabled: false,
     });
     setShowCreateModal(true);
   };
@@ -296,6 +306,9 @@ const ZoneRates: React.FC = () => {
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         COD %
                       </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Fast Delivery
+                      </th>
                       <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Actions
                       </th>
@@ -396,6 +409,43 @@ const ZoneRates: React.FC = () => {
                               />
                             ) : (
                               <span className="text-sm text-gray-900">{rate.cod_percentage}%</span>
+                            )}
+                          </td>
+                          <td className="px-6 py-4">
+                            {isEditing ? (
+                              <div className="flex flex-col space-y-2">
+                                <label className="flex items-center space-x-2">
+                                  <input
+                                    type="checkbox"
+                                    checked={currentData.fast_delivery_enabled ?? false}
+                                    onChange={(e) => handleInputChange(rate.id, 'fast_delivery_enabled', e.target.checked)}
+                                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                  />
+                                  <span className="text-xs text-gray-600">Enable</span>
+                                </label>
+                                {currentData.fast_delivery_enabled && (
+                                   <div className="flex items-center space-x-1">
+                                     <span className="text-xs text-gray-500">+₹</span>
+                                     <input
+                                      type="number"
+                                      value={currentData.fast_delivery_additional}
+                                      onChange={(e) => handleInputChange(rate.id, 'fast_delivery_additional', e.target.value)}
+                                      className="w-16 px-2 py-1 border border-gray-300 rounded text-sm"
+                                      placeholder="Charge"
+                                     />
+                                   </div>
+                                )}
+                              </div>
+                            ) : (
+                              <div>
+                                {rate.fast_delivery_enabled ? (
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                                    Enabled (+₹{rate.fast_delivery_additional})
+                                  </span>
+                                ) : (
+                                  <span className="text-xs text-gray-400">Disabled</span>
+                                )}
+                              </div>
                             )}
                           </td>
                           <td className="px-6 py-4 text-right">
@@ -530,6 +580,38 @@ const ZoneRates: React.FC = () => {
                     max="100"
                     step="0.1"
                   />
+                </div>
+
+                <div className="border-t pt-4 mt-4">
+                   <h4 className="text-sm font-medium text-gray-900 mb-3">Fast Delivery Configuration</h4>
+                   
+                   <div className="flex items-center mb-3">
+                      <input
+                        type="checkbox"
+                        id="create_fast_enabled"
+                        checked={createFormData.fast_delivery_enabled}
+                        onChange={(e) => setCreateFormData({...createFormData, fast_delivery_enabled: e.target.checked})}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      />
+                      <label htmlFor="create_fast_enabled" className="ml-2 block text-sm text-gray-700">
+                        Enable Fast Delivery Option
+                      </label>
+                   </div>
+
+                   {createFormData.fast_delivery_enabled && (
+                     <div>
+                       <label className="block text-sm font-medium text-gray-700">Additional Charge (₹)</label>
+                       <input
+                         type="number"
+                         value={createFormData.fast_delivery_additional}
+                         onChange={(e) => setCreateFormData({...createFormData, fast_delivery_additional: parseFloat(e.target.value) || 0})}
+                         className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                         min="0"
+                         step="1"
+                       />
+                       <p className="mt-1 text-xs text-gray-500">This amount will be added to the standard shipping cost.</p>
+                     </div>
+                   )}
                 </div>
               </div>
 
