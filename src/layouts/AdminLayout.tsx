@@ -40,7 +40,8 @@ import {
   AlertTriangle,
   Mail,
   MessageSquare,
-  Globe
+  Globe,
+  Gift
 } from 'lucide-react';
 import { Menu, Transition } from '@headlessui/react';
 import { useAuth } from '../auth/useAuth';
@@ -77,6 +78,7 @@ const navigation: NavigationItem[] = [
       { name: 'Products', href: '/products', icon: ShoppingBag },
       { name: 'Categories', href: '/categories', icon: FolderOpen },
       { name: 'Reviews', href: '/reviews', icon: Star },
+      { name: 'Packaging', href: '/packaging', icon: Gift }, // New Item
     ]
   },
 

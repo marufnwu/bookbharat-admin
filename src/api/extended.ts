@@ -376,3 +376,12 @@ export const heroConfigApi = {
   delete: (variant: string) => api.delete(`/hero-config/${variant}`).then(res => res.data),
   setActive: (variant: string) => api.post('/hero-config/set-active', { variant }).then(res => res.data),
 };
+
+// Packaging Options API
+export const packagingApi = {
+  getAll: () => api.get('/packaging-options').then(res => res.data),
+  getOne: (id: number) => api.get(`/packaging-options/${id}`).then(res => res.data),
+  create: (data: any) => api.post('/packaging-options', data).then(res => res.data),
+  update: (id: number, data: any) => api.put(`/packaging-options/${id}`, data).then(res => res.data),
+  delete: (id: number) => api.delete(`/packaging-options/${id}`).then(res => res.data),
+};

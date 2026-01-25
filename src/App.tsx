@@ -20,6 +20,7 @@ import ProductList from "./pages/Products/ProductList";
 import ProductDetail from "./pages/Products/ProductDetail";
 import ProductCreate from "./pages/Products/ProductCreate";
 import ProductEdit from "./pages/Products/ProductEdit";
+import PackagingList from "./pages/Packaging/PackagingList";
 import OrderList from "./pages/Orders/OrderList";
 import OrderDetail from "./pages/Orders/OrderDetail";
 import CreateShipment from "./pages/Orders/CreateShipment";
@@ -144,6 +145,7 @@ const App: React.FC = () => {
               <Route path="products/create" element={<ProductCreate />} />
               <Route path="products/:id" element={<ProductDetail />} />
               <Route path="products/:id/edit" element={<ProductEdit />} />
+              <Route path="packaging" element={<PackagingList />} />
 
               {/* Orders */}
               <Route path="orders" element={<OrderList />} />

@@ -34,6 +34,7 @@ import {
   bundleDiscountRulesApi,
   bundleAnalyticsApi,
   bundleVariantsApi,
+  packagingApi,
 } from './extended';
 
 // Migration API Type Definitions
@@ -920,6 +921,7 @@ export {
   bundleDiscountRulesApi,
   bundleAnalyticsApi,
   bundleVariantsApi,
+  packagingApi,
 };
 
 // Export Hero Config API
@@ -949,4 +951,5 @@ export default {
   bundleDiscountRules: bundleDiscountRulesApi,
   bundleAnalytics: bundleAnalyticsApi,
   migration: migrationApi,
+  packaging: packagingApi,
 };
