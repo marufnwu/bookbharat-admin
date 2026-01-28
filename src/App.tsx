@@ -52,6 +52,7 @@ import InvoiceTemplates from "./pages/Content/InvoiceTemplates";
 import AbandonedCarts from "./pages/Marketing/AbandonedCarts";
 import MessagingChannels from "./pages/Settings/MessagingChannels";
 import WhatsAppTemplates from "./pages/Settings/WhatsAppTemplates";
+import AiProvidersPage from "./pages/Settings/AiProvidersPage";
 
 // Documentation Pages
 import DynamicDocumentationPage from "./pages/Documentation/DynamicDocumentationPage";
@@ -281,6 +282,10 @@ const App: React.FC = () => {
               <Route
                 path="settings/whatsapp-templates"
                 element={<WhatsAppTemplates />}
+              />
+              <Route
+                path="settings/ai-providers"
+                element={<AiProvidersPage />}
               />
               {/* Communication & Notifications - REMOVED */}
 

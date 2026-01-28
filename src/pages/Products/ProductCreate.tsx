@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { productsApi, categoriesApi, publishersApi, authorsApi } from '../../api';
-import { Upload, X, Plus, Save, ArrowLeft } from 'lucide-react';
+import { Upload, X, Plus, Save, ArrowLeft, Sparkles } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import RichTextEditor from '../../components/RichTextEditor';
 import BundleVariantManager from '../../components/BundleVariantManager';
+import AiFieldGenerator from '../../components/AiFieldGenerator';
 
 interface ProductForm {
   name: string;
@@ -43,6 +44,8 @@ interface ProductForm {
 const ProductCreate: React.FC = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('basic');
+  const [showAiGenerator, setShowAiGenerator] = useState(false);
+  const [aiGeneratedFields, setAiGeneratedFields] = useState<Set<string>>(new Set());
 
   // Read initial tab from URL hash
   useEffect(() => {
@@ -385,6 +388,39 @@ const ProductCreate: React.FC = () => {
                   <option value="">Select Category</option>
                   {renderCategoryOptions((categoryTree as any)?.categories || [])}
                 </select>
+              </div>
+
+              {/* AI Assistant Button - Enhanced */}
+              <div className="md:col-span-2">
+                <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border-2 border-indigo-200 rounded-lg p-4">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      // Validation
+                      if (!formData.name?.trim()) {
+                        toast.error('Please enter the product name first!');
+                        return;
+                      }
+                      if (!formData.category_id) {
+                        toast.error('Please select a category first!');
+                        return;
+                      }
+                      setShowAiGenerator(true);
+                    }}
+                    className="w-full px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all flex items-center justify-center gap-2 font-medium shadow-lg hover:shadow-xl"
+                  >
+                    <Sparkles className="w-5 h-5" />
+                    ✨ AI Assistant - Generate Product Content
+                  </button>
+                  <p className="text-xs text-gray-600 mt-2 text-center">
+                    AI will generate descriptions, meta tags, keywords, and more in {formData.language || 'Bengali'}
+                  </p>
+                  {aiGeneratedFields.size > 0 && (
+                    <p className="text-xs text-green-600 mt-1 text-center font-medium">
+                      ✓ AI content applied to {aiGeneratedFields.size} field(s)
+                    </p>
+                  )}
+                </div>
               </div>
 
               <div className="md:col-span-2">
@@ -1019,6 +1055,51 @@ const ProductCreate: React.FC = () => {
           )}
         </form>
       </div>
+
+      {/* AI Field Generator Modal */}
+      {showAiGenerator && (
+        <AiFieldGenerator
+          initialData={{
+            book_name: formData.name,
+            author: formData.author,
+            publisher: formData.publisher,
+            language: formData.language,
+            category_id: formData.category_id,
+            isbn: formData.isbn,
+            pages: formData.pages,
+            // key_themes: User will enter manually in modal
+          }}
+          onApply={(fields) => {
+            // Apply all generated fields
+            setFormData({
+              ...formData,
+              description: fields.description,
+              short_description: fields.short_description,
+              meta_title: fields.meta_title,
+              meta_description: fields.meta_description,
+              meta_keywords: fields.meta_keywords,
+            });
+            
+            // Track which fields were AI-generated
+            setAiGeneratedFields(new Set([
+              'description',
+              'short_description',
+              'meta_title',
+              'meta_description',
+              'meta_keywords',
+            ]));
+            
+            toast.success(
+              <div>
+                <strong>AI content applied!</strong>
+                <div className="text-sm mt-1">Review and edit the generated fields as needed.</div>
+              </div>,
+              { duration: 4000 }
+            );
+          }}
+          onClose={() => setShowAiGenerator(false)}
+        />
+      )}
     </div>
   );
 };

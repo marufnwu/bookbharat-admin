@@ -143,6 +143,7 @@ const navigation: NavigationItem[] = [
       { name: 'Taxes', href: '/settings/taxes', icon: DollarSign },
       { name: 'Order Charges', href: '/settings/charges', icon: Receipt },
       { name: 'Invoice Templates', href: '/invoice-templates', icon: FileText },
+      { name: 'AI Providers', href: '/settings/ai-providers', icon: Sparkles },
       { name: 'Messaging Channels', href: '/settings/messaging-channels', icon: MessageSquare },
       { name: 'WhatsApp Templates', href: '/settings/whatsapp-templates', icon: MessageSquare },
     ]
