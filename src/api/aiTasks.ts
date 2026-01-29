@@ -16,6 +16,8 @@ export const aiTasksApi = {
       task_type: taskType,
       input,
       provider_id: providerId,
+    }, {
+      timeout: 300000, // 5 minutes timeout for AI tasks
     });
     return response.data;
   },
@@ -46,7 +48,9 @@ export const aiTasksApi = {
 
   // Generate product fields (convenience method)
   generateProductFields: async (input: ProductFieldGenerationInput): Promise<AiTaskExecutionResponse> => {
-    const response = await api.post(`${PRODUCTS_AI_BASE}/generate-fields`, input);
+    const response = await api.post(`${PRODUCTS_AI_BASE}/generate-fields`, input, {
+      timeout: 300000, // 5 minutes timeout for AI tasks
+    });
     return response.data;
   },
 };
