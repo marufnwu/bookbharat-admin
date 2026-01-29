@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { ordersApi } from '../../api';
+import { useAuthStore } from '../../store/authStore';
 import {
   ArrowLeft,
   Calendar,
@@ -25,10 +26,17 @@ import {
   Send,
   Trash2,
   ExternalLink,
-  Info
+  Info,
+  ClipboardList
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { api } from '../../api/axios';
+import CommunicationPanel from '../../components/Orders/CommunicationPanel';
+import InternalNotesSection from '../../components/Orders/InternalNotesSection';
+import EditAddressModal from '../../components/Orders/EditAddressModal';
+import PartialRefundModal from '../../components/Orders/PartialRefundModal';
+import OrderFinancialSummary from '../../components/Orders/OrderFinancialSummary';
+import { orderEnhancementsApi } from '../../api/orderEnhancements';
 
 interface OrderStatus {
   value: string;
@@ -53,6 +61,10 @@ const OrderDetail: React.FC = () => {
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState('');
   const [statusNote, setStatusNote] = useState('');
+  
+  // Phase 1 Enhancement States
+  const [editAddressModal, setEditAddressModal] = useState<{ type: 'shipping' | 'billing'; address: any } | null>(null);
+  const [showPartialRefundModal, setShowPartialRefundModal] = useState(false);
 
   // Fetch order details
   const { data: orderResponse, isLoading, refetch } = useQuery({
@@ -138,18 +150,92 @@ const OrderDetail: React.FC = () => {
   };
 
   const handlePrintInvoice = () => {
-    window.print();
+    // Open PDF in new window and trigger print dialog
+    const pdfUrl = orderEnhancementsApi.getInvoicePdfUrl(Number(id));
+    const printWindow = window.open(pdfUrl, '_blank');
+    
+    if (printWindow) {
+      // Wait for PDF to load, then trigger print
+      printWindow.onload = () => {
+        printWindow.print();
+      };
+      toast.success('Opening invoice for printing...');
+    } else {
+      toast.error('Please allow popups to print invoice');
+    }
   };
 
-  const handleDownloadInvoice = () => {
-    // In a real app, this would generate and download a PDF
-    toast.success('Invoice download started');
+  const handleDownloadInvoice = async () => {
+    try {
+      const loadingToast = toast.loading('Preparing invoice download...');
+      
+      const token = useAuthStore.getState().token;
+      const baseUrl = orderEnhancementsApi.getInvoicePdfUrl(Number(id));
+      
+      // Fetch the PDF blob
+      const response = await fetch(baseUrl, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to download invoice');
+      }
+      
+      // Create blob and download
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `invoice-${order?.order_number || id}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      toast.success('Invoice downloaded successfully!', { id: loadingToast });
+    } catch (error) {
+      console.error('Download error:', error);
+      toast.error('Failed to download invoice');
+    }
+  };
+
+  const handleDownloadPackingSlip = async () => {
+    try {
+      const loadingToast = toast.loading('Preparing packing slip...');
+      
+      const token = useAuthStore.getState().token;
+      const baseUrl = orderEnhancementsApi.getPackingSlipPdfUrl(Number(id));
+      
+      // Fetch the PDF blob
+      const response = await fetch(baseUrl, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to download packing slip');
+      }
+      
+      // Create blob and download
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `packing-slip-${order?.order_number || id}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      toast.success('Packing slip downloaded successfully!', { id: loadingToast });
+    } catch (error) {
+      console.error('Download error:', error);
+      toast.error('Failed to download packing slip');
+    }
   };
 
   const handleRefund = () => {
-    if (window.confirm('Are you sure you want to refund this order?')) {
-      updateStatusMutation.mutate({ status: 'refunded', note: 'Order refunded by admin' });
-    }
+    // Open partial refund modal instead of direct full refund
+    setShowPartialRefundModal(true);
   };
 
   const handleCancelShipment = () => {
@@ -249,6 +335,13 @@ const OrderDetail: React.FC = () => {
           >
             <Download className="h-4 w-4" />
             Download
+          </button>
+          <button
+            onClick={handleDownloadPackingSlip}
+            className="flex items-center gap-2 px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+          >
+            <ClipboardList className="h-4 w-4" />
+            Packing Slip
           </button>
           {!shipment && (order.status === 'confirmed' || order.status === 'processing') && (
             <button
@@ -679,7 +772,16 @@ const OrderDetail: React.FC = () => {
 
               {/* Shipping Address */}
               <div className="mt-6 pt-6 border-t">
-                <p className="text-sm font-medium text-gray-700 mb-3">Shipping Address</p>
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-sm font-medium text-gray-700">Shipping Address</p>
+                  <button
+                    onClick={() => setEditAddressModal({ type: 'shipping', address: order.shipping_address })}
+                    className="text-xs flex items-center gap-1 px-2 py-1 text-blue-600 hover:bg-blue-50 rounded"
+                  >
+                    <Edit className="h-3 w-3" />
+                    Edit
+                  </button>
+                </div>
                 <div className="flex items-start gap-2">
                   <MapPin className="h-4 w-4 text-gray-400 mt-1" />
                   <div>
@@ -707,11 +809,18 @@ const OrderDetail: React.FC = () => {
 
           {/* Billing Information */}
           <div className="bg-white rounded-lg shadow">
-            <div className="p-6 border-b border-gray-200">
+            <div className="p-6 border-b border-gray-200 flex items-center justify-between">
               <h2 className="text-lg font-semibold flex items-center gap-2">
                 <FileText className="h-5 w-5" />
                 Billing Information
               </h2>
+              <button
+                onClick={() => setEditAddressModal({ type: 'billing', address: order.billing_address })}
+                className="text-sm flex items-center gap-1 px-3 py-1 text-blue-600 hover:bg-blue-50 rounded"
+              >
+                <Edit className="h-4 w-4" />
+                Edit
+              </button>
             </div>
             <div className="p-6">
               <div className="flex items-start gap-2">
@@ -902,6 +1011,12 @@ const OrderDetail: React.FC = () => {
             </div>
           </div>
 
+          {/* Financial Summary */}
+          <OrderFinancialSummary
+            order={order}
+            formatCurrency={formatCurrency}
+          />
+
           {/* Order Notes */}
           <div className="bg-white rounded-lg shadow">
             <div className="p-6 border-b border-gray-200">
@@ -918,8 +1033,42 @@ const OrderDetail: React.FC = () => {
               )}
             </div>
           </div>
+
+          {/* Phase 1: Communication Panel */}
+          <CommunicationPanel
+            orderId={Number(id)}
+            customerName={`${order.user?.first_name || ''} ${order.user?.last_name || ''}`.trim() || order.user?.name || 'Customer'}
+            customerEmail={order.user?.email || ''}
+            customerPhone={order.user?.phone || order.shipping_address?.phone || order.shipping_address?.mobile}
+            orderNumber={order.order_number}
+            totalAmount={order.total_amount}
+            trackingNumber={shipment?.tracking_number}
+          />
+
+          {/* Phase 1: Internal Notes */}
+          <InternalNotesSection orderId={Number(id)} />
         </div>
       </div>
+
+      {/* Phase 1: Modals */}
+      {editAddressModal && (
+        <EditAddressModal
+          orderId={Number(id)}
+          addressType={editAddressModal.type}
+          currentAddress={editAddressModal.address}
+          onClose={() => setEditAddressModal(null)}
+        />
+      )}
+
+      {showPartialRefundModal && (
+        <PartialRefundModal
+          orderId={Number(id)}
+          orderNumber={order.order_number}
+          totalAmount={order.total_amount}
+          orderItems={order.orderItems}
+          onClose={() => setShowPartialRefundModal(false)}
+        />
+      )}
 
       {/* Status Update Modal */}
       {showStatusModal && (
