@@ -280,8 +280,8 @@ export interface Customer {
 
 // Table Types
 export interface TableColumn<T = any> {
-  key: keyof T | 'actions' | 'rating';
-  title: string;
+  key: keyof T | 'actions' | 'rating' | 'select';
+  title: React.ReactNode;
   sortable?: boolean;
   render?: (value: any, record: T) => React.ReactNode;
   wrap?: boolean; // Allow text wrapping in this column

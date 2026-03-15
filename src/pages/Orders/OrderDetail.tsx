@@ -8,6 +8,7 @@ import {
   Calendar,
   MapPin,
   Package,
+  PackageCheck,
   Truck,
   CreditCard,
   User,
@@ -29,7 +30,8 @@ import {
   Info,
   ClipboardList,
   MoreVertical,
-  Copy
+  Copy,
+  Tag
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { api } from '../../api/axios';
@@ -80,6 +82,7 @@ const OrderDetail: React.FC = () => {
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState('');
   const [statusNote, setStatusNote] = useState('');
+  const [overrideWorkflow, setOverrideWorkflow] = useState(false);
   const [showActionsMenu, setShowActionsMenu] = useState(false);
   
   // Phase 1 Enhancement States
@@ -117,12 +120,14 @@ const OrderDetail: React.FC = () => {
 
   // Update status mutation
   const updateStatusMutation = useMutation({
-    mutationFn: async ({ status, note }: { status: string; note: string }) => {
-      return ordersApi.updateStatus(Number(id), status, note);
+    mutationFn: async ({ status, note, overrideWorkflow }: { status: string; note: string; overrideWorkflow: boolean }) => {
+      return ordersApi.updateStatus(Number(id), status, note, overrideWorkflow);
     },
     onSuccess: () => {
       toast.success('Order status updated successfully');
       setShowStatusModal(false);
+      setOverrideWorkflow(false);
+      setStatusNote('');
       refetch();
     },
     onError: (error: any) => {
@@ -158,7 +163,27 @@ const OrderDetail: React.FC = () => {
       toast.error('Please select a status');
       return;
     }
-    updateStatusMutation.mutate({ status: selectedStatus, note: statusNote });
+    
+    // Check if this is a non-standard transition without override
+    const validTransitions: Record<string, string[]> = {
+      pending: ['confirmed', 'processing', 'cancelled'],
+      confirmed: ['processing', 'shipped', 'cancelled'],
+      processing: ['shipped', 'cancelled'],
+      shipped: ['delivered'],
+      delivered: [],
+      cancelled: [],
+      refunded: [],
+    };
+    
+    const currentStatus = order?.status || '';
+    const isValidTransition = validTransitions[currentStatus]?.includes(selectedStatus);
+    
+    if (!isValidTransition && !overrideWorkflow) {
+      toast.error('This status transition is not allowed. Check "Override Workflow Rules" to proceed.');
+      return;
+    }
+    
+    updateStatusMutation.mutate({ status: selectedStatus, note: statusNote, overrideWorkflow });
   };
 
   const handlePrintInvoice = () => {
@@ -347,7 +372,7 @@ const OrderDetail: React.FC = () => {
             <ClipboardList className="h-4 w-4 mr-2" />
             Packing Slip
           </Button>
-          {!shipment && (order.status === 'confirmed' || order.status === 'processing') && (
+          {!shipment && (order.status === 'confirmed' || order.status === 'processing' || order.status === 'shipped') && (
             <Button variant="success" size="sm" onClick={() => navigate(`/orders/${id}/create-shipment`)}>
               <Send className="h-4 w-4 mr-2" />
               Create Shipment
@@ -407,7 +432,7 @@ const OrderDetail: React.FC = () => {
                 <ClipboardList className="h-4 w-4" /> Packing Slip
               </button>
               <hr className="my-2" />
-              {!shipment && (order.status === 'confirmed' || order.status === 'processing') && (
+              {!shipment && (order.status === 'confirmed' || order.status === 'processing' || order.status === 'shipped') && (
                 <button
                   onClick={() => { navigate(`/orders/${id}/create-shipment`); setShowActionsMenu(false); }}
                   className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2 text-green-600"
@@ -516,44 +541,100 @@ const OrderDetail: React.FC = () => {
               </CardTitle>
               <CardDescription>
                 {order.order_items?.length || 0} item(s) in this order
+                {order.order_items?.some((item: any) => item.product?.weight) && (
+                  <span className="ml-2 text-gray-400">
+                    • Total Weight: {order.order_items.reduce((sum: number, item: any) =>
+                      sum + (item.product?.weight || 0) * item.quantity, 0
+                    ).toFixed(2)} kg
+                  </span>
+                )}
               </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {order.order_items?.map((item: any) => (
-                  <div key={item.id} className="flex flex-col sm:flex-row sm:items-center gap-4 p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                    {item.product?.image_url && (
-                      <img
-                        src={item.product.image_url}
-                        alt={item.product?.name}
-                        className="w-20 h-20 object-cover rounded-lg flex-shrink-0"
-                      />
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-medium text-gray-900 truncate">
-                        {item.product_name || item.product?.name || 'Product'}
-                      </h3>
-                      <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-500 mt-1">
-                        <span>SKU: {item.product_sku || item.product?.sku || 'N/A'}</span>
-                        {item.product?.isbn && <span>ISBN: {item.product.isbn}</span>}
+                {order.order_items?.map((item: any) => {
+                  // Check if this is a bundle item
+                  const isBundle = item.bundle_variant_id || item.bundle_details;
+                  const bundleDetails = item.bundle_details || (item.product_attributes ? (() => {
+                    try {
+                      const attrs = typeof item.product_attributes === 'string'
+                        ? JSON.parse(item.product_attributes)
+                        : item.product_attributes;
+                      return attrs.bundle_discount_amount > 0 ? {
+                        discount_amount: attrs.bundle_discount_amount,
+                        quantity_per_bundle: attrs.bundle_quantity || 1
+                      } : null;
+                    } catch { return null; }
+                  })() : null);
+                  
+                  return (
+                    <div key={item.id} className={`flex flex-col sm:flex-row sm:items-center gap-4 p-4 rounded-lg transition-colors ${
+                      isBundle ? 'bg-blue-50 border-2 border-blue-200 hover:bg-blue-100' : 'bg-gray-50 hover:bg-gray-100'
+                    }`}>
+                      {item.product?.image_url && (
+                        <img
+                          src={item.product.image_url}
+                          alt={item.product?.name}
+                          className="w-20 h-20 object-cover rounded-lg flex-shrink-0"
+                        />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-medium text-gray-900 truncate">
+                            {item.product_name || item.product?.name || 'Product'}
+                          </h3>
+                          {isBundle && (
+                            <Badge variant="info" className="text-xs">Bundle</Badge>
+                          )}
+                        </div>
+                        <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-500 mt-1">
+                          <span>SKU: {item.product_sku || item.product?.sku || 'N/A'}</span>
+                          {item.product?.isbn && <span>ISBN: {item.product.isbn}</span>}
+                          {item.product?.weight && <span>Weight: {item.product.weight} kg</span>}
+                        </div>
+                        <p className="text-sm text-gray-500 mt-1">
+                          Qty: {item.quantity} × {formatCurrency(item.unit_price)}
+                          {item.product?.weight && (
+                            <span className="text-gray-400 ml-2">
+                              (Total: {(item.product.weight * item.quantity).toFixed(2)} kg)
+                            </span>
+                          )}
+                        </p>
+                        
+                        {/* Bundle Details */}
+                        {bundleDetails && (
+                          <div className="mt-2 p-2 bg-white rounded border border-blue-200 text-sm">
+                            <div className="flex items-center gap-2 text-blue-700">
+                              <Package className="h-4 w-4" />
+                              <span className="font-medium">Bundle Offer</span>
+                            </div>
+                            <div className="mt-1 text-gray-600 space-y-0.5">
+                              {bundleDetails.quantity_per_bundle && (
+                                <p>Items per bundle: <span className="font-medium">{bundleDetails.quantity_per_bundle}</span>
+                                  {bundleDetails.total_items && ` (Total: ${bundleDetails.total_items} items)`}
+                                </p>
+                              )}
+                              {bundleDetails.variant_name && (
+                                <p>Variant: <span className="font-medium">{bundleDetails.variant_name}</span></p>
+                              )}
+                              {bundleDetails.discount_amount > 0 && (
+                                <p className="text-green-600">Bundle Savings: -{formatCurrency(bundleDetails.discount_amount)}</p>
+                              )}
+                            </div>
+                          </div>
+                        )}
                       </div>
-                      <p className="text-sm text-gray-500 mt-1">
-                        Qty: {item.quantity} × {formatCurrency(item.unit_price)}
-                      </p>
-                    </div>
-                    <div className="text-right flex-shrink-0">
-                      <p className="font-semibold text-gray-900">{formatCurrency(item.total_price)}</p>
-                      {item.product_attributes && (() => {
-                        const attrs = JSON.parse(item.product_attributes);
-                        return attrs.bundle_discount_amount > 0 && (
+                      <div className="text-right flex-shrink-0">
+                        <p className="font-semibold text-gray-900">{formatCurrency(item.total_price)}</p>
+                        {bundleDetails?.discount_amount > 0 && (
                           <p className="text-sm text-green-600">
-                            Bundle: -{formatCurrency(attrs.bundle_discount_amount)}
+                            Bundle: -{formatCurrency(bundleDetails.discount_amount)}
                           </p>
-                        );
-                      })()}
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               {/* Order Summary */}
@@ -562,30 +643,110 @@ const OrderDetail: React.FC = () => {
                   <span className="text-gray-600">Subtotal</span>
                   <span className="font-medium">{formatCurrency(order.subtotal || 0)}</span>
                 </div>
-                {order.discount_amount > 0 && (
+                
+                {/* Coupon Discount */}
+                {order.coupon_discount > 0 && (
+                  <div className="flex justify-between text-sm text-green-700 bg-green-50 px-2 py-1 rounded">
+                    <span className="flex items-center gap-1">
+                      <Tag className="h-3 w-3" />
+                      Coupon Discount
+                      {order.coupon_code && (
+                        <span className="text-xs bg-green-200 px-1.5 py-0.5 rounded font-mono">{order.coupon_code}</span>
+                      )}
+                    </span>
+                    <span className="font-medium">-{formatCurrency(order.coupon_discount)}</span>
+                  </div>
+                )}
+                
+                {/* Bundle Discount */}
+                {order.bundle_discount > 0 && (
+                  <div className="flex justify-between text-sm text-blue-700 bg-blue-50 px-2 py-1 rounded">
+                    <span className="flex items-center gap-1">
+                      <PackageCheck className="h-3 w-3" />
+                      Bundle Discount
+                    </span>
+                    <span className="font-medium">-{formatCurrency(order.bundle_discount)}</span>
+                  </div>
+                )}
+                
+                {/* Generic Discount (fallback) */}
+                {order.discount_amount > 0 && !order.coupon_discount && !order.bundle_discount && (
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">Discount</span>
                     <span className="text-green-600 font-medium">-{formatCurrency(order.discount_amount)}</span>
                   </div>
                 )}
-                {order.tax_amount > 0 && (
+                
+                {/* Tax Breakdown */}
+                {order.taxes_breakdown && order.taxes_breakdown.length > 0 ? (
+                  order.taxes_breakdown.map((taxItem: any, index: number) => (
+                    <div key={index} className="flex justify-between text-sm">
+                      <span className="text-gray-600 text-xs">
+                        {taxItem.display_label || taxItem.name}
+                        {taxItem.rate && <span className="ml-1 text-gray-400">({taxItem.rate})</span>}
+                      </span>
+                      <span className="font-medium text-xs">{formatCurrency(taxItem.amount)}</span>
+                    </div>
+                  ))
+                ) : order.tax_amount > 0 && (
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Tax</span>
+                    <span className="text-gray-600">Tax (GST)</span>
                     <span className="font-medium">{formatCurrency(order.tax_amount)}</span>
                   </div>
                 )}
+                
                 {order.shipping_amount > 0 && (
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">Shipping</span>
                     <span className="font-medium">{formatCurrency(order.shipping_amount)}</span>
                   </div>
                 )}
+                
+                {/* Additional Charges */}
+                {order.charges && order.charges.length > 0 && (
+                  order.charges.map((charge: any, index: number) => (
+                    <div key={index} className="flex justify-between text-sm">
+                      <span className="text-gray-600 flex items-center gap-1">
+                        {charge.display_label || charge.name}
+                        {charge.code?.toLowerCase().includes('cod') && (
+                          <span className="text-xs text-orange-600 bg-orange-50 px-1 py-0.5 rounded">COD</span>
+                        )}
+                      </span>
+                      <span className="font-medium">+{formatCurrency(charge.amount)}</span>
+                    </div>
+                  ))
+                )}
+                
+                {order.packaging_amount > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">
+                      Packaging
+                      {order.packaging_option?.name && ` (${order.packaging_option.name})`}
+                    </span>
+                    <span className="font-medium">{formatCurrency(order.packaging_amount)}</span>
+                  </div>
+                )}
+                
                 {order.insurance_amount > 0 && (
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">Insurance</span>
                     <span className="font-medium">{formatCurrency(order.insurance_amount)}</span>
                   </div>
                 )}
+                
+                {/* Total Savings */}
+                {(order.coupon_discount > 0 || order.bundle_discount > 0) && (
+                  <div className="flex justify-between text-sm text-green-800 bg-gradient-to-r from-green-100 to-emerald-100 px-3 py-2 rounded-lg border border-green-200">
+                    <span className="font-medium flex items-center gap-1">
+                      <CheckCircle className="h-4 w-4" />
+                      Customer Savings
+                    </span>
+                    <span className="font-bold">
+                      -{formatCurrency((order.coupon_discount || 0) + (order.bundle_discount || 0))}
+                    </span>
+                  </div>
+                )}
+                
                 <div className="flex justify-between text-lg font-bold pt-2 border-t border-gray-200 mt-2">
                   <span>Total</span>
                   <span className="text-blue-600">{formatCurrency(order.total_amount)}</span>
@@ -806,7 +967,7 @@ const OrderDetail: React.FC = () => {
                 <div className="text-center py-8">
                   <Package className="h-12 w-12 text-gray-400 mx-auto mb-3" />
                   <p className="text-gray-500 mb-4">No shipment created yet</p>
-                  {(order.status === 'confirmed' || order.status === 'processing') && (
+                  {(order.status === 'confirmed' || order.status === 'processing' || order.status === 'shipped') && (
                     <Button variant="success" onClick={() => navigate(`/orders/${id}/create-shipment`)}>
                       <Send className="h-4 w-4 mr-2" />
                       Create Shipment
@@ -1021,6 +1182,229 @@ const OrderDetail: React.FC = () => {
             </CardContent>
           </Card>
 
+          {/* COD Information Card */}
+          {order.is_cod && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <CreditCard className="h-5 w-5" />
+                  COD Details
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between p-2 bg-orange-50 rounded-lg border border-orange-200">
+                    <span className="text-sm font-medium text-orange-800">Payment Type</span>
+                    <span className="text-sm font-bold text-orange-900">
+                      {order.is_cod_advance ? 'COD with Advance' : 'Full COD'}
+                    </span>
+                  </div>
+                  
+                  {order.is_cod_advance && order.advance_amount && (
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-500">Advance Paid</span>
+                        <span className="font-medium text-green-600">{formatCurrency(order.advance_amount)}</span>
+                      </div>
+                      {order.balance_amount && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-500">Balance (COD)</span>
+                          <span className="font-medium text-orange-600">{formatCurrency(order.balance_amount)}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  
+                  {!order.is_cod_advance && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-500">Amount to Collect</span>
+                      <span className="font-bold text-orange-600">{formatCurrency(order.total_amount)}</span>
+                    </div>
+                  )}
+                  
+                  <div className="text-xs text-gray-500 bg-yellow-50 p-2 rounded border border-yellow-200">
+                    ⚠️ Cash on Delivery - Verify payment upon delivery
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Delivery Information Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Truck className="h-5 w-5" />
+                Delivery Info
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {order.delivery_option && (
+                  <div>
+                    <p className="text-sm text-gray-500 mb-1">Delivery Option</p>
+                    <p className="font-medium">{order.delivery_option.name}</p>
+                    {order.delivery_option.description && (
+                      <p className="text-xs text-gray-500">{order.delivery_option.description}</p>
+                    )}
+                  </div>
+                )}
+                
+                {order.pickup_pincode && (
+                  <div>
+                    <p className="text-sm text-gray-500 mb-1">Pickup Pincode</p>
+                    <p className="font-medium font-mono">{order.pickup_pincode}</p>
+                  </div>
+                )}
+                
+                {order.delivery_pincode && (
+                  <div>
+                    <p className="text-sm text-gray-500 mb-1">Delivery Pincode</p>
+                    <p className="font-medium font-mono">{order.delivery_pincode}</p>
+                  </div>
+                )}
+                
+                {order.estimated_delivery_date && (
+                  <div>
+                    <p className="text-sm text-gray-500 mb-1">Estimated Delivery</p>
+                    <p className="font-medium text-blue-600">
+                      {new Date(order.estimated_delivery_date).toLocaleDateString('en-IN', {
+                        weekday: 'short',
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric'
+                      })}
+                    </p>
+                  </div>
+                )}
+                
+                {order.shipping_zone && (
+                  <div>
+                    <p className="text-sm text-gray-500 mb-1">Shipping Zone</p>
+                    <Badge variant="outline">{order.shipping_zone}</Badge>
+                  </div>
+                )}
+                
+                {!order.delivery_option && !order.pickup_pincode && !order.delivery_pincode && !order.estimated_delivery_date && (
+                  <p className="text-sm text-gray-500">No delivery details available</p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Packaging & Insurance Card */}
+          {(order.packaging_option || order.packaging_amount > 0 || order.insurance_amount > 0) && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Package className="h-5 w-5" />
+                  Packaging & Insurance
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {order.packaging_option && (
+                    <div>
+                      <p className="text-sm text-gray-500 mb-1">Packaging</p>
+                      <p className="font-medium">{order.packaging_option.name}</p>
+                      {order.packaging_option.description && (
+                        <p className="text-xs text-gray-500">{order.packaging_option.description}</p>
+                      )}
+                    </div>
+                  )}
+                  
+                  {order.packaging_amount > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-500">Packaging Cost</span>
+                      <span className="font-medium">{formatCurrency(order.packaging_amount)}</span>
+                    </div>
+                  )}
+                  
+                  {order.insurance_amount > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-500">Insurance</span>
+                      <span className="font-medium">{formatCurrency(order.insurance_amount)}</span>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Referral Card */}
+          {order.referral_details && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <User className="h-5 w-5" />
+                  Referral
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between p-2 bg-purple-50 rounded-lg border border-purple-200">
+                    <span className="text-sm font-medium text-purple-800">Referral Code</span>
+                    <span className="text-sm font-bold font-mono text-purple-900">{order.referral_details.code}</span>
+                  </div>
+                  
+                  {order.referral_details.discount_amount > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-500">Discount Applied</span>
+                      <span className="font-medium text-green-600">-{formatCurrency(order.referral_details.discount_amount)}</span>
+                    </div>
+                  )}
+                  
+                  {order.referral_details.discount_type && (
+                    <div className="text-xs text-gray-500">
+                      Discount Type: {order.referral_details.discount_type}
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Refunds Card */}
+          {order.refunds_list && order.refunds_list.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <RefreshCw className="h-5 w-5" />
+                  Refunds ({order.refunds_list.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {order.refunds_list.map((refund: any, index: number) => (
+                    <div key={refund.id || index} className="p-3 bg-gray-50 rounded-lg border border-gray-200">
+                      <div className="flex justify-between items-start mb-2">
+                        <span className="text-sm font-medium">Refund #{refund.id}</span>
+                        <StatusBadge
+                          status={
+                            refund.status === 'completed' ? 'success' :
+                            refund.status === 'pending' ? 'warning' : 'error'
+                          }
+                        >
+                          {refund.status}
+                        </StatusBadge>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-500">Amount</span>
+                        <span className="font-medium text-red-600">{formatCurrency(refund.amount)}</span>
+                      </div>
+                      {refund.reason && (
+                        <p className="text-xs text-gray-500 mt-2 italic">"{refund.reason}"</p>
+                      )}
+                      <p className="text-xs text-gray-400 mt-1">
+                        {formatDate(refund.created_at)}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Financial Summary */}
           <OrderFinancialSummary
             order={order}
@@ -1092,17 +1476,27 @@ const OrderDetail: React.FC = () => {
         loading={cancelShipmentMutation.isPending}
       />
 
-      {/* Status Update Modal */}
+      {/* Status Update Modal with Override */}
       <Modal
         open={showStatusModal}
-        onClose={() => setShowStatusModal(false)}
+        onClose={() => {
+          setShowStatusModal(false);
+          setOverrideWorkflow(false);
+        }}
         title="Update Order Status"
         size="md"
       >
         <div className="space-y-4">
+          {/* Current Status Display */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+            <p className="text-sm text-blue-800">
+              Current status: <span className="font-semibold capitalize">{order?.status}</span>
+            </p>
+          </div>
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              New Status
+              New Status <span className="text-red-500">*</span>
             </label>
             <select
               value={selectedStatus}
@@ -1129,13 +1523,56 @@ const OrderDetail: React.FC = () => {
               placeholder="Add a note about this status change..."
             />
           </div>
+
+          {/* Override Workflow Checkbox */}
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={overrideWorkflow}
+                onChange={(e) => setOverrideWorkflow(e.target.checked)}
+                className="mt-1 h-4 w-4 rounded border-yellow-300 text-yellow-600 focus:ring-yellow-500"
+              />
+              <div>
+                <span className="text-sm font-medium text-yellow-800">
+                  Override Workflow Rules
+                </span>
+                <p className="text-xs text-yellow-700 mt-1">
+                  Enable this to skip normal workflow restrictions and force the status change.
+                  Use with caution as this may bypass validation checks.
+                </p>
+              </div>
+            </label>
+          </div>
+
+          {/* Warning for unusual transitions */}
+          {selectedStatus && order?.status && selectedStatus !== order.status && (
+            <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="h-5 w-5 text-orange-500 mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium text-orange-800">
+                    Status Transition Warning
+                  </p>
+                  <p className="text-xs text-orange-700 mt-1">
+                    Changing from <span className="font-semibold capitalize">{order.status}</span> to{' '}
+                    <span className="font-semibold capitalize">{selectedStatus}</span> may not follow the normal workflow.
+                    {!overrideWorkflow && ' Check "Override Workflow Rules" if you want to proceed anyway.'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="flex gap-3 mt-6">
           <Button
             variant="outline"
             className="flex-1"
-            onClick={() => setShowStatusModal(false)}
+            onClick={() => {
+              setShowStatusModal(false);
+              setOverrideWorkflow(false);
+            }}
           >
             Cancel
           </Button>

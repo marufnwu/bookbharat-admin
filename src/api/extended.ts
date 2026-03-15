@@ -168,8 +168,8 @@ export const ordersApiExtended = {
   // Extended methods
   getAll: (params?: any) => api.get('/orders', { params }).then(res => res.data),
   getById: (id: number) => api.get(`/orders/${id}`).then(res => res.data),
-  updateStatus: (id: number, status: string, note?: string) =>
-    api.put(`/orders/${id}/status`, { status, note }).then(res => res.data),
+  updateStatus: (id: number, status: string, note?: string, overrideWorkflow?: boolean) =>
+    api.put(`/orders/${id}/status`, { status, note, override_workflow: overrideWorkflow }).then(res => res.data),
 };
 
 // Extended Customers API
