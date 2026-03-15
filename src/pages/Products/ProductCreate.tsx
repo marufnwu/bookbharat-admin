@@ -2,11 +2,22 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { productsApi, categoriesApi, publishersApi, authorsApi } from '../../api';
-import { Upload, X, Plus, Save, ArrowLeft, Sparkles } from 'lucide-react';
+import { Upload, X, Plus, Save, ArrowLeft, Sparkles, Loader2 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import RichTextEditor from '../../components/RichTextEditor';
 import BundleVariantManager from '../../components/BundleVariantManager';
 import AiFieldGenerator from '../../components/AiFieldGenerator';
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+  CardFooter,
+  Button,
+  Badge,
+  PageSkeleton,
+} from '../../components';
 
 interface ProductForm {
   name: string;
@@ -291,36 +302,55 @@ const ProductCreate: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      {/* Header - Mobile Responsive */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-4">
-          <button
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={() => navigate('/products')}
-            className="p-2 hover:bg-gray-100 rounded-lg"
+            className="hidden sm:flex"
           >
-            <ArrowLeft className="h-5 w-5" />
-          </button>
-          <h1 className="text-2xl font-semibold">Create New Product</h1>
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Create New Product</h1>
+            <p className="text-sm text-gray-500 mt-1 sm:hidden">Add a new product to your catalog</p>
+          </div>
         </div>
-        <button
-          onClick={handleSubmit}
-          disabled={createMutation.isPending}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-        >
-          <Save className="h-4 w-4" />
-          {createMutation.isPending ? 'Creating...' : 'Create Product'}
-        </button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate('/products')}
+            className="sm:hidden"
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back
+          </Button>
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={handleSubmit}
+            disabled={createMutation.isPending}
+            loading={createMutation.isPending}
+          >
+            <Save className="h-4 w-4 mr-2" />
+            {createMutation.isPending ? 'Creating...' : 'Create Product'}
+          </Button>
+        </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow">
-        <div className="border-b border-gray-200">
-          <nav className="flex -mb-px">
+      <Card>
+        <div className="border-b border-gray-200 overflow-x-auto">
+          <nav className="flex -mb-px min-w-max">
             {tabs.map(tab => (
               <button
                 key={tab.id}
                 onClick={() => handleTabChange(tab.id)}
-                className={`py-2 px-6 border-b-2 font-medium text-sm ${
+                className={`py-3 px-4 sm:px-6 border-b-2 font-medium text-sm whitespace-nowrap transition-colors ${
                   activeTab === tab.id
-                    ? 'border-blue-500 text-blue-600'
+                    ? 'border-primary-500 text-primary-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
@@ -1054,7 +1084,7 @@ const ProductCreate: React.FC = () => {
             </div>
           )}
         </form>
-      </div>
+      </Card>
 
       {/* AI Field Generator Modal */}
       {showAiGenerator && (

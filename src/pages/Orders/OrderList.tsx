@@ -10,7 +10,7 @@ import {
   XMarkIcon,
 } from '@heroicons/react/24/outline';
 import { ordersApi } from '../../api';
-import { Table, Button, Badge, LoadingSpinner } from '../../components';
+import { Table, Button, Badge, LoadingSpinner, Card, CardContent, StatusBadge } from '../../components';
 import { useNotificationStore } from '../../store/notificationStore';
 import { Order, FilterOptions, TableColumn } from '../../types';
 import { format } from 'date-fns';
@@ -206,7 +206,7 @@ const OrderList: React.FC = () => {
         <Button
           key="cancel"
           size="sm"
-          variant="destructive"
+          variant="danger"
           onClick={() => handleStatusUpdate(order.id, 'cancelled')}
         >
           <XMarkIcon className="h-4 w-4 mr-1" />
@@ -420,8 +420,8 @@ const OrderList: React.FC = () => {
         )}
       </div>
 
-      {/* Orders Table */}
-      <div className="bg-white rounded-lg shadow">
+      {/* Orders Table - Desktop */}
+      <div className="hidden md:block bg-white rounded-lg shadow">
         <Table
           data={(ordersResponse as any)?.orders?.data || []}
           columns={columns}
@@ -434,6 +434,100 @@ const OrderList: React.FC = () => {
           }}
           onSort={handleSort}
         />
+      </div>
+
+      {/* Orders Cards - Mobile */}
+      <div className="md:hidden space-y-4">
+        {isLoading ? (
+          <div className="flex justify-center py-8">
+            <LoadingSpinner size="lg" />
+          </div>
+        ) : ((ordersResponse as any)?.orders?.data || []).length === 0 ? (
+          <Card>
+            <CardContent className="py-12 text-center">
+              <p className="text-gray-500">No orders found</p>
+            </CardContent>
+          </Card>
+        ) : (
+          ((ordersResponse as any)?.orders?.data || []).map((order: any) => (
+            <Card key={order.id} className="overflow-hidden">
+              <CardContent className="p-4">
+                <div className="flex items-start justify-between mb-3">
+                  <div>
+                    <Link
+                      to={`/orders/${order.id}`}
+                      className="text-sm font-medium text-primary-600 hover:text-primary-700"
+                    >
+                      #{order.order_number}
+                    </Link>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {order.created_at ? format(new Date(order.created_at), 'MMM d, yyyy h:mm a') : '-'}
+                    </p>
+                  </div>
+                  <StatusBadge status={order.status as any} size="sm" />
+                </div>
+
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Customer</span>
+                    <span className="font-medium text-gray-900">
+                      {order.customer?.name || order.billing_address?.name || 'N/A'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Items</span>
+                    <span className="font-medium text-gray-900">
+                      {order.items_count || order.items?.length || 0}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Total</span>
+                    <span className="font-medium text-gray-900">৳{Number(order.total || 0).toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Payment</span>
+                    <StatusBadge status={order.payment_status as any} size="sm" />
+                  </div>
+                </div>
+
+                <div className="mt-4 pt-3 border-t border-gray-100">
+                  <Link
+                    to={`/orders/${order.id}`}
+                    className="w-full inline-flex items-center justify-center px-3 py-2 text-sm font-medium text-primary-600 bg-primary-50 rounded-md hover:bg-primary-100 transition-colors"
+                  >
+                    <EyeIcon className="h-4 w-4 mr-1" />
+                    View Details
+                  </Link>
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        )}
+
+        {/* Mobile Pagination */}
+        {((ordersResponse as any)?.orders?.total || 0) > (filters.per_page || 10) && (
+          <div className="flex justify-center gap-2 pt-4">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={(filters.page || 1) <= 1}
+              onClick={() => handlePageChange((filters.page || 1) - 1)}
+            >
+              Previous
+            </Button>
+            <span className="flex items-center px-3 text-sm text-gray-600">
+              Page {filters.page || 1} of {Math.ceil(((ordersResponse as any)?.orders?.total || 0) / (filters.per_page || 10))}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={(filters.page || 1) >= Math.ceil(((ordersResponse as any)?.orders?.total || 0) / (filters.per_page || 10))}
+              onClick={() => handlePageChange((filters.page || 1) + 1)}
+            >
+              Next
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );

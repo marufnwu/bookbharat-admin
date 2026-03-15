@@ -15,7 +15,7 @@ import {
   XCircleIcon,
 } from '@heroicons/react/24/outline';
 import { productsApi, categoriesApi, brandsApi } from '../../api';
-import { Table, Button, Input, Badge, LoadingSpinner } from '../../components';
+import { Table, Button, Input, Badge, LoadingSpinner, Card, CardContent, StatusBadge } from '../../components';
 import { useNotificationStore } from '../../store/notificationStore';
 import { Product, FilterOptions, TableColumn } from '../../types';
 import { format } from 'date-fns';
@@ -362,7 +362,7 @@ const ProductList: React.FC = () => {
                 {selectedProducts.length} selected
               </span>
               <Button
-                variant="destructive"
+                variant="danger"
                 size="sm"
                 onClick={handleBulkDelete}
                 loading={bulkDeleteMutation.isPending}
@@ -446,8 +446,8 @@ const ProductList: React.FC = () => {
         )}
       </div>
 
-      {/* Products Table */}
-      <div className="bg-white rounded-lg shadow">
+      {/* Products Table - Desktop */}
+      <div className="hidden md:block bg-white rounded-lg shadow">
         <Table
           data={(productsResponse as any)?.products?.data || []}
           columns={columns}
@@ -460,6 +460,137 @@ const ProductList: React.FC = () => {
           }}
           onSort={handleSort}
         />
+      </div>
+
+      {/* Products Cards - Mobile */}
+      <div className="md:hidden space-y-4">
+        {isLoading ? (
+          <div className="flex justify-center py-8">
+            <LoadingSpinner size="lg" />
+          </div>
+        ) : ((productsResponse as any)?.products?.data || []).length === 0 ? (
+          <Card>
+            <CardContent className="py-12 text-center">
+              <p className="text-gray-500">No products found</p>
+            </CardContent>
+          </Card>
+        ) : (
+          ((productsResponse as any)?.products?.data || []).map((product: Product) => (
+            <Card key={product.id} className="overflow-hidden">
+              <CardContent className="p-4">
+                <div className="flex items-start space-x-3">
+                  {/* Product Image */}
+                  <div className="h-16 w-16 bg-gray-100 rounded-lg flex-shrink-0 overflow-hidden">
+                    {product.images && product.images.length > 0 ? (
+                      <img
+                        src={getFullImageUrl(product.images[0].image_url) || getFullImageUrl(product.images[0].image_path) || '/placeholder-image.png'}
+                        alt={product.images[0].alt_text || product.name || product.title}
+                        className="h-16 w-16 rounded-lg object-cover"
+                        onError={(e) => {
+                          e.currentTarget.src = '/placeholder-image.png';
+                        }}
+                      />
+                    ) : (
+                      <div className="h-16 w-16 bg-gray-200 rounded-lg flex items-center justify-center">
+                        <span className="text-xs text-gray-400">No img</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Product Info */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center space-x-2">
+                          <h3 className="text-sm font-medium text-gray-900 truncate">
+                            {product.name || product.title}
+                          </h3>
+                          {product.is_featured && (
+                            <Badge variant="warning" size="sm">Featured</Badge>
+                          )}
+                        </div>
+                        <p className="text-xs text-gray-500 mt-0.5">SKU: {product.sku}</p>
+                      </div>
+                      <StatusBadge status={product.status as any} size="sm" />
+                    </div>
+
+                    {/* Price & Stock */}
+                    <div className="mt-2 flex items-center justify-between">
+                      <div>
+                        <span className="text-sm font-semibold text-gray-900">
+                          {formatCurrency(product.price)}
+                        </span>
+                        {product.compare_price && Number(product.compare_price) > Number(product.price) && (
+                          <span className="text-xs text-gray-500 line-through ml-1">
+                            {formatCurrency(Number(product.compare_price))}
+                          </span>
+                        )}
+                      </div>
+                      {getStockBadge(product.stock_quantity || 0, product.manage_stock || false)}
+                    </div>
+
+                    {/* Category & Free Shipping */}
+                    <div className="mt-2 flex items-center flex-wrap gap-1">
+                      {product.category?.name && (
+                        <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded">
+                          {product.category.name}
+                        </span>
+                      )}
+                      {getFreeShippingBadge(product)}
+                    </div>
+
+                    {/* Actions */}
+                    <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-end space-x-2">
+                      <Link
+                        to={`/products/${product.id}`}
+                        className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+                      >
+                        <EyeIcon className="h-4 w-4" />
+                      </Link>
+                      <Link
+                        to={`/products/${product.id}/edit`}
+                        className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-md transition-colors"
+                      >
+                        <PencilIcon className="h-4 w-4" />
+                      </Link>
+                      <button
+                        onClick={() => handleDeleteProduct(product.id)}
+                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                      >
+                        <TrashIcon className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        )}
+
+        {/* Mobile Pagination */}
+        {((productsResponse as any)?.products?.total || 0) > (filters.per_page || 10) && (
+          <div className="flex justify-center gap-2 pt-4">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={(filters.page || 1) <= 1}
+              onClick={() => handlePageChange((filters.page || 1) - 1)}
+            >
+              Previous
+            </Button>
+            <span className="flex items-center px-3 text-sm text-gray-600">
+              Page {filters.page || 1} of {Math.ceil(((productsResponse as any)?.products?.total || 0) / (filters.per_page || 10))}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={(filters.page || 1) >= Math.ceil(((productsResponse as any)?.products?.total || 0) / (filters.per_page || 10))}
+              onClick={() => handlePageChange((filters.page || 1) + 1)}
+            >
+              Next
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );

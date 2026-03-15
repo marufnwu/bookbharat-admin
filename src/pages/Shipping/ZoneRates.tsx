@@ -5,7 +5,6 @@ import {
   Edit,
   Save,
   X,
-  Loader2,
   DollarSign,
   Globe,
   TrendingUp,
@@ -14,6 +13,7 @@ import {
   Plus
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { Button, Card, CardContent, PageSkeleton } from '../../components';
 
 interface ZoneRate {
   id: number;
@@ -214,11 +214,7 @@ const ZoneRates: React.FC = () => {
   };
 
   if (isLoading) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-      </div>
-    );
+    return <PageSkeleton />;
   }
 
   // Group rates by weight slab
@@ -233,13 +229,13 @@ const ZoneRates: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <div>
-          <h2 className="text-lg font-semibold text-gray-900">Zone Rates</h2>
+          <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">Zone Rates</h1>
           <p className="text-sm text-gray-600">Configure shipping rates for each zone and weight slab</p>
         </div>
-        <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-2">
-          <div className="flex items-center text-sm text-blue-800">
+        <div className="bg-primary-50 border border-primary-200 rounded-lg px-4 py-2">
+          <div className="flex items-center text-sm text-primary-800">
             <Info className="h-4 w-4 mr-2" />
             <span>Rates are in INR (₹)</span>
           </div>
@@ -616,26 +612,18 @@ const ZoneRates: React.FC = () => {
               </div>
 
               <div className="flex justify-end space-x-3 mt-6">
-                <button
+                <Button
+                  variant="outline"
                   onClick={handleCreateCancel}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300"
                 >
                   Cancel
-                </button>
-                <button
+                </Button>
+                <Button
                   onClick={handleCreateSubmit}
-                  disabled={createMutation.isPending}
-                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50"
+                  loading={createMutation.isPending}
                 >
-                  {createMutation.isPending ? (
-                    <div className="flex items-center">
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                      Creating...
-                    </div>
-                  ) : (
-                    'Create Zone Rate'
-                  )}
-                </button>
+                  Create Zone Rate
+                </Button>
               </div>
             </div>
           </div>

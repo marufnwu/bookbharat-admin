@@ -11,11 +11,11 @@ import {
   Building,
   Star,
   StarOff,
-  Loader2,
   Phone,
   Mail
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { Button, Card, CardContent, StatusBadge, Modal, PageSkeleton } from '../../components';
 
 interface Warehouse {
   id: number;
@@ -202,68 +202,59 @@ const Warehouses: React.FC = () => {
   ];
 
   if (isLoading) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-      </div>
-    );
+    return <PageSkeleton />;
   }
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <div>
-          <h2 className="text-lg font-semibold text-gray-900">Warehouses</h2>
+          <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">Warehouses</h1>
           <p className="text-sm text-gray-600">Manage pickup locations and shipping origins</p>
         </div>
-        <button
+        <Button
           onClick={() => handleOpenModal()}
-          className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700"
+          className="w-full sm:w-auto"
         >
           <Plus className="h-4 w-4 mr-2" />
           Add Warehouse
-        </button>
+        </Button>
       </div>
 
       {/* Warehouses Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
         {warehouses.map((warehouse: Warehouse) => (
-          <div
+          <Card
             key={warehouse.id}
-            className={`bg-white rounded-lg border p-6 relative ${
-              warehouse.is_default ? 'border-blue-500 ring-2 ring-blue-100' : 'border-gray-200'
+            className={`relative ${
+              warehouse.is_default ? 'border-primary-500 ring-2 ring-primary-100' : ''
             }`}
           >
             {/* Default Badge */}
             {warehouse.is_default && (
-              <div className="absolute -top-2 -right-2">
-                <div className="bg-blue-500 text-white text-xs px-2 py-1 rounded-full flex items-center">
+              <div className="absolute -top-2 -right-2 z-10">
+                <StatusBadge status="info" size="sm">
                   <Star className="h-3 w-3 mr-1" />
                   Default
-                </div>
+                </StatusBadge>
               </div>
             )}
 
-            {/* Header */}
-            <div className="flex items-start justify-between mb-4">
-              <div className="flex items-center">
-                <Building className="h-5 w-5 text-gray-400 mr-2" />
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900">{warehouse.name}</h3>
-                  <p className="text-sm text-gray-500">{warehouse.code}</p>
+            <CardContent className="p-4 sm:p-6">
+              {/* Header */}
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex items-center">
+                  <div className="w-10 h-10 bg-primary-100 rounded-lg flex items-center justify-center mr-3">
+                    <Building className="h-5 w-5 text-primary-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-base sm:text-lg font-semibold text-gray-900">{warehouse.name}</h3>
+                    <p className="text-sm text-gray-500">{warehouse.code}</p>
+                  </div>
                 </div>
+                <StatusBadge status={warehouse.is_active ? 'active' : 'inactive'} size="sm" />
               </div>
-              <span
-                className={`px-2 py-1 text-xs rounded-full ${
-                  warehouse.is_active
-                    ? 'bg-green-100 text-green-700'
-                    : 'bg-red-100 text-red-700'
-                }`}
-              >
-                {warehouse.is_active ? 'Active' : 'Inactive'}
-              </span>
-            </div>
 
             {/* Address */}
             <div className="mb-4">
@@ -307,51 +298,56 @@ const Warehouses: React.FC = () => {
               </span>
             </div>
 
-            {/* Actions */}
-            <div className="flex items-center justify-between pt-4 border-t border-gray-200">
-              <div className="flex space-x-2">
-                <button
-                  onClick={() => handleOpenModal(warehouse)}
-                  className="text-blue-600 hover:text-blue-700 text-sm"
-                >
-                  <Edit className="h-4 w-4" />
-                </button>
-                <button
-                  onClick={() => handleDelete(warehouse.id)}
-                  className="text-red-600 hover:text-red-700 text-sm"
-                  disabled={warehouse.is_default}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
+              {/* Actions */}
+              <div className="flex items-center justify-between pt-4 border-t border-gray-200">
+                <div className="flex space-x-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleOpenModal(warehouse)}
+                    className="p-1.5"
+                  >
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleDelete(warehouse.id)}
+                    disabled={warehouse.is_default}
+                    className="p-1.5 text-red-600 hover:text-red-700 hover:bg-red-50"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+                {!warehouse.is_default && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleSetDefault(warehouse.id)}
+                    loading={setDefaultMutation.isPending}
+                  >
+                    <StarOff className="h-3 w-3 mr-1" />
+                    Set Default
+                  </Button>
+                )}
               </div>
-              {!warehouse.is_default && (
-                <button
-                  onClick={() => handleSetDefault(warehouse.id)}
-                  disabled={setDefaultMutation.isPending}
-                  className="flex items-center text-xs text-gray-600 hover:text-blue-600"
-                >
-                  <StarOff className="h-3 w-3 mr-1" />
-                  Set Default
-                </button>
-              )}
-            </div>
-          </div>
+            </CardContent>
+          </Card>
         ))}
       </div>
 
       {warehouses.length === 0 && (
-        <div className="text-center py-12">
-          <Building className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No warehouses found</h3>
-          <p className="text-gray-600 mb-4">Get started by adding your first warehouse location.</p>
-          <button
-            onClick={() => handleOpenModal()}
-            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Add Warehouse
-          </button>
-        </div>
+        <Card>
+          <CardContent className="py-12 text-center">
+            <Building className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No warehouses found</h3>
+            <p className="text-gray-600 mb-4">Get started by adding your first warehouse location.</p>
+            <Button onClick={() => handleOpenModal()}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add Warehouse
+            </Button>
+          </CardContent>
+        </Card>
       )}
 
       {/* Modal */}
@@ -568,31 +564,23 @@ const Warehouses: React.FC = () => {
                 </div>
 
                 {/* Actions */}
-                <div className="flex justify-end space-x-3 pt-6 border-t">
-                  <button
+                <div className="flex flex-col sm:flex-row sm:justify-end gap-2 pt-6 border-t">
+                  <Button
                     type="button"
+                    variant="outline"
                     onClick={handleCloseModal}
-                    className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50"
+                    className="w-full sm:w-auto"
                   >
                     Cancel
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     type="submit"
-                    disabled={createMutation.isPending || updateMutation.isPending}
-                    className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+                    loading={createMutation.isPending || updateMutation.isPending}
+                    className="w-full sm:w-auto"
                   >
-                    {createMutation.isPending || updateMutation.isPending ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Saving...
-                      </>
-                    ) : (
-                      <>
-                        <Save className="h-4 w-4 mr-2" />
-                        {editingWarehouse ? 'Update' : 'Create'}
-                      </>
-                    )}
-                  </button>
+                    <Save className="h-4 w-4 mr-2" />
+                    {editingWarehouse ? 'Update' : 'Create'}
+                  </Button>
                 </div>
               </form>
             </div>

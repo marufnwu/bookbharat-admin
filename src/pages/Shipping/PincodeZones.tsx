@@ -11,12 +11,12 @@ import {
   Save,
   X,
   MapPin,
-  Loader2,
   Filter,
   CheckCircle,
   XCircle
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { Button, Card, CardContent, StatusBadge, PageSkeleton } from '../../components';
 
 interface PincodeZone {
   id: number;
@@ -191,42 +191,40 @@ const PincodeZones: React.FC = () => {
   });
 
   if (isLoading) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-      </div>
-    );
+    return <PageSkeleton />;
   }
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <div>
-          <h2 className="text-lg font-semibold text-gray-900">Pincode Zones</h2>
+          <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">Pincode Zones</h1>
           <p className="text-sm text-gray-600">Map pincodes to shipping zones</p>
         </div>
-        <div className="flex items-center space-x-3">
-          <button className="flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="outline" size="sm">
             <Upload className="h-4 w-4 mr-2" />
-            Bulk Import
-          </button>
-          <button className="flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+            <span className="hidden sm:inline">Bulk Import</span>
+            <span className="sm:hidden">Import</span>
+          </Button>
+          <Button variant="outline" size="sm">
             <Download className="h-4 w-4 mr-2" />
-            Export
-          </button>
-          <button
+            <span className="hidden sm:inline">Export</span>
+          </Button>
+          <Button
             onClick={() => handleOpenModal()}
-            className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700"
+            size="sm"
           >
             <Plus className="h-4 w-4 mr-2" />
             Add Pincode
-          </button>
+          </Button>
         </div>
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-lg border border-gray-200 p-4">
+      <Card>
+        <CardContent className="p-4">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="relative">
             <Search className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
@@ -263,10 +261,11 @@ const PincodeZones: React.FC = () => {
             More Filters
           </button>
         </div>
-      </div>
+        </CardContent>
+      </Card>
 
-      {/* Pincodes Table */}
-      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+      {/* Pincodes Table - Desktop */}
+      <div className="hidden md:block bg-white rounded-lg border border-gray-200 overflow-hidden">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
@@ -507,23 +506,13 @@ const PincodeZones: React.FC = () => {
                   >
                     Cancel
                   </button>
-                  <button
+                  <Button
                     type="submit"
-                    disabled={createMutation.isPending || updateMutation.isPending}
-                    className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+                    loading={createMutation.isPending || updateMutation.isPending}
                   >
-                    {createMutation.isPending || updateMutation.isPending ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Saving...
-                      </>
-                    ) : (
-                      <>
-                        <Save className="h-4 w-4 mr-2" />
-                        {editingPincode ? 'Update' : 'Create'}
-                      </>
-                    )}
-                  </button>
+                    <Save className="h-4 w-4 mr-2" />
+                    {editingPincode ? 'Update' : 'Create'}
+                  </Button>
                 </div>
               </form>
             </div>

@@ -1,529 +1,162 @@
 import React, { useState } from 'react';
-import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
-import {
-  Menu as MenuIcon,
-  X,
-  Home,
-  ShoppingBag,
-  ShoppingCart,
-  Users,
-  Settings,
-  LogOut,
-  ChevronDown,
-  FolderOpen,
-  Star,
-  Ticket,
-  Truck,
-  Sparkles,
-  Layers,
-  FileText,
-  Navigation,
-  Layout,
-  Shield,
-  Server,
-  Settings as SettingsIcon,
-  CreditCard,
-  BarChart3,
-  DollarSign,
-  Receipt,
-  Image,
-  Tag,
-  Newspaper,
-  Activity,
-  Box,
-  Share2,
-  Rss,
-  Megaphone,
-  BookOpen,
-  Database,
-  Book,
-  AlertTriangle,
-  Mail,
-  MessageSquare,
-  Globe,
-  Gift
-} from 'lucide-react';
-import { Menu, Transition } from '@headlessui/react';
+import { Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/useAuth';
-
-interface NavigationItem {
-  name: string;
-  href: string;
-  icon: React.ComponentType<{ className?: string }>;
-  current?: boolean;
-  children?: NavigationItem[];
-}
-
-const navigation: NavigationItem[] = [
-  { name: 'Dashboard', href: '/dashboard', icon: Home },
-
-  // Sales & Orders
-  {
-    name: 'Sales',
-    href: '/sales',
-    icon: ShoppingCart,
-    children: [
-      { name: 'Orders', href: '/orders', icon: ShoppingCart },
-      { name: 'Active Carts', href: '/active-carts', icon: ShoppingCart },
-      { name: 'Abandoned Carts', href: '/marketing/abandoned-carts', icon: LogOut },
-    ]
-  },
-
-  // Catalog
-  {
-    name: 'Catalog',
-    href: '/catalog',
-    icon: Tag,
-    children: [
-      { name: 'Products', href: '/products', icon: ShoppingBag },
-      { name: 'Categories', href: '/categories', icon: FolderOpen },
-      { name: 'Reviews', href: '/reviews', icon: Star },
-      { name: 'Packaging', href: '/packaging', icon: Gift }, // New Item
-    ]
-  },
-
-  // Customers (Single Item)
-  { name: 'Customers', href: '/customers', icon: Users },
-
-  // Marketing
-  {
-    name: 'Marketing',
-    href: '/marketing',
-    icon: Megaphone,
-    children: [
-      { name: 'Coupons', href: '/coupons', icon: Ticket },
-      { name: 'Bundles', href: '/bundle-manager', icon: Sparkles },
-      { name: 'Newsletter', href: '/newsletter', icon: Newspaper },
-      { name: 'Social Commerce', href: '/social-commerce', icon: Share2 },
-      { name: 'Product Feeds', href: '/marketing/feeds', icon: Rss },
-      { name: 'Analytics', href: '/marketing/analytics', icon: BarChart3 },
-      { name: 'Settings', href: '/marketing/settings', icon: SettingsIcon },
-    ]
-  },
-
-  // Storefront (Targeting Look & Feel)
-  {
-    name: 'Storefront',
-    href: '/storefront',
-    icon: Layout,
-    children: [
-      { name: 'Layout & Design', href: '/homepage-layout', icon: Layers },
-      { name: 'Banners', href: '/promotional-banners', icon: Tag },
-      { name: 'Hero Config', href: '/hero-config', icon: Image },
-      { name: 'Navigation Menu', href: '/navigation-menu', icon: Navigation },
-    ]
-  },
-
-  // Content (CMS)
-  {
-    name: 'Content',
-    href: '/content',
-    icon: FileText,
-    children: [
-      { name: 'Blog', href: '/blog', icon: BookOpen },
-      { name: 'Pages', href: '/content-pages', icon: FileText },
-      { name: 'Content Blocks', href: '/content-blocks', icon: Box },
-      { name: 'Media Library', href: '/media-library', icon: Image },
-    ]
-  },
-
-
-
-
-  // Store Settings (Business Rules)
-  {
-    name: 'Store Settings',
-    href: '/settings',
-    icon: Settings,
-    children: [
-      { name: 'General', href: '/settings', icon: Settings },
-      { name: 'Site Settings', href: '/settings/site', icon: Globe },
-      { name: 'Payment Settings', href: '/settings/payment', icon: CreditCard },
-      { name: 'Shipping', href: '/shipping', icon: Truck },
-      { name: 'Taxes', href: '/settings/taxes', icon: DollarSign },
-      { name: 'Order Charges', href: '/settings/charges', icon: Receipt },
-      { name: 'Invoice Templates', href: '/invoice-templates', icon: FileText },
-      { name: 'AI Providers', href: '/settings/ai-providers', icon: Sparkles },
-      { name: 'Messaging Channels', href: '/settings/messaging-channels', icon: MessageSquare },
-      { name: 'WhatsApp Templates', href: '/settings/whatsapp-templates', icon: MessageSquare },
-    ]
-  },
-
-  // System (Technical & Admin)
-  {
-    name: 'System',
-    href: '/system',
-    icon: Shield,
-    children: [
-      { name: 'Admin Users', href: '/users', icon: Users },
-      { name: 'Roles & Permissions', href: '/settings/roles', icon: Shield },
-      { name: 'Error Logs', href: '/system/error-logs', icon: AlertTriangle },
-      { name: 'Logs', href: '/settings/system', icon: Server },
-      { name: 'Cache', href: '/settings/cache', icon: Database },
-      { name: 'Cache', href: '/settings/cache', icon: Database },
-      {
-        name: 'Migration',
-        href: '/migration',
-        icon: Database,
-        children: [
-          { name: 'Dashboard', href: '/migration', icon: BarChart3 },
-          { name: 'Settings', href: '/migration/settings', icon: SettingsIcon },
-        ]
-      },
-      { name: 'Documentation', href: '/docs', icon: Book },
-    ]
-  },
-
-  // Analytics Hub
-  {
-    name: 'Analytics',
-    href: '/analytics',
-    icon: BarChart3,
-    children: [
-      { name: 'Overview', href: '/analytics', icon: Activity },
-      { name: 'Payment Analytics', href: '/analytics/payments', icon: CreditCard },
-      { name: 'Message Logs', href: '/analytics/message-logs', icon: Mail },
-      // Marketing & Bundle Analytics are also linked within their respective modules, 
-      // but could be centrally linked here too if desired.
-    ]
-  },
-];
+import { Sidebar, Header, MobileNav } from '../components/layout';
+import { Drawer } from '../components';
 
 const AdminLayout: React.FC = () => {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [expandedItems, setExpandedItems] = useState<string[]>([]);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const { user, logout } = useAuth();
-  const location = useLocation();
   const navigate = useNavigate();
-
-  // Auto-expand parent items if we're on a child route
-  React.useEffect(() => {
-    navigation.forEach((item) => {
-      if (item.children) {
-        const hasActiveChild = item.children.some((child) => isCurrentPath(child.href));
-        if (hasActiveChild && !expandedItems.includes(item.name)) {
-          setExpandedItems((prev) => [...prev, item.name]);
-        }
-      }
-    });
-  }, [location.pathname, expandedItems]);
 
   const handleLogout = () => {
     logout();
     navigate('/login');
   };
 
-  const isCurrentPath = (href: string) => {
-    return location.pathname === href || location.pathname.startsWith(href + '/');
-  };
-
-  const toggleExpanded = (itemName: string) => {
-    setExpandedItems(prev =>
-      prev.includes(itemName)
-        ? prev.filter(name => name !== itemName)
-        : [...prev, itemName]
-    );
-  };
-
-  const isExpanded = (itemName: string) => expandedItems.includes(itemName);
-
   return (
-    <div className="h-screen flex overflow-hidden bg-gray-100">
-      {/* Mobile sidebar overlay */}
-      {sidebarOpen && (
-        <div className="fixed inset-0 flex z-40 md:hidden">
-          <div className="fixed inset-0 bg-gray-600 bg-opacity-75" onClick={() => setSidebarOpen(false)} />
-          <div className="relative flex-1 flex flex-col max-w-xs w-full pt-5 pb-4 bg-white">
-            <div className="absolute top-0 right-0 -mr-12 pt-2">
-              <button
-                type="button"
-                className="ml-1 flex items-center justify-center h-10 w-10 rounded-full focus:outline-none focus:ring-2 focus:ring-inset focus:ring-white"
-                onClick={() => setSidebarOpen(false)}
-              >
-                <X className="h-6 w-6 text-white" />
-              </button>
-            </div>
-            <div className="flex-shrink-0 flex items-center px-4">
-              <div className="h-8 w-8 bg-blue-600 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-sm">BB</span>
-              </div>
-              <span className="ml-2 text-xl font-semibold text-gray-900">BookBharat Admin</span>
-            </div>
-            <div className="mt-5 flex-1 h-0 overflow-y-auto">
-              <nav className="px-2 space-y-1">
-                {navigation.map((item) => (
-                  <div key={item.name}>
-                    {item.children ? (
-                      <>
-                        <button
-                          onClick={() => toggleExpanded(item.name)}
-                          className={`${
-                            item.children.some(child => isCurrentPath(child.href))
-                              ? 'bg-blue-100 text-blue-900'
-                              : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                          } group flex items-center justify-between w-full px-2 py-2 text-sm font-medium rounded-md transition-colors`}
-                        >
-                          <div className="flex items-center">
-                            <item.icon className="mr-3 h-5 w-5 flex-shrink-0" />
-                            {item.name}
-                          </div>
-                          <ChevronDown
-                            className={`h-4 w-4 transition-transform ${
-                              isExpanded(item.name) ? 'rotate-180' : ''
-                            }`}
-                          />
-                        </button>
-                        {isExpanded(item.name) && (
-                          <div className="ml-6 mt-1 space-y-1">
-                            {item.children.map((child) => (
-                              <Link
-                                key={child.name}
-                                to={child.href}
-                                className={`${
-                                  isCurrentPath(child.href)
-                                    ? 'bg-blue-50 text-blue-900 font-medium'
-                                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                                } group flex items-center px-2 py-2 text-sm rounded-md transition-colors`}
-                                onClick={() => setSidebarOpen(false)}
-                              >
-                                <child.icon className="mr-2 h-4 w-4 flex-shrink-0" />
-                                {child.name}
-                              </Link>
-                            ))}
-                          </div>
-                        )}
-                      </>
-                    ) : (
-                      <Link
-                        to={item.href}
-                        className={`${
-                          isCurrentPath(item.href)
-                            ? 'bg-blue-100 text-blue-900 font-medium'
-                            : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                        } group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors`}
-                        onClick={() => setSidebarOpen(false)}
-                      >
-                        <item.icon className="mr-3 h-5 w-5 flex-shrink-0" />
-                        {item.name}
-                      </Link>
-                    )}
-                  </div>
-                ))}
-              </nav>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Desktop sidebar */}
-      <div className="hidden md:flex md:flex-shrink-0">
-        <div className="flex flex-col w-64">
-          <div className="flex flex-col h-0 flex-1">
-            <div className="flex items-center h-16 flex-shrink-0 px-4 bg-white border-r border-gray-200">
-              <div className="h-8 w-8 bg-blue-600 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-sm">BB</span>
-              </div>
-              <span className="ml-2 text-xl font-semibold text-gray-900">BookBharat</span>
-            </div>
-            <div className="flex-1 flex flex-col overflow-y-auto bg-white border-r border-gray-200">
-              <nav className="flex-1 px-2 py-4 space-y-1">
-                {navigation.map((item) => (
-                  <div key={item.name}>
-                    {item.children ? (
-                      <>
-                        <button
-                          onClick={() => toggleExpanded(item.name)}
-                          className={`${
-                            item.children.some(child => isCurrentPath(child.href))
-                              ? 'bg-blue-100 text-blue-900'
-                              : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                          } group flex items-center justify-between w-full px-2 py-2 text-sm font-medium rounded-md transition-colors`}
-                        >
-                          <div className="flex items-center">
-                            <item.icon className="mr-3 h-5 w-5 flex-shrink-0" />
-                            {item.name}
-                          </div>
-                          <ChevronDown
-                            className={`h-4 w-4 transition-transform ${
-                              isExpanded(item.name) ? 'rotate-180' : ''
-                            }`}
-                          />
-                        </button>
-                        {isExpanded(item.name) && (
-                          <div className="ml-6 mt-1 space-y-1">
-                            {item.children.map((child) => (
-                              <Link
-                                key={child.name}
-                                to={child.href}
-                                className={`${
-                                  isCurrentPath(child.href)
-                                    ? 'bg-blue-50 text-blue-900 font-medium'
-                                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                                } group flex items-center px-2 py-2 text-sm rounded-md transition-colors`}
-                              >
-                                <child.icon className="mr-2 h-4 w-4 flex-shrink-0" />
-                                {child.name}
-                              </Link>
-                            ))}
-                          </div>
-                        )}
-                      </>
-                    ) : (
-                      <Link
-                        to={item.href}
-                        className={`${
-                          isCurrentPath(item.href)
-                            ? 'bg-blue-100 text-blue-900 font-medium'
-                            : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                        } group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors`}
-                      >
-                        <item.icon className="mr-3 h-5 w-5 flex-shrink-0" />
-                        {item.name}
-                      </Link>
-                    )}
-                  </div>
-                ))}
-              </nav>
-
-              {/* Divider */}
-              <div className="border-t border-gray-200 py-4 px-2">
-                <button
-                  onClick={handleLogout}
-                  className="text-gray-600 hover:bg-gray-50 hover:text-gray-900 group flex items-center w-full px-2 py-2 text-sm font-medium rounded-md transition-colors"
-                >
-                  <LogOut className="mr-3 h-5 w-5 flex-shrink-0" />
-                  Sign out
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+    <div className="h-screen flex overflow-hidden bg-gray-50">
+      {/* Desktop Sidebar */}
+      <div className="hidden lg:flex lg:flex-shrink-0">
+        <Sidebar
+          collapsed={sidebarCollapsed}
+          onLogout={handleLogout}
+        />
       </div>
 
-      {/* Main content */}
-      <div className="flex flex-col w-0 flex-1 overflow-hidden">
-        {/* Top header */}
-        <div className="relative z-10 flex-shrink-0 flex h-16 bg-white shadow border-b border-gray-200">
-          <button
-            type="button"
-            className="px-4 border-r border-gray-200 text-gray-500 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500 md:hidden"
-            onClick={() => setSidebarOpen(true)}
-          >
-            <MenuIcon className="h-6 w-6" />
-          </button>
+      {/* Main Content Area */}
+      <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
+        {/* Header */}
+        <Header
+          onMenuClick={() => setMobileDrawerOpen(true)}
+          userName={user?.name}
+          onLogout={handleLogout}
+        />
 
-          <div className="flex-1 px-4 flex justify-between items-center">
-            <div className="flex-1">
-              <h1 className="text-lg font-semibold text-gray-900">
-                {(() => {
-                  const path = location.pathname.split('/').filter(Boolean);
-                  const currentNav = navigation.find(item => {
-                    if (item.children) {
-                      return item.children.some(child => isCurrentPath(child.href));
-                    }
-                    return isCurrentPath(item.href);
-                  });
-
-                  if (currentNav?.children) {
-                    const child = currentNav.children.find(c => isCurrentPath(c.href));
-                    if (child) return child.name;
-                  }
-
-                  return currentNav?.name || path.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' > ') || 'Dashboard';
-                })()}
-              </h1>
-            </div>
-
-            <div className="ml-4 flex items-center md:ml-6">
-              {/* Profile dropdown */}
-              <Menu as="div" className="ml-3 relative">
-                <div>
-                  <Menu.Button className="max-w-xs bg-white flex items-center text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                    <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
-                      <span className="text-sm font-medium text-blue-600">
-                        {user?.name?.charAt(0)?.toUpperCase() || 'A'}
-                      </span>
-                    </div>
-                    <span className="ml-2 text-gray-700 text-sm font-medium hidden md:block">
-                      {user?.name}
-                    </span>
-                    <ChevronDown className="ml-1 h-4 w-4 text-gray-400 hidden md:block" />
-                  </Menu.Button>
-                </div>
-                <Transition
-                  enter="transition ease-out duration-100"
-                  enterFrom="transform opacity-0 scale-95"
-                  enterTo="transform opacity-100 scale-100"
-                  leave="transition ease-in duration-75"
-                  leaveFrom="transform opacity-100 scale-100"
-                  leaveTo="transform opacity-0 scale-95"
-                >
-                  <Menu.Items className="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5 focus:outline-none">
-                    <Menu.Item>
-                      {({ active }) => (
-                        <Link
-                          to="/profile"
-                          className={`${
-                            active ? 'bg-gray-100' : ''
-                          } block px-4 py-2 text-sm text-gray-700`}
-                        >
-                          <div className="flex items-center">
-                            <Users className="mr-2 h-4 w-4" />
-                            Your Profile
-                          </div>
-                        </Link>
-                      )}
-                    </Menu.Item>
-                    <Menu.Item>
-                      {({ active }) => (
-                        <Link
-                          to="/settings"
-                          className={`${
-                            active ? 'bg-gray-100' : ''
-                          } block px-4 py-2 text-sm text-gray-700`}
-                        >
-                          <div className="flex items-center">
-                            <Settings className="mr-2 h-4 w-4" />
-                            Settings
-                          </div>
-                        </Link>
-                      )}
-                    </Menu.Item>
-                    <div className="border-t border-gray-100"></div>
-                    <Menu.Item>
-                      {({ active }) => (
-                        <button
-                          onClick={handleLogout}
-                          className={`${
-                            active ? 'bg-gray-100' : ''
-                          } block w-full text-left px-4 py-2 text-sm text-gray-700`}
-                        >
-                          <div className="flex items-center">
-                            <LogOut className="mr-2 h-4 w-4" />
-                            Sign out
-                          </div>
-                        </button>
-                      )}
-                    </Menu.Item>
-                  </Menu.Items>
-                </Transition>
-              </Menu>
-            </div>
-          </div>
-        </div>
-
-        {/* Page content */}
-        <main className="flex-1 relative overflow-y-auto focus:outline-none bg-gray-50">
+        {/* Page Content */}
+        <main className="flex-1 overflow-y-auto pb-20 lg:pb-0">
           <div className="py-6">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <Outlet />
             </div>
           </div>
         </main>
+
+        {/* Mobile Bottom Navigation */}
+        <MobileNav />
       </div>
 
-
+      {/* Mobile Navigation Drawer */}
+      <Drawer
+        open={mobileDrawerOpen}
+        onClose={() => setMobileDrawerOpen(false)}
+        position="left"
+        title="Menu"
+        className="w-72"
+      >
+        <div className="flex flex-col h-full -mx-6">
+          <div className="flex-1 overflow-y-auto">
+            {/* Mobile Sidebar Navigation */}
+            <MobileSidebarContent onLogout={handleLogout} onClose={() => setMobileDrawerOpen(false)} />
+          </div>
+        </div>
+      </Drawer>
     </div>
+  );
+};
+
+// Mobile sidebar content component
+interface MobileSidebarContentProps {
+  onLogout: () => void;
+  onClose: () => void;
+}
+
+const MobileSidebarContent: React.FC<MobileSidebarContentProps> = ({ onLogout, onClose }) => {
+  return (
+    <nav className="flex-1 px-3 py-4 space-y-1">
+      {/* Quick Links */}
+      <div className="px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+        Quick Links
+      </div>
+      
+      <MobileNavLink href="/dashboard" icon="home" onClose={onClose}>
+        Dashboard
+      </MobileNavLink>
+      <MobileNavLink href="/orders" icon="orders" onClose={onClose}>
+        Orders
+      </MobileNavLink>
+      <MobileNavLink href="/products" icon="products" onClose={onClose}>
+        Products
+      </MobileNavLink>
+      <MobileNavLink href="/customers" icon="customers" onClose={onClose}>
+        Customers
+      </MobileNavLink>
+      
+      <div className="px-3 py-2 mt-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+        Management
+      </div>
+      
+      <MobileNavLink href="/categories" icon="categories" onClose={onClose}>
+        Categories
+      </MobileNavLink>
+      <MobileNavLink href="/coupons" icon="coupons" onClose={onClose}>
+        Coupons
+      </MobileNavLink>
+      <MobileNavLink href="/marketing" icon="marketing" onClose={onClose}>
+        Marketing
+      </MobileNavLink>
+      <MobileNavLink href="/shipping" icon="shipping" onClose={onClose}>
+        Shipping
+      </MobileNavLink>
+      
+      <div className="px-3 py-2 mt-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+        System
+      </div>
+      
+      <MobileNavLink href="/settings" icon="settings" onClose={onClose}>
+        Settings
+      </MobileNavLink>
+      <MobileNavLink href="/analytics" icon="analytics" onClose={onClose}>
+        Analytics
+      </MobileNavLink>
+      
+      <div className="mt-4 pt-4 border-t border-gray-100">
+        <button
+          onClick={onLogout}
+          className="flex items-center gap-3 w-full px-3 py-2.5 text-sm font-medium text-error-600 rounded-lg hover:bg-error-50 transition-colors"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+          </svg>
+          Sign out
+        </button>
+      </div>
+    </nav>
+  );
+};
+
+// Mobile navigation link component
+interface MobileNavLinkProps {
+  href: string;
+  icon: string;
+  children: React.ReactNode;
+  onClose: () => void;
+}
+
+const MobileNavLink: React.FC<MobileNavLinkProps> = ({ href, icon, children, onClose }) => {
+  const handleClick = () => {
+    onClose();
+  };
+
+  return (
+    <a
+      href={href}
+      onClick={handleClick}
+      className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-gray-600 rounded-lg hover:bg-gray-50 hover:text-gray-900 transition-colors"
+    >
+      {children}
+    </a>
   );
 };
 

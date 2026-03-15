@@ -6,6 +6,17 @@ import { Upload, X, Save, ArrowLeft, Loader2 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import RichTextEditor from '../../components/RichTextEditor';
 import BundleVariantManager from '../../components/BundleVariantManager';
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+  CardFooter,
+  Button,
+  Badge,
+  PageSkeleton,
+} from '../../components';
 
 interface ProductForm {
   name: string;
@@ -315,45 +326,60 @@ const ProductEdit: React.FC = () => {
   ];
 
   if (productLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-      </div>
-    );
+    return <PageSkeleton type="form" />;
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      {/* Header - Mobile Responsive */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-4">
-          <button
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={() => navigate('/products')}
-            className="p-2 hover:bg-gray-100 rounded-lg"
+            className="hidden sm:flex"
           >
-            <ArrowLeft className="h-5 w-5" />
-          </button>
-          <h1 className="text-2xl font-semibold">Edit Product</h1>
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Edit Product</h1>
+            <p className="text-sm text-gray-500 mt-1">{formData.name || 'Loading...'}</p>
+          </div>
         </div>
-        <button
-          onClick={handleSubmit}
-          disabled={updateMutation.isPending}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-        >
-          <Save className="h-4 w-4" />
-          {updateMutation.isPending ? 'Updating...' : 'Update Product'}
-        </button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate('/products')}
+            className="sm:hidden"
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back
+          </Button>
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={handleSubmit}
+            disabled={updateMutation.isPending}
+            loading={updateMutation.isPending}
+          >
+            <Save className="h-4 w-4 mr-2" />
+            {updateMutation.isPending ? 'Saving...' : 'Save Changes'}
+          </Button>
+        </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow">
-        <div className="border-b border-gray-200">
-          <nav className="flex -mb-px">
+      <Card>
+        <div className="border-b border-gray-200 overflow-x-auto">
+          <nav className="flex -mb-px min-w-max">
             {tabs.map(tab => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`py-2 px-6 border-b-2 font-medium text-sm ${
+                className={`py-3 px-4 sm:px-6 border-b-2 font-medium text-sm whitespace-nowrap transition-colors ${
                   activeTab === tab.id
-                    ? 'border-blue-500 text-blue-600'
+                    ? 'border-primary-500 text-primary-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
@@ -363,7 +389,7 @@ const ProductEdit: React.FC = () => {
           </nav>
         </div>
 
-        <div className="p-6">
+        <CardContent>
           {activeTab === 'bundle-variants' ? (
             <BundleVariantManager
               productId={Number(id)}
@@ -1057,10 +1083,10 @@ const ProductEdit: React.FC = () => {
               </div>
             </div>
           )}
-            </form>
+        </form>
           )}
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };

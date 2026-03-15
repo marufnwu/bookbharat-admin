@@ -102,7 +102,7 @@ const SystemSettings: React.FC = () => {
         return <Badge variant="warning">Warning</Badge>;
       case 'error':
       case 'disconnected':
-        return <Badge variant="destructive">Error</Badge>;
+        return <Badge variant="error">Error</Badge>;
       default:
         return <Badge variant="default">Unknown</Badge>;
     }
@@ -372,7 +372,7 @@ const SystemSettings: React.FC = () => {
             <Badge variant={
               job.status === 'completed' ? 'success' :
               job.status === 'running' ? 'warning' :
-              job.status === 'failed' ? 'destructive' : 'default'
+              job.status === 'failed' ? 'error' : 'default'
             }>
               {job.status}
             </Badge>

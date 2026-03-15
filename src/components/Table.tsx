@@ -174,7 +174,7 @@ function Table<T extends Record<string, any>>({
                           </span>
                         )}
                         <Button
-                          variant={page === pagination.current ? 'default' : 'outline'}
+                          variant={page === pagination.current ? 'primary' : 'outline'}
                           size="sm"
                           onClick={() => pagination.onChange(page)}
                           className="rounded-none"

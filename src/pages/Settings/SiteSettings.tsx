@@ -8,7 +8,7 @@ import {
   LinkIcon,
   MagnifyingGlassIcon,
 } from '@heroicons/react/24/outline';
-import { Button, LoadingSpinner, Badge } from '../../components';
+import { Button, Card, CardContent, PageSkeleton } from '../../components';
 import { useNotificationStore } from '../../store/notificationStore';
 import { settingsApi } from '../../api';
 import type { ApiResponse } from '../../types';
@@ -123,7 +123,7 @@ const SiteSettings: React.FC = () => {
     }
   }, [siteConfigData]);
 
-  if (siteConfigLoading) return <LoadingSpinner />;
+  if (siteConfigLoading) return <PageSkeleton />;
 
   const siteConfig = siteConfigData?.data ?? ({} as SiteConfig);
 
@@ -185,159 +185,167 @@ const SiteSettings: React.FC = () => {
 
   const renderGeneralSection = () => (
     <div className="space-y-6">
-      <div className="bg-white p-6 rounded-lg shadow">
-        <h3 className="text-lg font-medium text-gray-900 mb-4">Site Information</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Site Name</label>
-            <input
-              type="text"
-              name="site.name"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-              defaultValue={siteConfig.site?.name}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Contact Email</label>
-            <input
-              type="email"
-              name="site.contact_email"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-              defaultValue={siteConfig.site?.contact_email}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Contact Phone</label>
-            <input
-              type="tel"
-              name="site.contact_phone"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-              defaultValue={siteConfig.site?.contact_phone}
-            />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-          <div>
-            <ImageUploader
-              label="Site Logo"
-              value={logoUrl}
-              onChange={setLogoUrl}
-              accept="image/png,image/jpeg,image/jpg,image/svg+xml,image/webp"
-              maxSizeMB={2}
-              folder="site"
-            />
-            <p className="text-xs text-gray-500 mt-1">
-              Recommended: PNG or SVG, max 2MB. Best size: 200x50px
-            </p>
-          </div>
-          <div>
-            <ImageUploader
-              label="Favicon"
-              value={faviconUrl}
-              onChange={setFaviconUrl}
-              accept="image/x-icon,image/vnd.microsoft.icon,image/png,image/jpeg"
-              maxSizeMB={1}
-              folder="site"
-            />
-            <p className="text-xs text-gray-500 mt-1">
-              Recommended: ICO or PNG, max 1MB. Best size: 32x32px or 16x16px
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <div className="bg-white p-6 rounded-lg shadow">
-        <h3 className="text-lg font-medium text-gray-900 mb-4">Site Description</h3>
-        <textarea
-          rows={3}
-          name="site.description"
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-          defaultValue={siteConfig.site?.description}
-        />
-      </div>
-
-      <div className="bg-white p-6 rounded-lg shadow">
-        <h3 className="text-lg font-medium text-gray-900 mb-4">Preview</h3>
-        <div className="space-y-4">
-          {logoUrl && (
+      <Card>
+        <CardContent className="p-4 sm:p-6">
+          <h3 className="text-lg font-medium text-gray-900 mb-4">Site Information</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <p className="text-sm font-medium text-gray-700 mb-2">Logo Preview:</p>
-              <div className="inline-block p-4 bg-gray-50 rounded border border-gray-200">
-                <img src={logoUrl} alt="Logo preview" className="h-12 max-w-xs object-contain" />
-              </div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Site Name</label>
+              <input
+                type="text"
+                name="site.name"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                defaultValue={siteConfig.site?.name}
+              />
             </div>
-          )}
-          {faviconUrl && (
             <div>
-              <p className="text-sm font-medium text-gray-700 mb-2">Favicon Preview:</p>
-              <div className="inline-block p-4 bg-gray-50 rounded border border-gray-200">
-                <img src={faviconUrl} alt="Favicon preview" className="h-8 w-8 object-contain" />
-              </div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Contact Email</label>
+              <input
+                type="email"
+                name="site.contact_email"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                defaultValue={siteConfig.site?.contact_email}
+              />
             </div>
-          )}
-        </div>
-      </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Contact Phone</label>
+              <input
+                type="tel"
+                name="site.contact_phone"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                defaultValue={siteConfig.site?.contact_phone}
+              />
+            </div>
+          </div>
 
-      <div className="bg-white p-6 rounded-lg shadow">
-        <h3 className="text-lg font-medium text-gray-900 mb-4">Business Address</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Address Line 1</label>
-            <input
-              type="text"
-              name="site.address.line1"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-              defaultValue={siteConfig.site?.address?.line1}
-            />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+            <div>
+              <ImageUploader
+                label="Site Logo"
+                value={logoUrl}
+                onChange={setLogoUrl}
+                accept="image/png,image/jpeg,image/jpg,image/svg+xml,image/webp"
+                maxSizeMB={2}
+                folder="site"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Recommended: PNG or SVG, max 2MB. Best size: 200x50px
+              </p>
+            </div>
+            <div>
+              <ImageUploader
+                label="Favicon"
+                value={faviconUrl}
+                onChange={setFaviconUrl}
+                accept="image/x-icon,image/vnd.microsoft.icon,image/png,image/jpeg"
+                maxSizeMB={1}
+                folder="site"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Recommended: ICO or PNG, max 1MB. Best size: 32x32px or 16x16px
+              </p>
+            </div>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Address Line 2</label>
-            <input
-              type="text"
-              name="site.address.line2"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-              defaultValue={siteConfig.site?.address?.line2}
-            />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="p-4 sm:p-6">
+          <h3 className="text-lg font-medium text-gray-900 mb-4">Site Description</h3>
+          <textarea
+            rows={3}
+            name="site.description"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+            defaultValue={siteConfig.site?.description}
+          />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="p-4 sm:p-6">
+          <h3 className="text-lg font-medium text-gray-900 mb-4">Preview</h3>
+          <div className="space-y-4">
+            {logoUrl && (
+              <div>
+                <p className="text-sm font-medium text-gray-700 mb-2">Logo Preview:</p>
+                <div className="inline-block p-4 bg-gray-50 rounded-lg border border-gray-200">
+                  <img src={logoUrl} alt="Logo preview" className="h-12 max-w-xs object-contain" />
+                </div>
+              </div>
+            )}
+            {faviconUrl && (
+              <div>
+                <p className="text-sm font-medium text-gray-700 mb-2">Favicon Preview:</p>
+                <div className="inline-block p-4 bg-gray-50 rounded-lg border border-gray-200">
+                  <img src={faviconUrl} alt="Favicon preview" className="h-8 w-8 object-contain" />
+                </div>
+              </div>
+            )}
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
-            <input
-              type="text"
-              name="site.address.city"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-              defaultValue={siteConfig.site?.address?.city}
-            />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="p-4 sm:p-6">
+          <h3 className="text-lg font-medium text-gray-900 mb-4">Business Address</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Address Line 1</label>
+              <input
+                type="text"
+                name="site.address.line1"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                defaultValue={siteConfig.site?.address?.line1}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Address Line 2</label>
+              <input
+                type="text"
+                name="site.address.line2"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                defaultValue={siteConfig.site?.address?.line2}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
+              <input
+                type="text"
+                name="site.address.city"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                defaultValue={siteConfig.site?.address?.city}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">State</label>
+              <input
+                type="text"
+                name="site.address.state"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                defaultValue={siteConfig.site?.address?.state}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Pincode</label>
+              <input
+                type="text"
+                name="site.address.pincode"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                defaultValue={siteConfig.site?.address?.pincode}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Country</label>
+              <input
+                type="text"
+                name="site.address.country"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                defaultValue={siteConfig.site?.address?.country}
+              />
+            </div>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">State</label>
-            <input
-              type="text"
-              name="site.address.state"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-              defaultValue={siteConfig.site?.address?.state}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Pincode</label>
-            <input
-              type="text"
-              name="site.address.pincode"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-              defaultValue={siteConfig.site?.address?.pincode}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Country</label>
-            <input
-              type="text"
-              name="site.address.country"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-              defaultValue={siteConfig.site?.address?.country}
-            />
-          </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 

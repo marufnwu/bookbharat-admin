@@ -28,7 +28,24 @@ import {
   Download,
   Send,
   X,
+  ArrowLeft,
+  MoreVertical,
 } from "lucide-react";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+  CardFooter,
+  Button,
+  Badge,
+  StatusBadge,
+  Modal,
+  Skeleton,
+  SkeletonCard,
+  PageSkeleton,
+} from "../../components";
 
 interface CarrierRate {
   carrier_id: number;
@@ -536,31 +553,51 @@ const CreateShipment: React.FC = () => {
   const recommended = ratesData?.recommended;
 
   if (orderLoading) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      </div>
-    );
+    return <PageSkeleton type="detail" />;
   }
 
   return (
-    <div className="container mx-auto px-4 py-6">
-      {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">
-          Create Shipment
-        </h1>
-        <p className="text-gray-600">Order #{order?.order_number}</p>
+    <div className="space-y-6">
+      {/* Header - Mobile Responsive */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate(`/orders/${orderId}`)}
+            className="hidden sm:flex"
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Create Shipment</h1>
+            <p className="text-sm text-gray-500 mt-1">Order #{order?.order_number}</p>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate(`/orders/${orderId}`)}
+            className="sm:hidden"
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Order Details Card */}
         <div className="lg:col-span-1">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 sticky top-6 max-h-[calc(100vh-6rem)] overflow-y-auto custom-scrollbar">
-            <h2 className="text-lg font-bold text-gray-800 mb-6 flex items-center justify-between">
-              <span>Order Summary</span>
-              <span className="text-sm font-normal text-gray-500">#{order?.order_number}</span>
-            </h2>
+          <Card className="sticky top-6 max-h-[calc(100vh-6rem)] overflow-y-auto">
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between">
+                <span>Order Summary</span>
+                <span className="text-sm font-normal text-gray-500">#{order?.order_number}</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
 
             {/* Addresses */}
             <div className="relative pl-4 space-y-8 mb-8 border-l-2 border-dashed border-gray-200 ml-2">
@@ -767,28 +804,26 @@ const CreateShipment: React.FC = () => {
                   )}
                 </div>
 
-                <button
+                <Button
+                  variant="primary"
+                  fullWidth
                   onClick={handleCreateShipment}
-                  disabled={
-                    createShipmentMutation.isPending || !selectedWarehouse
-                  }
-                  className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 flex items-center justify-center"
+                  disabled={createShipmentMutation.isPending || !selectedWarehouse}
+                  loading={createShipmentMutation.isPending}
                 >
                   {createShipmentMutation.isPending ? (
-                    <>
-                      <RefreshCw className="animate-spin h-4 w-4 mr-2" />
-                      Creating...
-                    </>
+                    "Creating..."
                   ) : (
                     <>
                       <Send className="h-4 w-4 mr-2" />
                       Create Shipment
                     </>
                   )}
-                </button>
+                </Button>
               </div>
             )}
-          </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Carrier Options */}

@@ -8,10 +8,10 @@ import {
   Save,
   X,
   Package,
-  Weight,
-  Loader2
+  Weight
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { Button, Card, CardContent, PageSkeleton } from '../../components';
 
 interface WeightSlab {
   id: number;
@@ -132,37 +132,30 @@ const WeightSlabs: React.FC = () => {
     'Next Day',
   ];
 
-  const commonWeights = [0.5, 1.0, 2.0, 3.0, 5.0, 10.0, 15.0, 20.0];
-
   if (isLoading) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-      </div>
-    );
+    return <PageSkeleton />;
   }
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <div>
-          <h2 className="text-lg font-semibold text-gray-900">Weight Slabs</h2>
+          <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">Weight Slabs</h1>
           <p className="text-sm text-gray-600">Define weight brackets for shipping calculation</p>
         </div>
-        <button
+        <Button
           onClick={() => handleOpenModal()}
-          className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700"
+          className="w-full sm:w-auto"
         >
           <Plus className="h-4 w-4 mr-2" />
           Add Weight Slab
-        </button>
+        </Button>
       </div>
 
-
-      {/* Existing Slabs Table */}
+      {/* Existing Slabs Table - Desktop */}
       {weightSlabs.length > 0 && (
-        <div className="bg-white rounded-lg border border-gray-200">
+        <Card className="hidden md:block">
           <div className="px-6 py-4 border-b border-gray-200">
             <h3 className="text-sm font-medium text-gray-900">All Weight Slabs</h3>
           </div>
@@ -188,7 +181,9 @@ const WeightSlabs: React.FC = () => {
                 <tr key={slab.id}>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
-                      <Package className="h-4 w-4 text-gray-400 mr-2" />
+                      <div className="w-8 h-8 bg-primary-100 rounded-lg flex items-center justify-center mr-3">
+                        <Package className="h-4 w-4 text-primary-600" />
+                      </div>
                       <span className="text-sm font-medium text-gray-900">
                         {slab.courier_name}
                       </span>
@@ -203,24 +198,88 @@ const WeightSlabs: React.FC = () => {
                       : 'N/A'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <button
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       onClick={() => handleOpenModal(slab)}
-                      className="text-blue-600 hover:text-blue-900 mr-3"
+                      className="mr-2"
                     >
-                      Edit
-                    </button>
-                    <button
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       onClick={() => handleDelete(slab.id)}
-                      className="text-red-600 hover:text-red-900"
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
                     >
-                      Delete
-                    </button>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+        </Card>
+      )}
+
+      {/* Mobile Cards */}
+      {weightSlabs.length > 0 && (
+        <div className="md:hidden space-y-4">
+          {weightSlabs.map((slab: WeightSlab) => (
+            <Card key={slab.id}>
+              <CardContent className="p-4">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center">
+                    <div className="w-10 h-10 bg-primary-100 rounded-lg flex items-center justify-center mr-3">
+                      <Package className="h-5 w-5 text-primary-600" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-medium text-gray-900">{slab.courier_name}</h3>
+                      <p className="text-sm text-gray-500">{slab.base_weight} kg</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-3 pt-3 border-t border-gray-100 flex justify-between items-center">
+                  <span className="text-xs text-gray-500">
+                    {slab.created_at ? new Date(slab.created_at).toLocaleDateString() : 'N/A'}
+                  </span>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleOpenModal(slab)}
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleDelete(slab.id)}
+                      className="text-red-600"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
         </div>
+      )}
+
+      {/* Empty State */}
+      {weightSlabs.length === 0 && (
+        <Card>
+          <CardContent className="py-12 text-center">
+            <Weight className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No weight slabs found</h3>
+            <p className="text-gray-600 mb-4">Get started by adding your first weight slab.</p>
+            <Button onClick={() => handleOpenModal()}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add Weight Slab
+            </Button>
+          </CardContent>
+        </Card>
       )}
 
       {/* Modal */}
@@ -249,7 +308,7 @@ const WeightSlabs: React.FC = () => {
                   <select
                     value={formData.courier_name}
                     onChange={(e) => setFormData({ ...formData, courier_name: e.target.value })}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                     required
                   >
                     {courierOptions.map((courier) => (
@@ -272,7 +331,7 @@ const WeightSlabs: React.FC = () => {
                     onChange={(e) =>
                       setFormData({ ...formData, base_weight: parseFloat(e.target.value) })
                     }
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                     required
                   />
                   <p className="mt-1 text-xs text-gray-500">
@@ -280,31 +339,23 @@ const WeightSlabs: React.FC = () => {
                   </p>
                 </div>
 
-                <div className="flex justify-end space-x-3 pt-4">
-                  <button
+                <div className="flex flex-col sm:flex-row sm:justify-end gap-2 pt-4">
+                  <Button
                     type="button"
+                    variant="outline"
                     onClick={handleCloseModal}
-                    className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50"
+                    className="w-full sm:w-auto"
                   >
                     Cancel
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     type="submit"
-                    disabled={createMutation.isPending || updateMutation.isPending}
-                    className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+                    loading={createMutation.isPending || updateMutation.isPending}
+                    className="w-full sm:w-auto"
                   >
-                    {createMutation.isPending || updateMutation.isPending ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Saving...
-                      </>
-                    ) : (
-                      <>
-                        <Save className="h-4 w-4 mr-2" />
-                        {editingSlab ? 'Update' : 'Create'}
-                      </>
-                    )}
-                  </button>
+                    <Save className="h-4 w-4 mr-2" />
+                    {editingSlab ? 'Update' : 'Create'}
+                  </Button>
                 </div>
               </form>
             </div>
