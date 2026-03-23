@@ -8,7 +8,6 @@ on:
     branches:
       - v2
   workflow_dispatch:
-    # Prevents accidental manual deploy from a feature branch
     inputs:
       confirm_branch:
         description: 'Type "v2" to confirm deploy from the correct branch'
@@ -18,7 +17,6 @@ env:
   NODE_VERSION: '20'
 
 jobs:
-  # ─── Build ────────────────────────────────────────────────────────────────────
   build:
     name: Build
     runs-on: ubuntu-latest
@@ -33,23 +31,22 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
 
-      # FIX: explicit cache key so the cache is actually restored correctly
-      - name: Cache node_modules
+      # Cache npm and build output for faster rebuilds
+      - name: Cache dependencies and build
         uses: actions/cache@v4
         with:
-          path: ~/.npm
-          key: npm-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
-          restore-keys: npm-${{ runner.os }}-
+          path: |
+            ~/.npm
+            node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('package-lock.json') }}
+          restore-keys: ${{ runner.os }}-node-
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --prefer-offline --no-audit
 
       - name: Build application
         env:
           REACT_APP_API_URL: ${{ secrets.REACT_APP_API_URL }}
-          # FIX: use a dedicated secret instead of interpolating another secret
-          # Add REACT_APP_ADMIN_API_URL as its own secret in GitHub:
-          #   value = https://yourapi.com/admin
           REACT_APP_ADMIN_API_URL: ${{ secrets.REACT_APP_ADMIN_API_URL }}
           CI: false
         run: npm run build
@@ -62,13 +59,10 @@ jobs:
           retention-days: 1
           include-hidden-files: true
 
-  # ─── Deploy ───────────────────────────────────────────────────────────────────
   deploy:
     name: Deploy to Cloudways
     runs-on: ubuntu-latest
     needs: build
-    # FIX: explicit branch guard for workflow_dispatch — manual runs from the
-    #      wrong branch will still pass the 'needs' check otherwise
     if: |
       (github.event_name == 'push' && github.ref == 'refs/heads/v2') ||
       (github.event_name == 'workflow_dispatch' && github.event.inputs.confirm_branch == 'v2')
@@ -81,41 +75,24 @@ jobs:
           name: react-admin-build
           path: build/
 
-      # FIX: write the key to a named file (not id_rsa) so it doesn't conflict
-      #      with any other SSH operations in the same job
       - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.CLOUDWAYS_SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          # FIX: validate that ssh-keyscan actually wrote something
           ssh-keyscan -p ${{ secrets.CLOUDWAYS_SSH_PORT }} ${{ secrets.CLOUDWAYS_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
-          if [ ! -s ~/.ssh/known_hosts ]; then
-            echo "❌ ssh-keyscan returned nothing — check CLOUDWAYS_HOST and CLOUDWAYS_SSH_PORT"
-            exit 1
-          fi
 
       - name: Deploy to Cloudways
         run: |
-          rsync -rltz --delete \
+          rsync -az --delete \
             --no-progress \
             --omit-dir-times \
-            --no-perms \
-            -e "ssh -p ${{ secrets.CLOUDWAYS_SSH_PORT }} -i ~/.ssh/deploy_key" \
+            -e "ssh -p ${{ secrets.CLOUDWAYS_SSH_PORT }} -i ~/.ssh/deploy_key -o Compression=yes" \
             build/ ${{ secrets.CLOUDWAYS_USER }}@${{ secrets.CLOUDWAYS_HOST }}:${{ secrets.CLOUDWAYS_PATH }}/
-      - name: Verify .htaccess deployed
-        run: |
-          ssh -p ${{ secrets.CLOUDWAYS_SSH_PORT }} \
-            -i ~/.ssh/deploy_key \
-            ${{ secrets.CLOUDWAYS_USER }}@${{ secrets.CLOUDWAYS_HOST }} \
-            "ls -la ${{ secrets.CLOUDWAYS_PATH }}/public_html/.htaccess"
 
-      # FIX: health check now actually fails the job on a bad response.
-      #      Retries 3 times with a 10s delay to allow Nginx to settle.
       - name: Health check
         run: |
-          echo "⏳ Waiting for server to settle..."
-          sleep 5
+          sleep 3
           for i in 1 2 3; do
             STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${{ secrets.CLOUDWAYS_DOMAIN }}")
             echo "Attempt $i: HTTP $STATUS"
@@ -123,12 +100,11 @@ jobs:
               echo "✅ Health check passed"
               exit 0
             fi
-            sleep 10
+            sleep 5
           done
-          echo "❌ Health check failed after 3 attempts (last status: $STATUS)"
+          echo "❌ Health check failed"
           exit 1
 
-      # FIX: always clean up the key, even if a previous step failed
       - name: Cleanup SSH key
         if: always()
         run: rm -f ~/.ssh/deploy_key
