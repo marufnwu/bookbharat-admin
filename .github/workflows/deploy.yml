@@ -96,11 +96,12 @@ jobs:
 
       - name: Deploy to Cloudways
         run: |
-          rsync -rlptz --delete \
+          rsync -rltz --delete \
             --no-progress \
             --omit-dir-times \
+            --no-perms \
             -e "ssh -p ${{ secrets.CLOUDWAYS_SSH_PORT }} -i ~/.ssh/deploy_key" \
-            build/ ${{ secrets.CLOUDWAYS_USER }}@${{ secrets.CLOUDWAYS_HOST }}:${{ secrets.CLOUDWAYS_PATH }}/
+            build/ ${{ secrets.CLOUDWAYS_USER }}@${{ secrets.CLOUDWAYS_HOST }}:${{ secrets.CLOUDWAYS_PATH }}/public_html/
 
       # FIX: health check now actually fails the job on a bad response.
       #      Retries 3 times with a 10s delay to allow Nginx to settle.
