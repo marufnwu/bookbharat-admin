@@ -41,9 +41,17 @@ interface PaymentGateway {
     }>;
     required: string[];
     optional: string[];
+    test_credentials?: Record<string, any>;
+    production_credentials?: Record<string, any>;
+    has_test_credentials?: boolean;
+    has_production_credentials?: boolean;
   };
   restrictions: Record<string, any>;
   priority: number;
+  test_credentials?: Record<string, any>;
+  production_credentials?: Record<string, any>;
+  has_test_credentials?: boolean;
+  has_production_credentials?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -578,13 +586,23 @@ const GatewayConfigModal: React.FC<GatewayConfigModalProps> = ({
   showSecrets,
   onToggleSecrets
 }) => {
-  // Extract credential values from credential_schema.fields
+  // Extract credential values for the current mode (test or production)
   const getInitialCredentials = () => {
     const credentials: Record<string, any> = {};
+    const isProduction = gateway.is_production_mode;
+
+    // Get credentials for the current mode
+    const modeCredentials = isProduction
+      ? (gateway.production_credentials || gateway.credential_schema?.production_credentials || {})
+      : (gateway.test_credentials || gateway.credential_schema?.test_credentials || {});
+
     if (gateway.credential_schema?.fields) {
       Object.entries(gateway.credential_schema.fields).forEach(([key, field]: [string, any]) => {
-        // Use the value from the schema if it exists and is not masked
-        if (field.value !== undefined && !field.is_masked) {
+        // Use mode-specific credentials if available
+        if (modeCredentials && modeCredentials[key] !== undefined) {
+          credentials[key] = modeCredentials[key];
+        } else if (field.value !== undefined && !field.is_masked) {
+          // Fall back to schema value if not masked
           credentials[key] = field.value;
         } else if (field.value !== undefined && field.is_masked) {
           // For masked values, show empty to allow user to enter new value
@@ -603,6 +621,10 @@ const GatewayConfigModal: React.FC<GatewayConfigModalProps> = ({
     priority: gateway.priority,
     configuration: { ...gateway.configuration, ...getInitialCredentials() },
   });
+
+  // Check if credentials are configured for each mode
+  const hasTestCredentials = gateway.has_test_credentials || gateway.credential_schema?.has_test_credentials || false;
+  const hasProductionCredentials = gateway.has_production_credentials || gateway.credential_schema?.has_production_credentials || false;
 
   const updateConfig = (key: string, value: any) => {
     setFormData(prev => ({
@@ -867,8 +889,53 @@ const GatewayConfigModal: React.FC<GatewayConfigModalProps> = ({
               </div>
             </div>
 
+            {/* Mode Warning */}
+            {formData.is_production_mode ? (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                <div className="flex items-start">
+                  <div className="flex-shrink-0">
+                    <svg className="h-5 w-5 text-amber-400" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="ml-3">
+                    <h3 className="text-sm font-medium text-amber-800">Production Mode Enabled</h3>
+                    <div className="mt-2 text-sm text-amber-700">
+                      <p>
+                        {hasProductionCredentials
+                          ? '✓ Production credentials are configured. Live transactions will be processed.'
+                          : '⚠️ Production credentials are not configured. Please enter your live API credentials below.'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-start">
+                  <div className="flex-shrink-0">
+                    <svg className="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="ml-3">
+                    <h3 className="text-sm font-medium text-blue-800">Test Mode Enabled</h3>
+                    <div className="mt-2 text-sm text-blue-700">
+                      <p>
+                        {hasTestCredentials
+                          ? '✓ Test credentials are configured. Sandbox transactions will be processed.'
+                          : 'ℹ️ Test credentials are not configured. Please enter your test/sandbox API credentials below.'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="border-t border-gray-200 pt-4">
-              <h4 className="font-medium text-gray-900 mb-4">API Configuration</h4>
+              <h4 className="font-medium text-gray-900 mb-4">
+                API Configuration ({formData.is_production_mode ? 'Production' : 'Test'} Credentials)
+              </h4>
               {renderConfigFields()}
             </div>
 
