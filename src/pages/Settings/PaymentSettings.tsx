@@ -592,20 +592,25 @@ const GatewayConfigModal: React.FC<GatewayConfigModalProps> = ({
     const isProduction = gateway.is_production_mode;
 
     // Get credentials for the current mode
-    const modeCredentials = isProduction
-      ? (gateway.production_credentials || gateway.credential_schema?.production_credentials || {})
-      : (gateway.test_credentials || gateway.credential_schema?.test_credentials || {});
+    const testCreds = gateway.test_credentials || gateway.credential_schema?.test_credentials || {};
+    const prodCreds = gateway.production_credentials || gateway.credential_schema?.production_credentials || {};
+
+    // Use the appropriate credentials based on mode
+    const modeCredentials = isProduction ? prodCreds : testCreds;
 
     if (gateway.credential_schema?.fields) {
       Object.entries(gateway.credential_schema.fields).forEach(([key, field]: [string, any]) => {
         // Use mode-specific credentials if available
-        if (modeCredentials && modeCredentials[key] !== undefined) {
+        if (modeCredentials && modeCredentials[key] !== undefined && modeCredentials[key] !== '') {
           credentials[key] = modeCredentials[key];
         } else if (field.value !== undefined && !field.is_masked) {
           // Fall back to schema value if not masked
           credentials[key] = field.value;
         } else if (field.value !== undefined && field.is_masked) {
           // For masked values, show empty to allow user to enter new value
+          credentials[key] = '';
+        } else {
+          // No value available, show empty
           credentials[key] = '';
         }
       });
@@ -625,6 +630,50 @@ const GatewayConfigModal: React.FC<GatewayConfigModalProps> = ({
   // Check if credentials are configured for each mode
   const hasTestCredentials = gateway.has_test_credentials || gateway.credential_schema?.has_test_credentials || false;
   const hasProductionCredentials = gateway.has_production_credentials || gateway.credential_schema?.has_production_credentials || false;
+
+  // Get the actual credential objects for display
+  const testCredentials = gateway.test_credentials || gateway.credential_schema?.test_credentials || {};
+  const productionCredentials = gateway.production_credentials || gateway.credential_schema?.production_credentials || {};
+
+  // Reload credentials when production mode is toggled
+  React.useEffect(() => {
+    const isProduction = formData.is_production_mode;
+    const modeCredentials = isProduction ? productionCredentials : testCredentials;
+
+    if (gateway.credential_schema?.fields) {
+      const newConfig = { ...formData.configuration };
+      let hasChanges = false;
+
+      Object.entries(gateway.credential_schema.fields).forEach(([key, field]: [string, any]) => {
+        if (modeCredentials && modeCredentials[key] !== undefined && modeCredentials[key] !== '') {
+          // Use mode-specific credentials
+          if (newConfig[key] !== modeCredentials[key]) {
+            newConfig[key] = modeCredentials[key];
+            hasChanges = true;
+          }
+        } else if (!isProduction && testCredentials[key] !== undefined) {
+          // Fall back to test credentials if production not set
+          if (newConfig[key] !== testCredentials[key]) {
+            newConfig[key] = testCredentials[key];
+            hasChanges = true;
+          }
+        } else {
+          // Clear the field if no credentials for this mode
+          if (newConfig[key] !== '') {
+            newConfig[key] = '';
+            hasChanges = true;
+          }
+        }
+      });
+
+      if (hasChanges) {
+        setFormData(prev => ({
+          ...prev,
+          configuration: newConfig
+        }));
+      }
+    }
+  }, [formData.is_production_mode]);
 
   const updateConfig = (key: string, value: any) => {
     setFormData(prev => ({
