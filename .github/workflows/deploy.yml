@@ -60,6 +60,7 @@ jobs:
           name: react-admin-build
           path: build/
           retention-days: 1
+          include-hidden-files: true
 
   # ─── Deploy ───────────────────────────────────────────────────────────────────
   deploy:
@@ -102,7 +103,7 @@ jobs:
             --no-perms \
             -e "ssh -p ${{ secrets.CLOUDWAYS_SSH_PORT }} -i ~/.ssh/deploy_key" \
             build/ ${{ secrets.CLOUDWAYS_USER }}@${{ secrets.CLOUDWAYS_HOST }}:${{ secrets.CLOUDWAYS_PATH }}/
-
+      
       # FIX: health check now actually fails the job on a bad response.
       #      Retries 3 times with a 10s delay to allow Nginx to settle.
       - name: Health check
