@@ -537,8 +537,13 @@ export const shippingApi = {
   deleteZone: (id: number): Promise<ApiResponse> =>
     api.delete(`/shipping/zones/${id}`).then(res => res.data),
 
-  getWeightSlabs: (): Promise<ApiResponse<any>> =>
-    api.get('/shipping/weight-slabs').then(res => res.data),
+  getWeightSlabs: (params?: { page?: number; per_page?: number }): Promise<ApiResponse<any>> => {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append('page', params.page.toString());
+    if (params?.per_page) queryParams.append('per_page', params.per_page.toString());
+    const query = queryParams.toString();
+    return api.get(`/shipping/weight-slabs${query ? `?${query}` : ''}`).then(res => res.data);
+  },
 
   createWeightSlab: (slab: any): Promise<ApiResponse<any>> =>
     api.post('/shipping/weight-slabs', slab).then(res => res.data),

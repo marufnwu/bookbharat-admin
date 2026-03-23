@@ -69,7 +69,7 @@ const ZoneRates: React.FC = () => {
   // Fetch weight slabs
   const { data: slabsResponse } = useQuery({
     queryKey: ['weight-slabs'],
-    queryFn: shippingApi.getWeightSlabs,
+    queryFn: () => shippingApi.getWeightSlabs(),
   });
 
   const weightSlabs = (slabsResponse as any)?.weight_slabs?.data || [];

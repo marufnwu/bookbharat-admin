@@ -8,7 +8,9 @@ import {
   Save,
   X,
   Package,
-  Weight
+  Weight,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { Button, Card, CardContent, PageSkeleton } from '../../components';
@@ -30,18 +32,20 @@ const WeightSlabs: React.FC = () => {
   const queryClient = useQueryClient();
   const [showModal, setShowModal] = useState(false);
   const [editingSlab, setEditingSlab] = useState<WeightSlab | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
   const [formData, setFormData] = useState<WeightSlabForm>({
     courier_name: 'Standard',
     base_weight: 0.5,
   });
 
-  // Fetch weight slabs
+  // Fetch weight slabs with pagination
   const { data: slabsResponse, isLoading } = useQuery({
-    queryKey: ['weight-slabs'],
-    queryFn: shippingApi.getWeightSlabs,
+    queryKey: ['weight-slabs', currentPage],
+    queryFn: () => shippingApi.getWeightSlabs({ page: currentPage }),
   });
 
   const weightSlabs = (slabsResponse as any)?.weight_slabs?.data || [];
+  const pagination = (slabsResponse as any)?.weight_slabs;
 
   // Create mutation
   const createMutation = useMutation({
@@ -264,6 +268,68 @@ const WeightSlabs: React.FC = () => {
               </CardContent>
             </Card>
           ))}
+        </div>
+      )}
+
+      {/* Pagination */}
+      {pagination && pagination.last_page > 1 && (
+        <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6 rounded-lg shadow">
+          <div className="flex-1 flex justify-between sm:hidden">
+            <Button
+              variant="outline"
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+            >
+              Previous
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setCurrentPage(p => Math.min(pagination.last_page, p + 1))}
+              disabled={currentPage === pagination.last_page}
+            >
+              Next
+            </Button>
+          </div>
+          <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm text-gray-700">
+                Showing <span className="font-medium">{pagination.from || 1}</span> to{' '}
+                <span className="font-medium">{pagination.to || weightSlabs.length}</span> of{' '}
+                <span className="font-medium">{pagination.total || 0}</span> results
+              </p>
+            </div>
+            <div>
+              <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                <button
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <ChevronLeft className="h-5 w-5" />
+                </button>
+                {Array.from({ length: pagination.last_page }, (_, i) => i + 1).map((page) => (
+                  <button
+                    key={page}
+                    onClick={() => setCurrentPage(page)}
+                    className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                      page === currentPage
+                        ? 'z-10 bg-primary-50 border-primary-500 text-primary-600'
+                        : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
+                    }`}
+                  >
+                    {page}
+                  </button>
+                ))}
+                <button
+                  onClick={() => setCurrentPage(p => Math.min(pagination.last_page, p + 1))}
+                  disabled={currentPage === pagination.last_page}
+                  className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <ChevronRight className="h-5 w-5" />
+                </button>
+              </nav>
+            </div>
+          </div>
         </div>
       )}
 
