@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, ShoppingCart, ShoppingBag, User, MoreHorizontal, Package } from 'lucide-react';
+import { Home, ShoppingCart, ShoppingBag, User, MoreHorizontal, Package, Truck } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { Drawer } from '../Drawer';
 
@@ -93,6 +93,12 @@ export const MobileNav: React.FC<MobileNavProps> = ({ className }) => {
             icon={Package}
             label="Categories"
             href="/categories"
+            onClick={() => setMoreOpen(false)}
+          />
+          <MoreNavItem
+            icon={Truck}
+            label="Create Shipment"
+            href="/orders/create-shipment"
             onClick={() => setMoreOpen(false)}
           />
           <MoreNavItem

@@ -260,6 +260,7 @@ const CreateShipment: React.FC = () => {
       carrier_id: selectedCarrier.carrier_id,
       service_code: selectedCarrier.service_code,
       warehouse_id: selectedWarehouse,
+      shipping_cost: selectedCarrier.total_charge, // Include shipping cost from rate
     });
   };
 

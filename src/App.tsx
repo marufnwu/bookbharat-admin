@@ -24,6 +24,7 @@ import PackagingList from "./pages/Packaging/PackagingList";
 import OrderList from "./pages/Orders/OrderList";
 import OrderDetail from "./pages/Orders/OrderDetail";
 import CreateShipment from "./pages/Orders/CreateShipment";
+import ManualShipment from "./pages/Orders/ManualShipment";
 import UserList from "./pages/Users/UserList";
 import CustomerDetail from "./pages/Customers/CustomerDetail";
 import CustomerCreate from "./pages/Customers/CustomerCreate";
@@ -150,6 +151,7 @@ const App: React.FC = () => {
 
               {/* Orders */}
               <Route path="orders" element={<OrderList />} />
+              <Route path="orders/create-shipment" element={<ManualShipment />} />
               <Route path="orders/:id" element={<OrderDetail />} />
               <Route
                 path="orders/:orderId/create-shipment"

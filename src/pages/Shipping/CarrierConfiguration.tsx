@@ -390,11 +390,17 @@ const CarrierConfiguration: React.FC = () => {
                   {/* Logo */}
                   {carrier.logo_url ? (
                     <img
-                      src={carrier.logo_url}
+                      src={`https://images.weserv.nl/?url=${encodeURIComponent(carrier.logo_url)}&w=96&h=96&fit=contain`}
                       alt={carrier.name}
                       className="h-12 w-12 object-contain rounded"
                       onError={(e) => {
-                        (e.target as HTMLImageElement).style.display = 'none';
+                        // Fallback to original URL if proxy fails
+                        const target = e.target as HTMLImageElement;
+                        if (!target.src.includes('images.weserv.nl') && carrier.logo_url) {
+                          target.src = carrier.logo_url;
+                        } else {
+                          target.style.display = 'none';
+                        }
                       }}
                     />
                   ) : (
@@ -1115,7 +1121,7 @@ const EnhancedCarrierConfigForm: React.FC<EnhancedCarrierConfigFormProps> = ({
   isValidating,
   validationResult
 }) => {
-  const [activeTab, setActiveTab] = useState<'credentials' | 'settings' | 'limits' | 'warehouse'>('credentials');
+  const [activeTab, setActiveTab] = useState<'credentials' | 'warehouse'>('credentials');
   const [formData, setFormData] = useState<Record<string, any>>(() => {
     const initialData: Record<string, any> = {};
     
@@ -1125,14 +1131,8 @@ const EnhancedCarrierConfigForm: React.FC<EnhancedCarrierConfigFormProps> = ({
       initialData[field.key] = carrierData[field.key] || '';
     });
     
-    // Settings
+    // Test mode toggle
     initialData.test_mode = carrier.api_mode === 'test';
-    initialData.priority = carrier.priority || 100;
-    initialData.cutoff_time = carrier.cutoff_time || '17:00';
-    
-    // Limits
-    initialData.max_weight = carrier.max_weight || 50;
-    initialData.max_insurance_value = carrier.max_insurance_value || 50000;
     
     return initialData;
   });
@@ -1145,10 +1145,6 @@ const EnhancedCarrierConfigForm: React.FC<EnhancedCarrierConfigFormProps> = ({
       updatedData[field.key] = carrierData[field.key] || '';
     });
     updatedData.test_mode = carrier.api_mode === 'test';
-    updatedData.priority = carrier.priority || 100;
-    updatedData.cutoff_time = carrier.cutoff_time || '17:00';
-    updatedData.max_weight = carrier.max_weight || 50;
-    updatedData.max_insurance_value = carrier.max_insurance_value || 50000;
     setFormData(updatedData);
   }, [carrier, fields]);
 
@@ -1162,6 +1158,15 @@ const EnhancedCarrierConfigForm: React.FC<EnhancedCarrierConfigFormProps> = ({
       ...prev,
       [field]: value
     }));
+    
+    // Auto-save when test_mode changes
+    if (field === 'test_mode') {
+      const updatedFormData = { ...formData, [field]: value };
+      // Small delay to update form state before saving
+      setTimeout(() => {
+        onSave(updatedFormData);
+      }, 100);
+    }
   };
 
   const handleValidate = () => {
@@ -1176,8 +1181,6 @@ const EnhancedCarrierConfigForm: React.FC<EnhancedCarrierConfigFormProps> = ({
 
   const tabs = [
     { id: 'credentials', label: 'Credentials', icon: Key },
-    { id: 'settings', label: 'Settings', icon: Settings },
-    { id: 'limits', label: 'Limits & Rules', icon: Shield },
     { id: 'warehouse', label: 'Warehouse', icon: Warehouse },
   ];
 
@@ -1214,14 +1217,35 @@ const EnhancedCarrierConfigForm: React.FC<EnhancedCarrierConfigFormProps> = ({
         {/* Credentials Tab */}
         {activeTab === 'credentials' && (
           <div className="space-y-4">
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <div className="flex">
-                <Info className="h-5 w-5 text-blue-400 mt-0.5" />
-                <div className="ml-3">
-                  <h4 className="text-sm font-medium text-blue-800">Security Notice</h4>
-                  <p className="mt-1 text-sm text-blue-700">
-                    Credentials are stored securely. Test mode credentials are separate from live mode.
+            {/* Test Mode Toggle */}
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="text-sm font-medium text-gray-900">API Mode</h4>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Toggle between Test and Live mode. Credentials will auto-load from config.
                   </p>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <span className={`text-sm font-medium ${!formData.test_mode ? 'text-green-600' : 'text-gray-400'}`}>
+                    Live
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleInputChange('test_mode', !formData.test_mode)}
+                    className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                      formData.test_mode ? 'bg-yellow-400' : 'bg-green-500'
+                    }`}
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                        formData.test_mode ? 'translate-x-0' : 'translate-x-5'
+                      }`}
+                    />
+                  </button>
+                  <span className={`text-sm font-medium ${formData.test_mode ? 'text-yellow-600' : 'text-gray-400'}`}>
+                    Test
+                  </span>
                 </div>
               </div>
             </div>
@@ -1307,117 +1331,6 @@ const EnhancedCarrierConfigForm: React.FC<EnhancedCarrierConfigFormProps> = ({
                 </>
               )}
             </button>
-          </div>
-        )}
-
-        {/* Settings Tab */}
-        {activeTab === 'settings' && (
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  API Mode
-                </label>
-                <select
-                  value={formData.test_mode ? 'test' : 'live'}
-                  onChange={(e) => handleInputChange('test_mode', e.target.value === 'test')}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="test">Test Mode</option>
-                  <option value="live">Live Mode</option>
-                </select>
-                <p className="mt-1 text-xs text-gray-500">Switch between test and production API</p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Priority
-                </label>
-                <input
-                  type="number"
-                  value={formData.priority}
-                  onChange={(e) => handleInputChange('priority', parseInt(e.target.value))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  min="0"
-                  max="1000"
-                />
-                <p className="mt-1 text-xs text-gray-500">Higher priority carriers are checked first</p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Cutoff Time
-                </label>
-                <input
-                  type="time"
-                  value={formData.cutoff_time}
-                  onChange={(e) => handleInputChange('cutoff_time', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                />
-                <p className="mt-1 text-xs text-gray-500">Last time to schedule pickup for same day</p>
-              </div>
-            </div>
-
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-4">
-              <div className="flex">
-                <AlertCircle className="h-5 w-5 text-yellow-400 mt-0.5" />
-                <div className="ml-3">
-                  <h4 className="text-sm font-medium text-yellow-800">Configuration Notice</h4>
-                  <p className="mt-1 text-sm text-yellow-700">
-                    These settings affect how and when this carrier is used for shipments. Changes take effect immediately.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Limits Tab */}
-        {activeTab === 'limits' && (
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Maximum Weight (kg)
-                </label>
-                <input
-                  type="number"
-                  value={formData.max_weight}
-                  onChange={(e) => handleInputChange('max_weight', parseFloat(e.target.value))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  step="0.01"
-                  min="0"
-                />
-                <p className="mt-1 text-xs text-gray-500">Maximum package weight this carrier accepts</p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Maximum Insurance Value (₹)
-                </label>
-                <input
-                  type="number"
-                  value={formData.max_insurance_value}
-                  onChange={(e) => handleInputChange('max_insurance_value', parseFloat(e.target.value))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  step="100"
-                  min="0"
-                />
-                <p className="mt-1 text-xs text-gray-500">Maximum value that can be insured</p>
-              </div>
-            </div>
-
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4">
-              <div className="flex">
-                <Info className="h-5 w-5 text-blue-400 mt-0.5" />
-                <div className="ml-3">
-                  <h4 className="text-sm font-medium text-blue-800">Operational Limits</h4>
-                  <p className="mt-1 text-sm text-blue-700">
-                    These limits are used to filter suitable carriers for each shipment based on weight and insurance requirements.
-                  </p>
-                </div>
-              </div>
-            </div>
           </div>
         )}
 
