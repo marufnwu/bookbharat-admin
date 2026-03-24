@@ -262,7 +262,7 @@ const ProductCreate: React.FC = () => {
     // Create FormData for multipart upload
     const data = new FormData();
     Object.keys(formData).forEach(key => {
-      if (key !== 'images' && key !== 'length' && key !== 'width' && key !== 'height') {
+      if (key !== 'images' && key !== 'length' && key !== 'width' && key !== 'height' && key !== 'free_shipping_zones') {
         const value = (formData as any)[key];
         // Handle boolean fields properly
         if (typeof value === 'boolean') {
@@ -272,6 +272,13 @@ const ProductCreate: React.FC = () => {
         }
       }
     });
+
+    // Handle array fields properly - append each item individually
+    if (Array.isArray(formData.free_shipping_zones)) {
+      formData.free_shipping_zones.forEach(zone => {
+        data.append('free_shipping_zones[]', zone);
+      });
+    }
 
     // Add dimensions as a combined string
     const dimensionsString = buildDimensionsString();

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { productsApi, categoriesApi, publishersApi, authorsApi } from '../../api';
 import { Upload, X, Save, ArrowLeft, Loader2 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
@@ -55,6 +55,7 @@ interface ProductForm {
 const ProductEdit: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState('basic');
   const [images, setImages] = useState<File[]>([]);
   const [imagePreview, setImagePreview] = useState<string[]>([]);
@@ -172,6 +173,9 @@ const ProductEdit: React.FC = () => {
     },
     onSuccess: () => {
       toast.success('Product updated successfully');
+      // Invalidate and refetch the product query to show updated data
+      queryClient.invalidateQueries({ queryKey: ['product', id] });
+      queryClient.invalidateQueries({ queryKey: ['products'] });
       navigate(`/products/${id}`);
     },
     onError: (error: any) => {
@@ -280,7 +284,7 @@ const ProductEdit: React.FC = () => {
     // Create FormData for multipart upload
     const data = new FormData();
     Object.keys(formData).forEach(key => {
-      if (key !== 'images' && key !== 'existing_images' && key !== 'length' && key !== 'width' && key !== 'height') {
+      if (key !== 'images' && key !== 'existing_images' && key !== 'length' && key !== 'width' && key !== 'height' && key !== 'free_shipping_zones' && key !== 'tags') {
         const value = (formData as any)[key];
         if (value !== undefined && value !== null) {
           // Handle boolean fields properly
@@ -292,6 +296,13 @@ const ProductEdit: React.FC = () => {
         }
       }
     });
+
+    // Handle array fields properly - append each item individually
+    if (Array.isArray(formData.free_shipping_zones)) {
+      formData.free_shipping_zones.forEach(zone => {
+        data.append('free_shipping_zones[]', zone);
+      });
+    }
 
     // Add dimensions as a combined string
     const dimensionsString = buildDimensionsString();
