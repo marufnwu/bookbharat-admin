@@ -158,6 +158,25 @@ const OrderDetail: React.FC = () => {
     },
   });
 
+  // Generate label mutation
+  const generateLabelMutation = useMutation({
+    mutationFn: async () => {
+      const response = await api.post(`/shipping/multi-carrier/shipments/${shipment?.id}/generate-label`);
+      return response.data;
+    },
+    onSuccess: (data: any) => {
+      if (data.success && data.data?.label_url) {
+        toast.success('Shipping label generated successfully');
+        refetchShipment();
+      } else {
+        toast.error(data.message || 'Failed to generate label');
+      }
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to generate shipping label');
+    },
+  });
+
   const handleStatusUpdate = () => {
     if (!selectedStatus) {
       toast.error('Please select a status');
@@ -859,8 +878,9 @@ const OrderDetail: React.FC = () => {
                       </div>
                     )}
 
-                    {shipment.label_url && (
-                      <div className="col-span-1 md:col-span-2">
+                    {/* Shipping Label Actions */}
+                    <div className="col-span-1 md:col-span-2 flex flex-wrap gap-2">
+                      {shipment.label_url ? (
                         <Button
                           variant="primary"
                           size="sm"
@@ -870,8 +890,18 @@ const OrderDetail: React.FC = () => {
                           Download Shipping Label
                           <ExternalLink className="h-3 w-3 ml-2" />
                         </Button>
-                      </div>
-                    )}
+                      ) : shipment.status !== 'cancelled' && shipment.status !== 'delivered' ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => generateLabelMutation.mutate()}
+                          loading={generateLabelMutation.isPending}
+                        >
+                          <FileText className="h-4 w-4 mr-2" />
+                          Generate Shipping Label
+                        </Button>
+                      ) : null}
+                    </div>
                   </div>
 
                   {/* Live Tracking Timeline */}
