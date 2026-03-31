@@ -182,7 +182,9 @@ const CreateShipment: React.FC = () => {
       navigate(`/orders/${orderId}`);
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || "Failed to create shipment");
+      // Read 'error' field first (contains actual API error), fallback to 'message' (generic)
+      const errorMessage = error.response?.data?.error || error.response?.data?.message || "Failed to create shipment";
+      toast.error(errorMessage);
     },
   });
 
