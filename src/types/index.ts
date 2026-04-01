@@ -97,6 +97,12 @@ export interface Product {
   free_shipping_type?: 'all_zones' | 'specific_zones' | 'none';
   free_shipping_zones?: string | string[]; // Can be JSON string or array
   free_shipping_min_quantity?: number;
+  // Manual shipping charge fields (zone-based)
+  manual_shipping_enabled?: boolean;
+  manual_shipping_zones?: Record<string, number> | string; // Zone-based charges, e.g., { "A": 50, "B": 60 }
+  // Manual COD charge fields
+  manual_cod_enabled?: boolean;
+  manual_cod_charge?: number;
   category?: Category;
   brand?: Brand;
   images?: ProductImage[];

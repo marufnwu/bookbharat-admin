@@ -93,7 +93,23 @@ const ProductDetail: React.FC = () => {
     return [];
   };
 
+  // Helper function to safely parse manual_shipping_zones (zone-based charges)
+  const getParsedManualShippingZones = (zones: any): Record<string, number> => {
+    if (typeof zones === 'object' && zones !== null && !Array.isArray(zones)) {
+      return zones;
+    }
+    if (typeof zones === 'string') {
+      try {
+        return JSON.parse(zones || '{}');
+      } catch {
+        return {};
+      }
+    }
+    return {};
+  };
+
   const shippingZones = getParsedShippingZones(product?.free_shipping_zones);
+  const manualShippingZones = getParsedManualShippingZones(product?.manual_shipping_zones);
 
   if (!product) {
     return (
@@ -641,6 +657,80 @@ const ProductDetail: React.FC = () => {
                       : ` Free shipping available to zones: ${shippingZones.length > 0 ? shippingZones.join(', ') : 'None selected'}.`
                     }
                     {product.free_shipping_min_quantity > 1 && ` Requires minimum quantity of ${product.free_shipping_min_quantity} units.`}
+                  </p>
+                </div>
+              )}
+
+              {/* Manual Shipping Zone Charges */}
+              <div className="mt-4">
+                <label className="block text-sm font-medium text-gray-700">Manual Shipping Charges</label>
+                <div className="mt-1">
+                  {product.manual_shipping_enabled ? (
+                    <div className="space-y-2">
+                      {Object.entries(manualShippingZones).length > 0 ? (
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                          <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+                            {Object.entries(manualShippingZones)
+                              .sort(([a], [b]) => a.localeCompare(b))
+                              .map(([zone, charge]) => (
+                                <div key={zone} className="flex items-center justify-between">
+                                  <span className="text-xs font-medium text-blue-700">Zone {zone}</span>
+                                  <span className="text-sm text-blue-900 font-semibold">₹{Number(charge).toFixed(2)}</span>
+                                </div>
+                              ))}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex items-center">
+                          <div className="w-2 h-2 bg-gray-400 rounded-full mr-2"></div>
+                          <span className="text-sm text-gray-500">No zones configured</span>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="flex items-center">
+                      <div className="w-2 h-2 bg-gray-400 rounded-full mr-2"></div>
+                      <span className="text-sm text-gray-500">Not Available</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Manual COD Charge */}
+              <div className="mt-4">
+                <label className="block text-sm font-medium text-gray-700">Manual COD Charge</label>
+                <div className="mt-1">
+                  {product.manual_cod_enabled ? (
+                    <div className="flex items-center">
+                      <div className="w-2 h-2 bg-purple-500 rounded-full mr-2"></div>
+                      <span className="text-sm text-purple-600 font-medium">
+                        ₹{product.manual_cod_charge ? Number(product.manual_cod_charge).toFixed(2) : '0.00'}
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center">
+                      <div className="w-2 h-2 bg-gray-400 rounded-full mr-2"></div>
+                      <span className="text-sm text-gray-500">Not Available</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Manual Charges Summary */}
+              {(product.manual_shipping_enabled || product.manual_cod_enabled) && (
+                <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-xs text-blue-800">
+                    <strong>Manual Charges Summary:</strong>
+                    {product.manual_shipping_enabled && Object.entries(manualShippingZones).length > 0 && (
+                      <span>
+                        {' '}Shipping: {Object.entries(manualShippingZones)
+                          .sort(([a], [b]) => a.localeCompare(b))
+                          .map(([zone, charge]) => `Zone ${zone} ₹${Number(charge).toFixed(0)}`)
+                          .join(', ')}
+                      </span>
+                    )}
+                    {product.manual_shipping_enabled && product.manual_cod_enabled && ' | '}
+                    {product.manual_cod_enabled && ` COD: ₹${product.manual_cod_charge ? Number(product.manual_cod_charge).toFixed(2) : '0.00'} per unit`}
                   </p>
                 </div>
               )}

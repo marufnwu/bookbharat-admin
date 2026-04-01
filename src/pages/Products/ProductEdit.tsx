@@ -45,6 +45,10 @@ interface ProductForm {
   free_shipping_type: 'none' | 'all_zones' | 'specific_zones';
   free_shipping_zones: string[];
   free_shipping_min_quantity: number;
+  manual_shipping_enabled: boolean;
+  manual_shipping_zones: Record<string, number>;
+  manual_cod_enabled: boolean;
+  manual_cod_charge: number;
   meta_title?: string;
   meta_description?: string;
   meta_keywords?: string;
@@ -79,6 +83,10 @@ const ProductEdit: React.FC = () => {
     free_shipping_type: 'none',
     free_shipping_zones: [],
     free_shipping_min_quantity: 1,
+    manual_shipping_enabled: false,
+    manual_shipping_zones: {},
+    manual_cod_enabled: false,
+    manual_cod_charge: 0,
     length: undefined,
     width: undefined,
     height: undefined,
@@ -141,6 +149,12 @@ const ProductEdit: React.FC = () => {
           ? p.free_shipping_zones
           : (p.free_shipping_zones ? JSON.parse(p.free_shipping_zones || '[]') : []),
         free_shipping_min_quantity: p.free_shipping_min_quantity || 1,
+        manual_shipping_enabled: p.manual_shipping_enabled || false,
+        manual_shipping_zones: p.manual_shipping_zones
+          ? (typeof p.manual_shipping_zones === 'string' ? JSON.parse(p.manual_shipping_zones) : p.manual_shipping_zones)
+          : {},
+        manual_cod_enabled: p.manual_cod_enabled || false,
+        manual_cod_charge: p.manual_cod_charge || 0,
         meta_title: p.meta_title || '',
         meta_description: p.meta_description || '',
         meta_keywords: p.meta_keywords || '',
@@ -284,7 +298,7 @@ const ProductEdit: React.FC = () => {
     // Create FormData for multipart upload
     const data = new FormData();
     Object.keys(formData).forEach(key => {
-      if (key !== 'images' && key !== 'existing_images' && key !== 'length' && key !== 'width' && key !== 'height' && key !== 'free_shipping_zones' && key !== 'tags') {
+      if (key !== 'images' && key !== 'existing_images' && key !== 'length' && key !== 'width' && key !== 'height' && key !== 'free_shipping_zones' && key !== 'tags' && key !== 'manual_shipping_zones') {
         const value = (formData as any)[key];
         if (value !== undefined && value !== null) {
           // Handle boolean fields properly
@@ -302,6 +316,11 @@ const ProductEdit: React.FC = () => {
       formData.free_shipping_zones.forEach(zone => {
         data.append('free_shipping_zones[]', zone);
       });
+    }
+
+    // Handle manual_shipping_zones as JSON
+    if (formData.manual_shipping_zones && Object.keys(formData.manual_shipping_zones).length > 0) {
+      data.append('manual_shipping_zones', JSON.stringify(formData.manual_shipping_zones));
     }
 
     // Add dimensions as a combined string
@@ -935,6 +954,173 @@ const ProductEdit: React.FC = () => {
                             </>
                           )}
                         </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Manual Shipping & COD Configuration */}
+              <div className="border-t pt-6">
+                <div className="flex items-center mb-6">
+                  <div className="h-8 w-8 bg-purple-100 rounded-full flex items-center justify-center mr-3">
+                    <svg className="h-4 w-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">Manual Shipping & COD Charges</h3>
+                    <p className="text-sm text-gray-600">Override zone-based shipping and COD charges for this product</p>
+                  </div>
+                </div>
+
+                <div className="space-y-6">
+                  {/* Manual Shipping Toggle */}
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <label className="flex items-center justify-between cursor-pointer">
+                      <div className="flex items-center">
+                        <input
+                          type="checkbox"
+                          name="manual_shipping_enabled"
+                          checked={formData.manual_shipping_enabled}
+                          onChange={handleInputChange}
+                          className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
+                        />
+                        <div className="ml-3">
+                          <span className="text-sm font-medium text-gray-900">
+                            Enable Manual Shipping Charges
+                          </span>
+                          <p className="text-xs text-gray-500">
+                            Set fixed shipping charges per zone for this product
+                          </p>
+                        </div>
+                      </div>
+                    </label>
+                  </div>
+
+                  {/* Manual Shipping Zone Rates */}
+                  {formData.manual_shipping_enabled && (
+                    <div className="bg-white border border-gray-200 rounded-lg p-6 space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-3">
+                          Shipping Charges by Zone (₹)
+                        </label>
+                        <p className="text-xs text-gray-500 mb-4">
+                          Set fixed shipping charges for each zone. Leave empty to use zone-based calculation for that zone.
+                        </p>
+                        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                          {['A', 'B', 'C', 'D', 'E'].map((zone) => (
+                            <div key={zone}>
+                              <label className="block text-xs font-medium text-gray-600 mb-1">
+                                Zone {zone}
+                              </label>
+                              <div className="relative">
+                                <span className="absolute left-3 top-2 text-gray-500">₹</span>
+                                <input
+                                  type="number"
+                                  value={formData.manual_shipping_zones[zone] || ''}
+                                  onChange={(e) => {
+                                    const zones = { ...formData.manual_shipping_zones };
+                                    if (e.target.value) {
+                                      zones[zone] = parseFloat(e.target.value);
+                                    } else {
+                                      delete zones[zone];
+                                    }
+                                    setFormData({ ...formData, manual_shipping_zones: zones });
+                                  }}
+                                  placeholder="0"
+                                  min="0"
+                                  step="1"
+                                  className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-purple-500 focus:border-purple-500"
+                                />
+                              </div>
+                              <p className="text-xs text-gray-400 mt-1">
+                                {zone === 'A' && 'Same City'}
+                                {zone === 'B' && 'Same State'}
+                                {zone === 'C' && 'Metro-Metro'}
+                                {zone === 'D' && 'Rest of India'}
+                                {zone === 'E' && 'NE/J&K'}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Manual COD Toggle */}
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <label className="flex items-center justify-between cursor-pointer">
+                      <div className="flex items-center">
+                        <input
+                          type="checkbox"
+                          name="manual_cod_enabled"
+                          checked={formData.manual_cod_enabled}
+                          onChange={handleInputChange}
+                          className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
+                        />
+                        <div className="ml-3">
+                          <span className="text-sm font-medium text-gray-900">
+                            Enable Manual COD Charge
+                          </span>
+                          <p className="text-xs text-gray-500">
+                            Set a fixed COD charge for this product (applies to all zones)
+                          </p>
+                        </div>
+                      </div>
+                    </label>
+                  </div>
+
+                  {/* Manual COD Charge Input */}
+                  {formData.manual_cod_enabled && (
+                    <div className="bg-white border border-gray-200 rounded-lg p-6">
+                      <label className="block text-sm font-medium text-gray-700 mb-3">
+                        COD Charge (₹)
+                      </label>
+                      <div className="flex items-center space-x-3">
+                        <div className="relative">
+                          <span className="absolute left-3 top-2 text-gray-500">₹</span>
+                          <input
+                            type="number"
+                            name="manual_cod_charge"
+                            value={formData.manual_cod_charge || ''}
+                            onChange={handleInputChange}
+                            min="0"
+                            step="1"
+                            className="w-32 pl-7 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-purple-500 focus:border-purple-500"
+                          />
+                        </div>
+                        <span className="text-sm text-gray-600">per unit</span>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-2">
+                        This fixed COD charge will be applied per quantity ordered
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Manual Charges Summary */}
+                  {(formData.manual_shipping_enabled || formData.manual_cod_enabled) && (
+                    <div className="border-t pt-4">
+                      <h4 className="text-sm font-medium text-gray-700 mb-3">Manual Charges Summary</h4>
+                      <div className="bg-purple-50 rounded-lg p-4">
+                        {formData.manual_shipping_enabled && Object.keys(formData.manual_shipping_zones).length > 0 && (
+                          <div className="mb-3">
+                            <p className="text-xs font-medium text-purple-800 mb-2">Shipping Charges:</p>
+                            <div className="flex flex-wrap gap-2">
+                              {Object.entries(formData.manual_shipping_zones).map(([zone, charge]) => (
+                                <span key={zone} className="inline-flex items-center px-2 py-1 bg-white rounded text-xs text-purple-700">
+                                  Zone {zone}: ₹{charge}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {formData.manual_cod_enabled && (
+                          <div>
+                            <p className="text-xs font-medium text-purple-800">COD Charge:</p>
+                            <p className="text-sm text-purple-900">₹{formData.manual_cod_charge} per unit</p>
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}
