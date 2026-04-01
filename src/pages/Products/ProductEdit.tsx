@@ -26,6 +26,8 @@ interface ProductForm {
   short_description?: string;
   price: number;
   compare_price?: number;
+  our_price?: number;
+  supplier?: string;
   stock_quantity: number;
   category_id: number;
   author?: string;
@@ -71,6 +73,8 @@ const ProductEdit: React.FC = () => {
     description: '',
     short_description: '',
     price: 0,
+    our_price: undefined,
+    supplier: '',
     stock_quantity: 0,
     category_id: 0,
     author: '',
@@ -128,6 +132,8 @@ const ProductEdit: React.FC = () => {
         short_description: p.short_description || '',
         price: parseFloat(String(p.price)) || 0,
         compare_price: p.compare_price ? parseFloat(String(p.compare_price)) : undefined,
+        our_price: p.our_price ? parseFloat(String(p.our_price)) : undefined,
+        supplier: p.supplier || '',
         stock_quantity: p.stock_quantity || 0,
         category_id: p.category_id || 0,
         author: p.author || (p.authors && p.authors.length > 0 ? p.authors[0].name : ''),
@@ -661,6 +667,37 @@ const ProductEdit: React.FC = () => {
                   step="0.01"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Our Price (₹)
+                </label>
+                <input
+                  type="number"
+                  name="our_price"
+                  value={formData.our_price || ''}
+                  onChange={handleInputChange}
+                  step="0.01"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Internal purchase price"
+                />
+                <p className="text-xs text-gray-500 mt-1">Internal purchase price from supplier (not shown to customers)</p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Supplier
+                </label>
+                <input
+                  type="text"
+                  name="supplier"
+                  value={formData.supplier || ''}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Supplier/vendor name"
+                />
+                <p className="text-xs text-gray-500 mt-1">Name of the supplier or vendor for this product</p>
               </div>
 
               <div>

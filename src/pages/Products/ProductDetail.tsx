@@ -386,7 +386,7 @@ const ProductDetail: React.FC = () => {
                     </div>
                   </div>
 
-                  {(product.author || product.publisher || product.isbn) && (
+                  {(product.author || product.publisher || product.isbn || product.supplier) && (
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
                       {product.author && (
                         <div>
@@ -398,6 +398,12 @@ const ProductDetail: React.FC = () => {
                         <div>
                           <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Publisher</label>
                           <p className="text-sm font-medium text-gray-900">{product.publisher}</p>
+                        </div>
+                      )}
+                      {product.supplier && (
+                        <div>
+                          <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Supplier</label>
+                          <p className="text-sm font-medium text-gray-900">{product.supplier}</p>
                         </div>
                       )}
                       {product.isbn && (
@@ -485,6 +491,23 @@ const ProductDetail: React.FC = () => {
                     </p>
                     <p className="text-xs text-blue-600 mt-1">
                       {Math.round(((1 - Number(product.price) / Number(product.compare_price)) * 100))}% off
+                    </p>
+                  </div>
+                )}
+
+                {product.our_price && (
+                  <div className="bg-teal-50 border border-teal-200 rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-teal-700">Our Price</span>
+                      <div className="p-1.5 bg-teal-100 rounded">
+                        <CurrencyRupeeIcon className="h-4 w-4 text-teal-600" />
+                      </div>
+                    </div>
+                    <p className="text-xl font-semibold text-teal-900">
+                      {formatCurrency(parseFloat(product.our_price))}
+                    </p>
+                    <p className="text-xs text-teal-600 mt-1">
+                      Internal purchase price
                     </p>
                   </div>
                 )}

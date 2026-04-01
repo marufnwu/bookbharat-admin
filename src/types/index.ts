@@ -72,6 +72,8 @@ export interface Product {
   sale_price: number | null;
   compare_price?: number | null;
   cost_price?: number | null;
+  our_price?: number | null; // Internal purchase price from supplier
+  supplier?: string | null; // Supplier/vendor name
   status: 'active' | 'inactive' | 'draft';
   stock_quantity: number;
   manage_stock: boolean;

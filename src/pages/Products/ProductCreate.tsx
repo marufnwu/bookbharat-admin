@@ -27,6 +27,8 @@ interface ProductForm {
   short_description?: string;
   price: number;
   compare_price?: number;
+  our_price?: number;
+  supplier?: string;
   stock_quantity: number;
   category_id: number;
   author?: string;
@@ -46,6 +48,10 @@ interface ProductForm {
   free_shipping_type: 'none' | 'all_zones' | 'specific_zones';
   free_shipping_zones: string[];
   free_shipping_min_quantity: number;
+  manual_shipping_enabled: boolean;
+  manual_shipping_zones: Record<string, number>;
+  manual_cod_enabled: boolean;
+  manual_cod_charge: number;
   meta_title?: string;
   meta_description?: string;
   meta_keywords?: string;
@@ -83,6 +89,8 @@ const ProductCreate: React.FC = () => {
     description: '',
     short_description: '',
     price: 0,
+    our_price: undefined,
+    supplier: '',
     stock_quantity: 0,
     category_id: 0,
     author: '',
@@ -95,6 +103,10 @@ const ProductCreate: React.FC = () => {
     free_shipping_type: 'none',
     free_shipping_zones: [],
     free_shipping_min_quantity: 1,
+    manual_shipping_enabled: false,
+    manual_shipping_zones: {},
+    manual_cod_enabled: false,
+    manual_cod_charge: 0,
     length: undefined,
     width: undefined,
     height: undefined,
@@ -262,7 +274,7 @@ const ProductCreate: React.FC = () => {
     // Create FormData for multipart upload
     const data = new FormData();
     Object.keys(formData).forEach(key => {
-      if (key !== 'images' && key !== 'length' && key !== 'width' && key !== 'height' && key !== 'free_shipping_zones') {
+      if (key !== 'images' && key !== 'length' && key !== 'width' && key !== 'height' && key !== 'free_shipping_zones' && key !== 'manual_shipping_zones') {
         const value = (formData as any)[key];
         // Handle boolean fields properly
         if (typeof value === 'boolean') {
@@ -278,6 +290,13 @@ const ProductCreate: React.FC = () => {
       formData.free_shipping_zones.forEach(zone => {
         data.append('free_shipping_zones[]', zone);
       });
+    }
+
+    // Handle manual_shipping_zones object - convert to JSON string
+    if (formData.manual_shipping_enabled && Object.keys(formData.manual_shipping_zones).length > 0) {
+      data.append('manual_shipping_zones', JSON.stringify(formData.manual_shipping_zones));
+    } else {
+      data.append('manual_shipping_zones', '[]');
     }
 
     // Add dimensions as a combined string
@@ -638,6 +657,37 @@ const ProductCreate: React.FC = () => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Our Price (₹)
+                </label>
+                <input
+                  type="number"
+                  name="our_price"
+                  value={formData.our_price || ''}
+                  onChange={handleInputChange}
+                  step="0.01"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Internal purchase price"
+                />
+                <p className="text-xs text-gray-500 mt-1">Internal purchase price from supplier (not shown to customers)</p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Supplier
+                </label>
+                <input
+                  type="text"
+                  name="supplier"
+                  value={formData.supplier || ''}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Supplier/vendor name"
+                />
+                <p className="text-xs text-gray-500 mt-1">Name of the supplier or vendor for this product</p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   Stock Quantity
                 </label>
                 <input
@@ -927,6 +977,176 @@ const ProductCreate: React.FC = () => {
                             </>
                           )}
                         </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Manual Shipping Configuration */}
+              <div className="border-t pt-6">
+                <div className="flex items-center mb-6">
+                  <div className="h-8 w-8 bg-purple-100 rounded-full flex items-center justify-center mr-3">
+                    <svg className="h-4 w-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1h-2m2 0h2" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">Manual Shipping Charges</h3>
+                    <p className="text-sm text-gray-600">Set fixed shipping charges per zone for this product</p>
+                  </div>
+                </div>
+
+                <div className="space-y-6">
+                  {/* Manual Shipping Toggle */}
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <label className="flex items-center justify-between cursor-pointer">
+                      <div className="flex items-center">
+                        <input
+                          type="checkbox"
+                          name="manual_shipping_enabled"
+                          checked={formData.manual_shipping_enabled}
+                          onChange={handleInputChange}
+                          className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
+                        />
+                        <div className="ml-3">
+                          <span className="text-sm font-medium text-gray-900">
+                            Enable Manual Shipping Charges
+                          </span>
+                          <p className="text-xs text-gray-500">
+                            Override calculated shipping with fixed charges per zone
+                          </p>
+                        </div>
+                      </div>
+                    </label>
+                  </div>
+
+                  {/* Manual Shipping Zone Rates */}
+                  {formData.manual_shipping_enabled && (
+                    <div className="bg-white border border-gray-200 rounded-lg p-6 space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-3">
+                          Shipping Charges per Zone
+                        </label>
+                        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                          {['A', 'B', 'C', 'D', 'E'].map((zone) => (
+                            <div key={zone} className="bg-gray-50 rounded-lg p-3">
+                              <label className="block text-xs font-medium text-gray-600 mb-2">
+                                Zone {zone}
+                              </label>
+                              <div className="flex items-center">
+                                <span className="text-gray-500 mr-1">₹</span>
+                                <input
+                                  type="number"
+                                  value={formData.manual_shipping_zones[zone] || ''}
+                                  onChange={(e) => {
+                                    const updatedZones = {
+                                      ...formData.manual_shipping_zones,
+                                      [zone]: parseFloat(e.target.value) || 0
+                                    };
+                                    // Remove zone if value is 0 or empty
+                                    if (!e.target.value || parseFloat(e.target.value) === 0) {
+                                      delete updatedZones[zone];
+                                    }
+                                    setFormData({ ...formData, manual_shipping_zones: updatedZones });
+                                  }}
+                                  min="0"
+                                  step="0.01"
+                                  placeholder="0.00"
+                                  className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-purple-500 focus:border-purple-500"
+                                />
+                              </div>
+                              <p className="text-xs text-gray-400 mt-1">
+                                {zone === 'A' && 'Same City'}
+                                {zone === 'B' && 'Same State'}
+                                {zone === 'C' && 'Metro-Metro'}
+                                {zone === 'D' && 'Rest of India'}
+                                {zone === 'E' && 'Northeast/J&K'}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="mt-3 p-3 bg-purple-50 border border-purple-200 rounded-lg">
+                          <p className="text-xs text-purple-800">
+                            <strong>Note:</strong> These charges will override the calculated shipping rates from carriers.
+                            Set to 0 or leave empty to use carrier-calculated rates for that zone.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Manual COD Toggle */}
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <label className="flex items-center justify-between cursor-pointer">
+                      <div className="flex items-center">
+                        <input
+                          type="checkbox"
+                          name="manual_cod_enabled"
+                          checked={formData.manual_cod_enabled}
+                          onChange={handleInputChange}
+                          className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
+                        />
+                        <div className="ml-3">
+                          <span className="text-sm font-medium text-gray-900">
+                            Enable Manual COD Charge
+                          </span>
+                          <p className="text-xs text-gray-500">
+                            Set a fixed COD charge for this product
+                          </p>
+                        </div>
+                      </div>
+                    </label>
+                  </div>
+
+                  {/* Manual COD Charge Input */}
+                  {formData.manual_cod_enabled && (
+                    <div className="bg-white border border-gray-200 rounded-lg p-6">
+                      <label className="block text-sm font-medium text-gray-700 mb-3">
+                        COD Charge Amount
+                      </label>
+                      <div className="flex items-center space-x-3">
+                        <span className="text-gray-500">₹</span>
+                        <input
+                          type="number"
+                          name="manual_cod_charge"
+                          value={formData.manual_cod_charge || ''}
+                          onChange={handleInputChange}
+                          min="0"
+                          step="0.01"
+                          placeholder="0.00"
+                          className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-purple-500 focus:border-purple-500"
+                        />
+                        <span className="text-sm text-gray-600">per order</span>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-2">
+                        This charge will be added to COD orders for this product
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Manual Charges Summary */}
+                  {(formData.manual_shipping_enabled || formData.manual_cod_enabled) && (
+                    <div className="border-t pt-4">
+                      <h4 className="text-sm font-medium text-gray-700 mb-3">Manual Charges Summary</h4>
+                      <div className="bg-purple-50 rounded-lg p-4">
+                        {formData.manual_shipping_enabled && Object.keys(formData.manual_shipping_zones).length > 0 && (
+                          <div className="mb-3">
+                            <p className="text-xs font-medium text-purple-800">Shipping Charges:</p>
+                            <p className="text-sm text-purple-900">
+                              {Object.entries(formData.manual_shipping_zones)
+                                .sort(([a], [b]) => a.localeCompare(b))
+                                .map(([zone, charge]) => `Zone ${zone}: ₹${Number(charge).toFixed(2)}`)
+                                .join(', ')}
+                            </p>
+                          </div>
+                        )}
+                        {formData.manual_cod_enabled && (
+                          <div>
+                            <p className="text-xs font-medium text-purple-800">COD Charge:</p>
+                            <p className="text-sm text-purple-900">₹{formData.manual_cod_charge} per order</p>
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}
