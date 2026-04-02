@@ -173,14 +173,6 @@ const BundleAnalytics: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Page Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Bundle Analytics</h1>
-        <p className="mt-1 text-sm text-gray-600">
-          Track performance and conversion metrics for product bundles
-        </p>
-      </div>
-
       {/* Statistics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-white rounded-lg shadow p-6">

@@ -40,6 +40,7 @@ import Shipping from "./pages/Shipping";
 import ProductAssociations from "./pages/FrequentlyBoughtTogether/ProductAssociations";
 import BundleDiscountRules from "./pages/FrequentlyBoughtTogether/BundleDiscountRules";
 import BundleAnalytics from "./pages/FrequentlyBoughtTogether/BundleAnalytics";
+import BundleManagerLayout from "./pages/FrequentlyBoughtTogether/Layout";
 import HeroConfig from "./pages/HeroConfig";
 import ContentPages from "./pages/ContentPages";
 import NavigationMenu from "./pages/NavigationMenu";
@@ -180,7 +181,7 @@ const App: React.FC = () => {
               <Route path="shipping" element={<Shipping />} />
 
               {/* Bundle Manager (Frequently Bought Together) */}
-              <Route path="bundle-manager">
+              <Route path="bundle-manager" element={<BundleManagerLayout />}>
                 <Route
                   index
                   element={

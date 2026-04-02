@@ -386,14 +386,6 @@ const ProductAssociations: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Page Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Product Associations</h1>
-        <p className="mt-1 text-sm text-gray-600">
-          Manage products that are frequently bought together
-        </p>
-      </div>
-
       {/* Statistics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-white rounded-lg shadow p-6">

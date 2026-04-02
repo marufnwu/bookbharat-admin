@@ -374,14 +374,6 @@ const BundleDiscountRules: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Page Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Bundle Discount Rules</h1>
-        <p className="mt-1 text-sm text-gray-600">
-          Configure dynamic discount rules for product bundles
-        </p>
-      </div>
-
       {/* Statistics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-white rounded-lg shadow p-6">
@@ -477,10 +469,12 @@ const BundleDiscountRules: React.FC = () => {
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
         <h3 className="font-medium text-blue-900 mb-2">About Bundle Discount Rules</h3>
         <ul className="text-sm text-blue-800 space-y-1">
+          <li>• <strong>No discount applies if no active rule is configured</strong></li>
           <li>• Rules are applied based on priority (higher number = higher priority)</li>
           <li>• Percentage discounts: Apply a % discount on the total bundle price</li>
           <li>• Fixed amount discounts: Deduct a fixed amount from the bundle price</li>
           <li>• Category and tier filters make rules more targeted</li>
+          <li>• Create at least one active rule to enable bundle discounts</li>
           <li>• Use "Test" to simulate rule application before activating</li>
           <li>• Duplicate rules to create variants for A/B testing</li>
         </ul>
