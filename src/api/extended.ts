@@ -67,6 +67,10 @@ export const productsApiExtended = {
   delete: (id: number) => api.delete(`/products/${id}`).then(res => res.data),
   getReviews: (id: number) => api.get(`/products/${id}/reviews`).then(res => res.data),
   getAnalytics: (id: number) => api.get(`/products/${id}/analytics`).then(res => res.data),
+  
+  // Soft delete methods
+  restore: (id: number) => api.post(`/products/${id}/restore`).then(res => res.data),
+  forceDelete: (id: number) => api.delete(`/products/${id}/force-delete`).then(res => res.data),
 };
 
 // Bundle Variants API

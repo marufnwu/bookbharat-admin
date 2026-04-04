@@ -13,6 +13,7 @@ import {
   ClockIcon,
   CheckCircleIcon,
   XCircleIcon,
+  ArrowPathIcon,
 } from '@heroicons/react/24/outline';
 import { productsApi, categoriesApi, brandsApi } from '../../api';
 import { Table, Button, Input, Badge, LoadingSpinner, Card, CardContent, StatusBadge } from '../../components';
@@ -79,6 +80,28 @@ const ProductList: React.FC = () => {
     },
   });
 
+  const restoreProductMutation = useMutation({
+    mutationFn: (id: number) => productsApi.restore(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+      showSuccess('Product restored successfully');
+    },
+    onError: (error: any) => {
+      showError('Failed to restore product', error.response?.data?.message);
+    },
+  });
+
+  const forceDeleteMutation = useMutation({
+    mutationFn: (id: number) => productsApi.forceDelete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+      showSuccess('Product permanently deleted');
+    },
+    onError: (error: any) => {
+      showError('Cannot delete product with orders', error.response?.data?.message);
+    },
+  });
+
   const handleFilterChange = (key: keyof FilterOptions, value: any) => {
     setFilters(prev => ({
       ...prev,
@@ -109,6 +132,16 @@ const ProductList: React.FC = () => {
     if (selectedProducts.length === 0) return;
     if (window.confirm(`Are you sure you want to delete ${selectedProducts.length} products?`)) {
       bulkDeleteMutation.mutate(selectedProducts);
+    }
+  };
+
+  const handleRestoreProduct = (id: number) => {
+    restoreProductMutation.mutate(id);
+  };
+
+  const handleForceDeleteProduct = (id: number) => {
+    if (window.confirm('Permanently delete this product? This cannot be undone and will fail if the product has orders.')) {
+      forceDeleteMutation.mutate(id);
     }
   };
 
@@ -234,6 +267,9 @@ const ProductList: React.FC = () => {
           <div className="flex-1 min-w-0">
             <div className="flex items-center space-x-2">
               <div className="font-medium text-gray-900 truncate max-w-[200px] sm:max-w-[300px]" title={record.name || value}>{record.name || value}</div>
+              {(record as any).deleted_at && (
+                <Badge variant="error" size="sm">Deleted</Badge>
+              )}
               {record.is_featured && (
                 <Badge variant="warning" size="sm">Featured</Badge>
               )}
@@ -283,33 +319,61 @@ const ProductList: React.FC = () => {
     {
       key: 'actions',
       title: 'Actions',
-      render: (_, record) => (
-        <div className="flex items-center space-x-1">
-          <Link
-            to={`/products/${record.id}`}
-            className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
-            title="View product details"
-          >
-            <EyeIcon className="h-4 w-4" />
-          </Link>
-          <Link
-            to={`/products/${record.id}/edit`}
-            className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-md transition-colors"
-            title="Edit product"
-          >
-            <PencilIcon className="h-4 w-4" />
-          </Link>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => handleDeleteProduct(record.id)}
-            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
-            title="Delete product"
-          >
-            <TrashIcon className="h-4 w-4" />
-          </Button>
-        </div>
-      ),
+      render: (_, record) => {
+        const isDeleted = (record as any).deleted_at;
+        return (
+          <div className="flex items-center space-x-1">
+            {isDeleted ? (
+              <>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleRestoreProduct(record.id)}
+                  className="p-1.5 text-green-600 hover:text-green-700 hover:bg-green-50 rounded-md transition-colors"
+                  title="Restore product"
+                >
+                  <ArrowPathIcon className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleForceDeleteProduct(record.id)}
+                  className="p-1.5 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors"
+                  title="Permanently delete"
+                >
+                  <TrashIcon className="h-4 w-4" />
+                </Button>
+              </>
+            ) : (
+              <>
+                <Link
+                  to={`/products/${record.id}`}
+                  className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+                  title="View product details"
+                >
+                  <EyeIcon className="h-4 w-4" />
+                </Link>
+                <Link
+                  to={`/products/${record.id}/edit`}
+                  className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-md transition-colors"
+                  title="Edit product"
+                >
+                  <PencilIcon className="h-4 w-4" />
+                </Link>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleDeleteProduct(record.id)}
+                  className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                  title="Delete product"
+                >
+                  <TrashIcon className="h-4 w-4" />
+                </Button>
+              </>
+            )}
+          </div>
+        );
+      },
     },
   ];
 
@@ -388,6 +452,7 @@ const ProductList: React.FC = () => {
                 <option value="active">Active</option>
                 <option value="inactive">Inactive</option>
                 <option value="draft">Draft</option>
+                <option value="trashed">Deleted (Trash)</option>
               </select>
             </div>
 
@@ -505,6 +570,9 @@ const ProductList: React.FC = () => {
                           <h3 className="text-sm font-medium text-gray-900 truncate">
                             {product.name || product.title}
                           </h3>
+                          {(product as any).deleted_at && (
+                            <Badge variant="error" size="sm">Deleted</Badge>
+                          )}
                           {product.is_featured && (
                             <Badge variant="warning" size="sm">Featured</Badge>
                           )}
@@ -541,24 +609,45 @@ const ProductList: React.FC = () => {
 
                     {/* Actions */}
                     <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-end space-x-2">
-                      <Link
-                        to={`/products/${product.id}`}
-                        className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
-                      >
-                        <EyeIcon className="h-4 w-4" />
-                      </Link>
-                      <Link
-                        to={`/products/${product.id}/edit`}
-                        className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-md transition-colors"
-                      >
-                        <PencilIcon className="h-4 w-4" />
-                      </Link>
-                      <button
-                        onClick={() => handleDeleteProduct(product.id)}
-                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
-                      >
-                        <TrashIcon className="h-4 w-4" />
-                      </button>
+                      {(product as any).deleted_at ? (
+                        <>
+                          <button
+                            onClick={() => handleRestoreProduct(product.id)}
+                            className="p-2 text-green-600 hover:text-green-700 hover:bg-green-50 rounded-md transition-colors"
+                            title="Restore product"
+                          >
+                            <ArrowPathIcon className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => handleForceDeleteProduct(product.id)}
+                            className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors"
+                            title="Permanently delete"
+                          >
+                            <TrashIcon className="h-4 w-4" />
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <Link
+                            to={`/products/${product.id}`}
+                            className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+                          >
+                            <EyeIcon className="h-4 w-4" />
+                          </Link>
+                          <Link
+                            to={`/products/${product.id}/edit`}
+                            className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-md transition-colors"
+                          >
+                            <PencilIcon className="h-4 w-4" />
+                          </Link>
+                          <button
+                            onClick={() => handleDeleteProduct(product.id)}
+                            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                          >
+                            <TrashIcon className="h-4 w-4" />
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>

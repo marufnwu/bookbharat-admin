@@ -110,6 +110,7 @@ export interface Product {
   images?: ProductImage[];
   variants?: ProductVariant[];
   bundle_variants?: ProductBundleVariant[];
+  deleted_at?: string | null;
 }
 
 export interface ProductImage {
