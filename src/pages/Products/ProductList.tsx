@@ -179,11 +179,13 @@ const ProductList: React.FC = () => {
   };
 
   const getFreeShippingBadge = (product: Product) => {
-    if (!product.free_shipping_enabled || product.free_shipping_type === 'none') {
+    // Parse shipping_config from product
+    const shippingConfig = product.shipping_config;
+    if (!shippingConfig || shippingConfig.type !== 'free') {
       return null;
     }
 
-    if (product.free_shipping_type === 'all_zones') {
+    if (shippingConfig.all_zones_free) {
       return (
         <div className="flex items-center text-green-600">
           <TruckIcon className="h-4 w-4 mr-1" />
@@ -192,9 +194,8 @@ const ProductList: React.FC = () => {
       );
     }
 
-    const zones = product.free_shipping_zones ?
-      (Array.isArray(product.free_shipping_zones) ? product.free_shipping_zones : JSON.parse(product.free_shipping_zones || '[]')) : [];
-
+    // Free shipping for specific zones
+    const zones = shippingConfig.zones ? Object.keys(shippingConfig.zones) : [];
     if (zones.length > 0) {
       return (
         <div className="flex items-center text-green-600">

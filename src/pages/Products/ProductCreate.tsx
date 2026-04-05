@@ -2,11 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { productsApi, categoriesApi, publishersApi, authorsApi } from '../../api';
-import { Upload, X, Plus, Save, ArrowLeft, Sparkles, Loader2 } from 'lucide-react';
+import { Upload, X, Plus, Save, ArrowLeft, Sparkles, Loader2, Truck } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import RichTextEditor from '../../components/RichTextEditor';
 import BundleVariantManager from '../../components/BundleVariantManager';
 import AiFieldGenerator from '../../components/AiFieldGenerator';
+import { ShippingConfigInput } from '../../components/products/ShippingConfigInput';
 import {
   Card,
   CardHeader,
@@ -44,14 +45,13 @@ interface ProductForm {
   publication_date?: string;
   is_featured: boolean;
   is_active: boolean;
-  free_shipping_enabled: boolean;
-  free_shipping_type: 'none' | 'all_zones' | 'specific_zones';
-  free_shipping_zones: string[];
-  free_shipping_min_quantity: number;
-  manual_shipping_enabled: boolean;
-  manual_shipping_zones: Record<string, number>;
-  manual_cod_enabled: boolean;
-  manual_cod_charge: number;
+  // Unified shipping config
+  shipping_config: {
+    type: 'free' | 'fixed' | 'zone_based';
+    all_zones_free?: boolean;
+    min_quantity?: number;
+    zones?: Record<string, { shipping: number | null; cod: number | null }>;
+  };
   meta_title?: string;
   meta_description?: string;
   meta_keywords?: string;
@@ -99,14 +99,11 @@ const ProductCreate: React.FC = () => {
     language: 'English',
     is_featured: false,
     is_active: true,
-    free_shipping_enabled: false,
-    free_shipping_type: 'none',
-    free_shipping_zones: [],
-    free_shipping_min_quantity: 1,
-    manual_shipping_enabled: false,
-    manual_shipping_zones: {},
-    manual_cod_enabled: false,
-    manual_cod_charge: 0,
+    shipping_config: {
+      type: 'zone_based',
+      all_zones_free: false,
+      min_quantity: 1,
+    },
     length: undefined,
     width: undefined,
     height: undefined,
@@ -274,7 +271,7 @@ const ProductCreate: React.FC = () => {
     // Create FormData for multipart upload
     const data = new FormData();
     Object.keys(formData).forEach(key => {
-      if (key !== 'images' && key !== 'length' && key !== 'width' && key !== 'height' && key !== 'free_shipping_zones' && key !== 'manual_shipping_zones') {
+      if (key !== 'images' && key !== 'length' && key !== 'width' && key !== 'height' && key !== 'shipping_config') {
         const value = (formData as any)[key];
         // Handle boolean fields properly
         if (typeof value === 'boolean') {
@@ -285,19 +282,8 @@ const ProductCreate: React.FC = () => {
       }
     });
 
-    // Handle array fields properly - append each item individually
-    if (Array.isArray(formData.free_shipping_zones)) {
-      formData.free_shipping_zones.forEach(zone => {
-        data.append('free_shipping_zones[]', zone);
-      });
-    }
-
-    // Handle manual_shipping_zones object - convert to JSON string
-    if (formData.manual_shipping_enabled && Object.keys(formData.manual_shipping_zones).length > 0) {
-      data.append('manual_shipping_zones', JSON.stringify(formData.manual_shipping_zones));
-    } else {
-      data.append('manual_shipping_zones', '[]');
-    }
+    // Handle shipping_config as JSON string
+    data.append('shipping_config', JSON.stringify(formData.shipping_config));
 
     // Add dimensions as a combined string
     const dimensionsString = buildDimensionsString();
@@ -797,360 +783,22 @@ const ProductCreate: React.FC = () => {
                 </div>
               </div>
 
-              {/* Free Shipping Configuration */}
+              {/* Unified Shipping Configuration */}
               <div className="border-t pt-6">
                 <div className="flex items-center mb-6">
                   <div className="h-8 w-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
-                    <svg className="h-4 w-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                    </svg>
+                    <Truck className="h-4 w-4 text-blue-600" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900">Free Shipping Configuration</h3>
-                    <p className="text-sm text-gray-600">Configure free shipping rules for this product</p>
+                    <h3 className="text-lg font-semibold text-gray-900">Shipping Configuration</h3>
+                    <p className="text-sm text-gray-600">Configure shipping rules and charges for this product</p>
                   </div>
                 </div>
 
-                <div className="space-y-6">
-                  {/* Free Shipping Toggle */}
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <label className="flex items-center justify-between cursor-pointer">
-                      <div className="flex items-center">
-                        <input
-                          type="checkbox"
-                          name="free_shipping_enabled"
-                          checked={formData.free_shipping_enabled}
-                          onChange={handleInputChange}
-                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                        />
-                        <div className="ml-3">
-                          <span className="text-sm font-medium text-gray-900">
-                            Enable Free Shipping for this Product
-                          </span>
-                          <p className="text-xs text-gray-500">
-                            Customers will get free shipping when this product meets the criteria
-                          </p>
-                        </div>
-                      </div>
-                    </label>
-                  </div>
-
-                  {/* Free Shipping Options */}
-                  {formData.free_shipping_enabled && (
-                    <div className="bg-white border border-gray-200 rounded-lg p-6 space-y-6">
-                      {/* Free Shipping Type */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-3">
-                          Free Shipping Applicability
-                        </label>
-                        <select
-                          name="free_shipping_type"
-                          value={formData.free_shipping_type}
-                          onChange={handleInputChange}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                        >
-                          <option value="none">No Free Shipping</option>
-                          <option value="all_zones">All Shipping Zones</option>
-                          <option value="specific_zones">Specific Zones Only</option>
-                        </select>
-                        <p className="text-xs text-gray-500 mt-1">
-                          Choose where free shipping applies for this product
-                        </p>
-                      </div>
-
-                      {/* Zone Selection */}
-                      {formData.free_shipping_type === 'specific_zones' && (
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-3">
-                            Select Zones for Free Shipping
-                          </label>
-                          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                            {['A', 'B', 'C', 'D', 'E'].map((zone) => (
-                              <div key={zone} className="relative">
-                                <input
-                                  type="checkbox"
-                                  id={`zone-${zone}`}
-                                  value={zone}
-                                  checked={Array.isArray(formData.free_shipping_zones) && formData.free_shipping_zones.includes(zone)}
-                                  onChange={(e) => {
-                                    const currentZones = Array.isArray(formData.free_shipping_zones) ? formData.free_shipping_zones : [];
-                                    const zones = e.target.checked
-                                      ? [...currentZones, zone]
-                                      : currentZones.filter(z => z !== zone);
-                                    setFormData({ ...formData, free_shipping_zones: zones });
-                                  }}
-                                  className="sr-only peer"
-                                />
-                                <label
-                                  htmlFor={`zone-${zone}`}
-                                  className="flex flex-col items-center justify-center p-3 border-2 rounded-lg cursor-pointer transition-all
-                                    peer-checked:border-blue-500 peer-checked:bg-blue-50 peer-checked:text-blue-700
-                                    border-gray-200 hover:border-gray-300 text-gray-600"
-                                >
-                                  <span className="text-lg font-semibold">Zone {zone}</span>
-                                  <span className="text-xs text-center mt-1">
-                                    {zone === 'A' && 'Same City'}
-                                    {zone === 'B' && 'Same State'}
-                                    {zone === 'C' && 'Metro-Metro'}
-                                    {zone === 'D' && 'Rest of India'}
-                                    {zone === 'E' && 'Northeast/J&K'}
-                                  </span>
-                                </label>
-                              </div>
-                            ))}
-                          </div>
-                          <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                            <p className="text-xs text-yellow-800">
-                              <strong>Zone Guide:</strong> A: Same City (1-2 days), B: Same State (2-3 days),
-                              C: Metro to Metro (3-4 days), D: Rest of India (4-6 days), E: Northeast & J&K (6-10 days)
-                            </p>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Minimum Quantity */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-3">
-                          Minimum Quantity Requirement
-                        </label>
-                        <div className="flex items-center space-x-3">
-                          <input
-                            type="number"
-                            name="free_shipping_min_quantity"
-                            value={formData.free_shipping_min_quantity}
-                            onChange={handleInputChange}
-                            min="1"
-                            step="0.01"
-                            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                          />
-                          <span className="text-sm text-gray-600">units</span>
-                        </div>
-                        <p className="text-xs text-gray-500 mt-1">
-                          Minimum quantity customers must purchase to qualify for free shipping
-                        </p>
-                        {formData.free_shipping_min_quantity > 1 && (
-                          <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded">
-                            <p className="text-xs text-blue-700">
-                              💡 Customers need to buy at least {formData.free_shipping_min_quantity} units
-                              to get free shipping
-                            </p>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Preview Section */}
-                      <div className="border-t pt-4">
-                        <h4 className="text-sm font-medium text-gray-700 mb-3">Configuration Summary</h4>
-                        <div className="bg-gray-50 rounded-lg p-4">
-                          <div className="flex items-center justify-between text-sm">
-                            <span className="text-gray-600">Free Shipping Status:</span>
-                            <span className={`font-medium ${
-                              formData.free_shipping_enabled && formData.free_shipping_type !== 'none'
-                                ? 'text-green-600'
-                                : 'text-gray-500'
-                            }`}>
-                              {formData.free_shipping_enabled && formData.free_shipping_type !== 'none'
-                                ? '✓ Enabled'
-                                : '✗ Disabled'
-                              }
-                            </span>
-                          </div>
-                          {formData.free_shipping_enabled && formData.free_shipping_type !== 'none' && (
-                            <>
-                              <div className="flex items-center justify-between text-sm mt-2">
-                                <span className="text-gray-600">Applicable Zones:</span>
-                                <span className="font-medium text-gray-900">
-                                  {formData.free_shipping_type === 'all_zones'
-                                    ? 'All Zones (A-E)'
-                                    : Array.isArray(formData.free_shipping_zones) && formData.free_shipping_zones.length > 0
-                                      ? `Zones ${formData.free_shipping_zones.join(', ')}`
-                                      : 'None selected'
-                                  }
-                                </span>
-                              </div>
-                              <div className="flex items-center justify-between text-sm mt-2">
-                                <span className="text-gray-600">Min Quantity:</span>
-                                <span className="font-medium text-gray-900">
-                                  {formData.free_shipping_min_quantity} units
-                                </span>
-                              </div>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Manual Shipping Configuration */}
-              <div className="border-t pt-6">
-                <div className="flex items-center mb-6">
-                  <div className="h-8 w-8 bg-purple-100 rounded-full flex items-center justify-center mr-3">
-                    <svg className="h-4 w-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1h-2m2 0h2" />
-                    </svg>
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900">Manual Shipping Charges</h3>
-                    <p className="text-sm text-gray-600">Set fixed shipping charges per zone for this product</p>
-                  </div>
-                </div>
-
-                <div className="space-y-6">
-                  {/* Manual Shipping Toggle */}
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <label className="flex items-center justify-between cursor-pointer">
-                      <div className="flex items-center">
-                        <input
-                          type="checkbox"
-                          name="manual_shipping_enabled"
-                          checked={formData.manual_shipping_enabled}
-                          onChange={handleInputChange}
-                          className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
-                        />
-                        <div className="ml-3">
-                          <span className="text-sm font-medium text-gray-900">
-                            Enable Manual Shipping Charges
-                          </span>
-                          <p className="text-xs text-gray-500">
-                            Override calculated shipping with fixed charges per zone
-                          </p>
-                        </div>
-                      </div>
-                    </label>
-                  </div>
-
-                  {/* Manual Shipping Zone Rates */}
-                  {formData.manual_shipping_enabled && (
-                    <div className="bg-white border border-gray-200 rounded-lg p-6 space-y-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-3">
-                          Shipping Charges per Zone
-                        </label>
-                        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-                          {['A', 'B', 'C', 'D', 'E'].map((zone) => (
-                            <div key={zone} className="bg-gray-50 rounded-lg p-3">
-                              <label className="block text-xs font-medium text-gray-600 mb-2">
-                                Zone {zone}
-                              </label>
-                              <div className="flex items-center">
-                                <span className="text-gray-500 mr-1">₹</span>
-                                <input
-                                  type="number"
-                                  value={formData.manual_shipping_zones[zone] || ''}
-                                  onChange={(e) => {
-                                    const updatedZones = {
-                                      ...formData.manual_shipping_zones,
-                                      [zone]: parseFloat(e.target.value) || 0
-                                    };
-                                    // Remove zone if value is 0 or empty
-                                    if (!e.target.value || parseFloat(e.target.value) === 0) {
-                                      delete updatedZones[zone];
-                                    }
-                                    setFormData({ ...formData, manual_shipping_zones: updatedZones });
-                                  }}
-                                  min="0"
-                                  step="0.01"
-                                  placeholder="0.00"
-                                  className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-purple-500 focus:border-purple-500"
-                                />
-                              </div>
-                              <p className="text-xs text-gray-400 mt-1">
-                                {zone === 'A' && 'Same City'}
-                                {zone === 'B' && 'Same State'}
-                                {zone === 'C' && 'Metro-Metro'}
-                                {zone === 'D' && 'Rest of India'}
-                                {zone === 'E' && 'Northeast/J&K'}
-                              </p>
-                            </div>
-                          ))}
-                        </div>
-                        <div className="mt-3 p-3 bg-purple-50 border border-purple-200 rounded-lg">
-                          <p className="text-xs text-purple-800">
-                            <strong>Note:</strong> These charges will override the calculated shipping rates from carriers.
-                            Set to 0 or leave empty to use carrier-calculated rates for that zone.
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Manual COD Toggle */}
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <label className="flex items-center justify-between cursor-pointer">
-                      <div className="flex items-center">
-                        <input
-                          type="checkbox"
-                          name="manual_cod_enabled"
-                          checked={formData.manual_cod_enabled}
-                          onChange={handleInputChange}
-                          className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
-                        />
-                        <div className="ml-3">
-                          <span className="text-sm font-medium text-gray-900">
-                            Enable Manual COD Charge
-                          </span>
-                          <p className="text-xs text-gray-500">
-                            Set a fixed COD charge for this product
-                          </p>
-                        </div>
-                      </div>
-                    </label>
-                  </div>
-
-                  {/* Manual COD Charge Input */}
-                  {formData.manual_cod_enabled && (
-                    <div className="bg-white border border-gray-200 rounded-lg p-6">
-                      <label className="block text-sm font-medium text-gray-700 mb-3">
-                        COD Charge Amount
-                      </label>
-                      <div className="flex items-center space-x-3">
-                        <span className="text-gray-500">₹</span>
-                        <input
-                          type="number"
-                          name="manual_cod_charge"
-                          value={formData.manual_cod_charge || ''}
-                          onChange={handleInputChange}
-                          min="0"
-                          step="0.01"
-                          placeholder="0.00"
-                          className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-purple-500 focus:border-purple-500"
-                        />
-                        <span className="text-sm text-gray-600">per order</span>
-                      </div>
-                      <p className="text-xs text-gray-500 mt-2">
-                        This charge will be added to COD orders for this product
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Manual Charges Summary */}
-                  {(formData.manual_shipping_enabled || formData.manual_cod_enabled) && (
-                    <div className="border-t pt-4">
-                      <h4 className="text-sm font-medium text-gray-700 mb-3">Manual Charges Summary</h4>
-                      <div className="bg-purple-50 rounded-lg p-4">
-                        {formData.manual_shipping_enabled && Object.keys(formData.manual_shipping_zones).length > 0 && (
-                          <div className="mb-3">
-                            <p className="text-xs font-medium text-purple-800">Shipping Charges:</p>
-                            <p className="text-sm text-purple-900">
-                              {Object.entries(formData.manual_shipping_zones)
-                                .sort(([a], [b]) => a.localeCompare(b))
-                                .map(([zone, charge]) => `Zone ${zone}: ₹${Number(charge).toFixed(2)}`)
-                                .join(', ')}
-                            </p>
-                          </div>
-                        )}
-                        {formData.manual_cod_enabled && (
-                          <div>
-                            <p className="text-xs font-medium text-purple-800">COD Charge:</p>
-                            <p className="text-sm text-purple-900">₹{formData.manual_cod_charge} per order</p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
+                <ShippingConfigInput
+                  value={formData.shipping_config}
+                  onChange={(config) => setFormData(prev => ({ ...prev, shipping_config: config }))}
+                />
               </div>
             </div>
           )}

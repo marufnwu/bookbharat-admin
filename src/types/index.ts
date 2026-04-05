@@ -6,6 +6,19 @@ export interface ApiResponse<T = any> {
   errors?: Record<string, string[]>;
 }
 
+// Shipping Configuration Types
+export interface ShippingZoneConfig {
+  shipping: number | null;  // null = use zone default, 0 = free shipping
+  cod: number | null;       // null = use zone default, 0 = no COD charge
+}
+
+export interface ShippingConfig {
+  type: 'free' | 'fixed' | 'zone_based';
+  all_zones_free?: boolean;
+  min_quantity?: number;
+  zones?: Record<string, ShippingZoneConfig>;  // Keyed by zone code: 'A', 'B', 'C', 'D', 'E'
+}
+
 export interface PaginatedResponse<T> {
   data: T[];
   meta: {
@@ -94,17 +107,8 @@ export interface Product {
   rating?: number; // Product rating
   review_count?: number; // Number of reviews
   sales_count?: number; // Number of units sold
-  // Free shipping fields
-  free_shipping_enabled?: boolean;
-  free_shipping_type?: 'all_zones' | 'specific_zones' | 'none';
-  free_shipping_zones?: string | string[]; // Can be JSON string or array
-  free_shipping_min_quantity?: number;
-  // Manual shipping charge fields (zone-based)
-  manual_shipping_enabled?: boolean;
-  manual_shipping_zones?: Record<string, number> | string; // Zone-based charges, e.g., { "A": 50, "B": 60 }
-  // Manual COD charge fields
-  manual_cod_enabled?: boolean;
-  manual_cod_charge?: number;
+  // Unified shipping configuration
+  shipping_config?: ShippingConfig;
   category?: Category;
   brand?: Brand;
   images?: ProductImage[];

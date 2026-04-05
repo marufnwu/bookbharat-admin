@@ -78,38 +78,35 @@ const ProductDetail: React.FC = () => {
   const analytics = productResponse?.analytics;
   const bundleVariants = bundleVariantsData?.bundle_variants || [];
 
-  // Helper function to safely parse free_shipping_zones
-  const getParsedShippingZones = (zones: any): string[] => {
-    if (Array.isArray(zones)) {
-      return zones;
-    }
-    if (typeof zones === 'string') {
+  // Helper function to safely parse shipping_config
+  const getShippingConfig = (config: any): {
+    type: 'free' | 'fixed' | 'zone_based';
+    all_zones_free?: boolean;
+    min_quantity?: number;
+    zones?: Record<string, { shipping: number | null; cod: number | null }>;
+  } | null => {
+    if (!config) return null;
+    if (typeof config === 'object') return config;
+    if (typeof config === 'string') {
       try {
-        return JSON.parse(zones || '[]');
+        return JSON.parse(config);
       } catch {
-        return [];
+        return null;
       }
     }
-    return [];
+    return null;
   };
 
-  // Helper function to safely parse manual_shipping_zones (zone-based charges)
-  const getParsedManualShippingZones = (zones: any): Record<string, number> => {
-    if (typeof zones === 'object' && zones !== null && !Array.isArray(zones)) {
-      return zones;
-    }
-    if (typeof zones === 'string') {
-      try {
-        return JSON.parse(zones || '{}');
-      } catch {
-        return {};
-      }
-    }
-    return {};
-  };
+  const shippingConfig = getShippingConfig(product?.shipping_config);
 
-  const shippingZones = getParsedShippingZones(product?.free_shipping_zones);
-  const manualShippingZones = getParsedManualShippingZones(product?.manual_shipping_zones);
+  // Zone names for display
+  const ZONE_NAMES: Record<string, string> = {
+    A: 'Same City',
+    B: 'Same State',
+    C: 'Metro Cities',
+    D: 'Rest of India',
+    E: 'Remote Areas',
+  };
 
   if (!product) {
     return (
@@ -640,121 +637,119 @@ const ProductDetail: React.FC = () => {
 
             {/* Shipping Information */}
             <div>
-              <h4 className="text-md font-medium text-gray-900 mb-3">Shipping Information</h4>
+              <h4 className="text-md font-medium text-gray-900 mb-3">Shipping Configuration</h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Free Shipping</label>
+                  <label className="block text-sm font-medium text-gray-700">Shipping Type</label>
                   <div className="mt-1">
-                    {product.free_shipping_enabled && product.free_shipping_type !== 'none' ? (
+                    {shippingConfig ? (
                       <div className="flex items-center">
-                        <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
-                        <span className="text-sm text-green-600 font-medium">
-                          Enabled ({product.free_shipping_type === 'all_zones' ? 'All Zones' : `Zones: ${shippingZones.length > 0 ? shippingZones.join(', ') : 'None'}`})
+                        <div className={`w-2 h-2 rounded-full mr-2 ${
+                          shippingConfig.type === 'free' ? 'bg-green-500' :
+                          shippingConfig.type === 'fixed' ? 'bg-purple-500' :
+                          'bg-blue-500'
+                        }`}></div>
+                        <span className={`text-sm font-medium ${
+                          shippingConfig.type === 'free' ? 'text-green-600' :
+                          shippingConfig.type === 'fixed' ? 'text-purple-600' :
+                          'text-blue-600'
+                        }`}>
+                          {shippingConfig.type === 'free' && 'Free Shipping'}
+                          {shippingConfig.type === 'fixed' && 'Custom Charges'}
+                          {shippingConfig.type === 'zone_based' && 'Zone-Based Rates'}
                         </span>
                       </div>
                     ) : (
                       <div className="flex items-center">
-                        <div className="w-2 h-2 bg-gray-400 rounded-full mr-2"></div>
-                        <span className="text-sm text-gray-500">Not Available</span>
+                        <div className="w-2 h-2 bg-blue-500 rounded-full mr-2"></div>
+                        <span className="text-sm text-blue-600 font-medium">Zone-Based Rates (Default)</span>
                       </div>
                     )}
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Min Quantity for Free Shipping</label>
-                  <p className="mt-1 text-sm text-gray-900">
-                    {product.free_shipping_enabled && product.free_shipping_min_quantity
-                      ? `${product.free_shipping_min_quantity} units`
-                      : 'N/A'
-                    }
-                  </p>
+                  <label className="block text-sm font-medium text-gray-700">Weight</label>
+                  <p className="mt-1 text-sm text-gray-900">{product.weight ? `${product.weight} grams` : 'N/A'}</p>
                 </div>
               </div>
 
-              {product.free_shipping_enabled && product.free_shipping_type !== 'none' && (
-                <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
-                  <p className="text-xs text-green-800">
-                    <strong>Free Shipping Details:</strong>
-                    {product.free_shipping_type === 'all_zones'
-                      ? ' Free shipping available to all zones (A-E).'
-                      : ` Free shipping available to zones: ${shippingZones.length > 0 ? shippingZones.join(', ') : 'None selected'}.`
-                    }
-                    {product.free_shipping_min_quantity > 1 && ` Requires minimum quantity of ${product.free_shipping_min_quantity} units.`}
-                  </p>
+              {/* Free Shipping Details */}
+              {shippingConfig?.type === 'free' && (
+                <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+                  <div className="flex items-center mb-3">
+                    <TruckIcon className="h-5 w-5 text-green-600 mr-2" />
+                    <span className="text-sm font-medium text-green-800">Free Shipping Configuration</span>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-green-700">Applicable Zones:</span>
+                      <span className="text-green-900 font-medium">
+                        {shippingConfig.all_zones_free ? 'All Zones (A-E)' :
+                          (shippingConfig.zones ? Object.keys(shippingConfig.zones).map(z => `Zone ${z}`).join(', ') : 'None')}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-green-700">Min Quantity:</span>
+                      <span className="text-green-900 font-medium">{shippingConfig.min_quantity || 1} units</span>
+                    </div>
+                  </div>
+                  {shippingConfig.all_zones_free && (
+                    <p className="mt-2 text-xs text-green-600">
+                      ✓ Free shipping available to all delivery zones across India
+                    </p>
+                  )}
                 </div>
               )}
 
-              {/* Manual Shipping Zone Charges */}
-              <div className="mt-4">
-                <label className="block text-sm font-medium text-gray-700">Manual Shipping Charges</label>
-                <div className="mt-1">
-                  {product.manual_shipping_enabled ? (
-                    <div className="space-y-2">
-                      {Object.entries(manualShippingZones).length > 0 ? (
-                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                          <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-                            {Object.entries(manualShippingZones)
-                              .sort(([a], [b]) => a.localeCompare(b))
-                              .map(([zone, charge]) => (
-                                <div key={zone} className="flex items-center justify-between">
-                                  <span className="text-xs font-medium text-blue-700">Zone {zone}</span>
-                                  <span className="text-sm text-blue-900 font-semibold">₹{Number(charge).toFixed(2)}</span>
-                                </div>
-                              ))}
+              {/* Custom/Fixed Shipping Charges */}
+              {shippingConfig?.type === 'fixed' && shippingConfig.zones && (
+                <div className="mt-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Custom Shipping & COD Charges</label>
+                  <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                    <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+                      {['A', 'B', 'C', 'D', 'E'].map(zone => {
+                        const zoneConfig = shippingConfig.zones?.[zone];
+                        if (!zoneConfig) return null;
+                        return (
+                          <div key={zone} className="bg-white rounded p-2">
+                            <div className="text-xs font-medium text-purple-700 mb-1">
+                              Zone {zone} ({ZONE_NAMES[zone]})
+                            </div>
+                            <div className="space-y-1">
+                              <div className="flex justify-between text-xs">
+                                <span className="text-gray-600">Shipping:</span>
+                                <span className={`font-medium ${zoneConfig.shipping === 0 ? 'text-green-600' : 'text-purple-900'}`}>
+                                  {zoneConfig.shipping !== null ? `₹${zoneConfig.shipping}` : 'Default'}
+                                  {zoneConfig.shipping === 0 && ' (Free)'}
+                                </span>
+                              </div>
+                              <div className="flex justify-between text-xs">
+                                <span className="text-gray-600">COD:</span>
+                                <span className="font-medium text-purple-900">
+                                  {zoneConfig.cod !== null ? `₹${zoneConfig.cod}` : 'Default'}
+                                </span>
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                      ) : (
-                        <div className="flex items-center">
-                          <div className="w-2 h-2 bg-gray-400 rounded-full mr-2"></div>
-                          <span className="text-sm text-gray-500">No zones configured</span>
-                        </div>
-                      )}
+                        );
+                      })}
                     </div>
-                  ) : (
-                    <div className="flex items-center">
-                      <div className="w-2 h-2 bg-gray-400 rounded-full mr-2"></div>
-                      <span className="text-sm text-gray-500">Not Available</span>
-                    </div>
-                  )}
+                    <p className="mt-2 text-xs text-purple-600">
+                      Custom charges override default carrier rates. "Default" uses zone-based calculation.
+                    </p>
+                  </div>
                 </div>
-              </div>
+              )}
 
-              {/* Manual COD Charge */}
-              <div className="mt-4">
-                <label className="block text-sm font-medium text-gray-700">Manual COD Charge</label>
-                <div className="mt-1">
-                  {product.manual_cod_enabled ? (
-                    <div className="flex items-center">
-                      <div className="w-2 h-2 bg-purple-500 rounded-full mr-2"></div>
-                      <span className="text-sm text-purple-600 font-medium">
-                        ₹{product.manual_cod_charge ? Number(product.manual_cod_charge).toFixed(2) : '0.00'}
-                      </span>
-                    </div>
-                  ) : (
-                    <div className="flex items-center">
-                      <div className="w-2 h-2 bg-gray-400 rounded-full mr-2"></div>
-                      <span className="text-sm text-gray-500">Not Available</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Manual Charges Summary */}
-              {(product.manual_shipping_enabled || product.manual_cod_enabled) && (
-                <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                  <p className="text-xs text-blue-800">
-                    <strong>Manual Charges Summary:</strong>
-                    {product.manual_shipping_enabled && Object.entries(manualShippingZones).length > 0 && (
-                      <span>
-                        {' '}Shipping: {Object.entries(manualShippingZones)
-                          .sort(([a], [b]) => a.localeCompare(b))
-                          .map(([zone, charge]) => `Zone ${zone} ₹${Number(charge).toFixed(0)}`)
-                          .join(', ')}
-                      </span>
-                    )}
-                    {product.manual_shipping_enabled && product.manual_cod_enabled && ' | '}
-                    {product.manual_cod_enabled && ` COD: ₹${product.manual_cod_charge ? Number(product.manual_cod_charge).toFixed(2) : '0.00'} per unit`}
-                  </p>
+              {/* Zone-Based Info */}
+              {(shippingConfig?.type === 'zone_based' || !shippingConfig) && (
+                <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="flex items-center">
+                    <TruckIcon className="h-5 w-5 text-blue-600 mr-2" />
+                    <span className="text-sm text-blue-800">
+                      Standard zone-based shipping rates will be calculated based on delivery pincode, package weight, and available courier partners.
+                    </span>
+                  </div>
                 </div>
               )}
             </div>
