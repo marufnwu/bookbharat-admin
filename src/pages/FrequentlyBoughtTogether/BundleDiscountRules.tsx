@@ -8,7 +8,7 @@ import {
   BeakerIcon,
   XMarkIcon,
 } from '@heroicons/react/24/outline';
-import { bundleDiscountRulesApi } from '../../api';
+import { bundleDiscountRulesApi, bundleDiscountSettingsApi } from '../../api';
 import { Table, Button, Badge, LoadingSpinner, Input } from '../../components';
 import { useNotificationStore } from '../../store/notificationStore';
 import { TableColumn } from '../../types';
@@ -69,6 +69,22 @@ const BundleDiscountRules: React.FC = () => {
 
   const queryClient = useQueryClient();
   const { showSuccess, showError } = useNotificationStore();
+
+  // Fetch global bundle discount settings
+  const { data: settingsData } = useQuery({
+    queryKey: ['bundle-discount-settings'],
+    queryFn: () => bundleDiscountSettingsApi.getSettings(),
+  });
+  const bundleEnabled = settingsData?.data?.enabled ?? true;
+
+  const updateSettingsMutation = useMutation({
+    mutationFn: (data: { enabled: boolean }) => bundleDiscountSettingsApi.updateSettings(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['bundle-discount-settings'] });
+      showSuccess(bundleEnabled ? 'Bundle discounts disabled' : 'Bundle discounts enabled');
+    },
+    onError: () => showError('Failed to update settings'),
+  });
 
   // Queries
   const { data: rulesData, isLoading } = useQuery({
@@ -374,6 +390,32 @@ const BundleDiscountRules: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {/* Global Bundle Discount Toggle */}
+      <div className="bg-white rounded-lg shadow p-4 flex items-center justify-between">
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900">Bundle Discounts</h3>
+          <p className="text-sm text-gray-500">
+            {bundleEnabled
+              ? 'Active — customers receive bundle discounts'
+              : 'Disabled — no bundle discounts applied'}
+          </p>
+        </div>
+        <button
+          type="button"
+          disabled={updateSettingsMutation.isPending}
+          onClick={() => updateSettingsMutation.mutate({ enabled: !bundleEnabled })}
+          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+            bundleEnabled ? 'bg-green-600' : 'bg-gray-300'
+          } ${updateSettingsMutation.isPending ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+        >
+          <span
+            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+              bundleEnabled ? 'translate-x-6' : 'translate-x-1'
+            }`}
+          />
+        </button>
+      </div>
+
       {/* Statistics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-white rounded-lg shadow p-6">

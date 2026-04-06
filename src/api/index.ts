@@ -931,6 +931,7 @@ export {
 
 // Export Hero Config API
 export { heroConfigApi } from './extended';
+export { bundleDiscountSettingsApi } from './extended';
 
 
 

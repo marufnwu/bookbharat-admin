@@ -330,6 +330,12 @@ export const bundleDiscountRulesApi = {
   getCustomerTiers: () => api.get('/bundle-discount-rules/customer-tiers').then(res => res.data),
 };
 
+// Global bundle discount settings API  
+export const bundleDiscountSettingsApi = {  
+  getSettings: () => api.get('/bundle-discount-rules/settings').then(res => res.data),  
+  updateSettings: (data: { enabled: boolean }) => api.put('/bundle-discount-rules/settings', data).then(res => res.data),
+};
+
 // Bundle Analytics API
 export const bundleAnalyticsApi = {
   getBundles: (params?: any) => api.get('/bundle-analytics', { params }).then(res => res.data),
@@ -339,53 +345,46 @@ export const bundleAnalyticsApi = {
   getPerformance: (bundleId: string) =>
     api.get('/bundle-analytics/performance', { params: { bundle_id: bundleId } }).then(res => res.data),
   getFunnel: () => api.get('/bundle-analytics/funnel').then(res => res.data),
-  getProductParticipation: (productId: number) =>
-    api.get(`/bundle-analytics/product/${productId}/participation`).then(res => res.data),
-  exportData: (format: 'json' | 'csv') =>
-    api.get('/bundle-analytics/export', { params: { format } }).then(res => res.data),
-  compareBundles: (bundleIds: string[]) =>
-    api.post('/bundle-analytics/compare', { bundle_ids: bundleIds }).then(res => res.data),
-  clearAnalytics: (bundleId?: string) =>
-    api.delete('/bundle-analytics/clear', { data: bundleId ? { bundle_id: bundleId } : {} }).then(res => res.data),
+  exportData: (format: string) => api.get(`/bundle-analytics/export?format=${format}`).then(res => res.data),
 };
+
+// Hero Config API
+export const heroConfigApi = {
+  getConfig: () => api.get('/hero-config').then(res => res.data),
+  updateConfig: (data: any) => api.put('/hero-config', data).then(res => res.data),
+  getAll: () => api.get('/hero-config').then(res => res.data),
+  setActive: (id: number) => api.post(`/hero-config/${id}/set-active`).then(res => res.data),
+  delete: (variant: string) => api.delete(`/hero-config/${variant}`).then(res => res.data),
+  update: (variant: string, data: any) => api.put(`/hero-config/${variant}`, data).then(res => res.data),
+  create: (data: any) => api.post('/hero-config', data).then(res => res.data),
+};
+
+// Packaging API
+export const packagingApi = {
+  getAll: (params?: any) => api.get('/packaging-options', { params }).then(res => res.data),
+  getOne: (id: number) => api.get('/packaging-options/' + id).then(res => res.data),
+  create: (data: any) => api.post('/packaging-options', data).then(res => res.data),
+  update: (id: number, data: any) => api.put('/packaging-options/' + id, data).then(res => res.data),
+  delete: (id: number) => api.delete('/packaging-options/' + id).then(res => res.data),
+};
+
 // Order Charges API
 export const orderChargesApi = {
+  getCharges: () => api.get('/order-charges').then(res => res.data),
+  updateCharges: (data: any) => api.put('/order-charges', data).then(res => res.data),
   getAll: () => api.get('/order-charges').then(res => res.data),
-  getOne: (id: number) => api.get(`/order-charges/${id}`).then(res => res.data),
   create: (data: any) => api.post('/order-charges', data).then(res => res.data),
   update: (id: number, data: any) => api.put(`/order-charges/${id}`, data).then(res => res.data),
   delete: (id: number) => api.delete(`/order-charges/${id}`).then(res => res.data),
-  toggleStatus: (id: number) => api.patch(`/order-charges/${id}/toggle`).then(res => res.data),
-  updatePriority: (charges: Array<{id: number, priority: number}>) => 
-    api.post('/order-charges/update-priority', { charges }).then(res => res.data),
+  toggleStatus: (id: number) => api.post(`/order-charges/${id}/toggle`).then(res => res.data),
 };
 
 // Tax Configurations API
 export const taxConfigurationsApi = {
-  getAll: () => api.get('/tax-configurations').then(res => res.data),
+  getAll: (params?: any) => api.get('/tax-configurations', { params }).then(res => res.data),
   getOne: (id: number) => api.get(`/tax-configurations/${id}`).then(res => res.data),
   create: (data: any) => api.post('/tax-configurations', data).then(res => res.data),
   update: (id: number, data: any) => api.put(`/tax-configurations/${id}`, data).then(res => res.data),
   delete: (id: number) => api.delete(`/tax-configurations/${id}`).then(res => res.data),
-  toggleStatus: (id: number) => api.patch(`/tax-configurations/${id}/toggle`).then(res => res.data),
-};
-
-// Hero Configuration API
-export const heroConfigApi = {
-  getAll: () => api.get('/hero-config').then(res => res.data),
-  getActive: () => api.get('/hero-config/active').then(res => res.data),
-  getOne: (variant: string) => api.get(`/hero-config/${variant}`).then(res => res.data),
-  create: (data: any) => api.post('/hero-config', data).then(res => res.data),
-  update: (variant: string, data: any) => api.put(`/hero-config/${variant}`, data).then(res => res.data),
-  delete: (variant: string) => api.delete(`/hero-config/${variant}`).then(res => res.data),
-  setActive: (variant: string) => api.post('/hero-config/set-active', { variant }).then(res => res.data),
-};
-
-// Packaging Options API
-export const packagingApi = {
-  getAll: () => api.get('/packaging-options').then(res => res.data),
-  getOne: (id: number) => api.get(`/packaging-options/${id}`).then(res => res.data),
-  create: (data: any) => api.post('/packaging-options', data).then(res => res.data),
-  update: (id: number, data: any) => api.put(`/packaging-options/${id}`, data).then(res => res.data),
-  delete: (id: number) => api.delete(`/packaging-options/${id}`).then(res => res.data),
+  toggleStatus: (id: number) => api.post(`/tax-configurations/${id}/toggle`).then(res => res.data),
 };
