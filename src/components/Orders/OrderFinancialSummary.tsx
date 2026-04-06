@@ -24,8 +24,8 @@ const OrderFinancialSummary: React.FC<FinancialSummaryProps> = ({ order, formatC
   const packagingAmount = parseFloat(String(order.packaging_amount || 0));
   
   // Additional charges (COD, etc.) - should NOT include packaging
-  const charges = (order.charges || []).filter((c: any) => 
-    c.code !== 'packaging_charge' // Packaging counted separately
+  const charges = (order.charges || []).filter((c: any) =>
+    c.code !== 'packaging_charge' && c.code !== 'packaging' // Packaging counted separately
   );
   const chargesTotal = charges.reduce((sum: number, c: any) => 
     sum + parseFloat(String(c.amount || 0)), 0
@@ -33,28 +33,10 @@ const OrderFinancialSummary: React.FC<FinancialSummaryProps> = ({ order, formatC
   
   // Backend total (source of truth)
   const grandTotal = parseFloat(String(order.total_amount || order.total || 0));
-  
+
   // Calculate what the total SHOULD be based on components
   const calculatedTotal = discountedSubtotal + shipping + packagingAmount + chargesTotal + tax;
   const calculationDiff = Math.abs(grandTotal - calculatedTotal);
-  
-  // Debug logging
-  console.log('📊 Financial Summary Data:', {
-    subtotal,
-    couponDiscount,
-    bundleDiscount,
-    discountedSubtotal,
-    shipping,
-    packagingAmount,
-    chargesTotal,
-    tax,
-    grandTotal,
-    calculatedTotal,
-    calculationDiff: calculationDiff.toFixed(2),
-    matchesBackend: calculationDiff < 0.01,
-    rawCharges: order.charges,
-    filteredCharges: charges
-  });
 
   return (
     <div className="bg-white rounded-lg shadow">

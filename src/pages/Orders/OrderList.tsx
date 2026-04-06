@@ -905,18 +905,18 @@ const OrderList: React.FC = () => {
                   <div className="flex justify-between">
                     <span className="text-gray-500">Customer</span>
                     <span className="font-medium text-gray-900">
-                      {order.customer?.name || order.billing_address?.name || 'N/A'}
+                      {order.user?.name || order.billing_address?.first_name ? `${order.billing_address.first_name} ${order.billing_address.last_name || ''}`.trim() : order.billing_address?.name || 'N/A'}
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-500">Items</span>
                     <span className="font-medium text-gray-900">
-                      {order.items_count || order.items?.length || 0}
+                      {order.order_items_count || order.items_count || order.items?.length || 0}
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-500">Total</span>
-                    <span className="font-medium text-gray-900">₹{Number(order.total || 0).toLocaleString()}</span>
+                    <span className="font-medium text-gray-900">₹{Number(order.total_amount || order.total || 0).toLocaleString('en-IN')}</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-gray-500">Payment</span>

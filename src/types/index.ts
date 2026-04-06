@@ -201,6 +201,52 @@ export interface Order {
   delivered_at: string | null;
   created_at: string;
   updated_at: string;
+
+  // Financial breakdown fields
+  coupon_discount?: number;
+  bundle_discount?: number;
+  coupon_code?: string;
+  charges?: Array<{
+    code: string;
+    name: string;
+    display_label: string;
+    amount: number;
+    is_taxable?: boolean;
+    type?: string;
+    source?: string;
+  }>;
+  packaging_amount?: number;
+  packaging_details?: { id: number; name: string; price: number };
+  packaging_option?: { id: number; name: string };
+  insurance_amount?: number;
+  taxes_breakdown?: Array<{
+    code: string;
+    name: string;
+    display_label: string;
+    rate: string;
+    amount: number;
+    taxable_amount: number;
+    is_inclusive: boolean;
+    type: string;
+  }>;
+  // Fallback field names (backend inconsistency)
+  shipping_cost?: number;
+  tax?: number;
+  total?: number;
+  // COD specific fields
+  cod_charge?: number;
+  is_cod?: boolean;
+  is_cod_advance?: boolean;
+  advance_amount?: number;
+  balance_amount?: number;
+  // Refunds
+  refunds_list?: Array<{ id: number; amount: number; status: string; reason: string }>;
+  // Referral
+  referral_code_id?: number | null;
+  referral_discount?: number;
+  referral_details?: { code: string; discount_amount: number; discount_type: string };
+
+  // Nested objects
   user?: User;
   items?: OrderItem[];
   shipping_address?: Address;
