@@ -179,33 +179,18 @@ const ProductList: React.FC = () => {
   };
 
   const getFreeShippingBadge = (product: Product) => {
-    // Parse shipping_config from product
     const shippingConfig = product.shipping_config;
-    if (!shippingConfig || shippingConfig.type !== 'free') {
-      return null;
-    }
+    if (!shippingConfig?.zones) return null;
 
-    if (shippingConfig.all_zones_free) {
-      return (
-        <div className="flex items-center text-green-600">
-          <TruckIcon className="h-4 w-4 mr-1" />
-          <span className="text-xs font-medium">Free Shipping</span>
-        </div>
-      );
-    }
+    const allFree = ['A','B','C','D','E'].every(z => (shippingConfig.zones?.[z]?.shipping ?? 0) === 0);
+    if (!allFree) return null;
 
-    // Free shipping for specific zones
-    const zones = shippingConfig.zones ? Object.keys(shippingConfig.zones) : [];
-    if (zones.length > 0) {
-      return (
-        <div className="flex items-center text-green-600">
-          <TruckIcon className="h-4 w-4 mr-1" />
-          <span className="text-xs font-medium">Free ({zones.length} zones)</span>
-        </div>
-      );
-    }
-
-    return null;
+    return (
+      <div className="flex items-center text-green-600">
+        <TruckIcon className="h-4 w-4 mr-1" />
+        <span className="text-xs font-medium">Free Shipping</span>
+      </div>
+    );
   };
 
   const getRatingStars = (rating: number) => {

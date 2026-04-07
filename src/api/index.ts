@@ -525,35 +525,6 @@ const reviewsApiBase = {
 
 // Shipping API
 export const shippingApi = {
-  getZones: (): Promise<ApiResponse<any[]>> =>
-    api.get('/shipping/zones').then(res => res.data),
-
-  createZone: (zone: any): Promise<ApiResponse<any>> =>
-    api.post('/shipping/zones', zone).then(res => res.data),
-
-  updateZone: (id: number, zone: any): Promise<ApiResponse<any>> =>
-    api.put(`/shipping/zones/${id}`, zone).then(res => res.data),
-
-  deleteZone: (id: number): Promise<ApiResponse> =>
-    api.delete(`/shipping/zones/${id}`).then(res => res.data),
-
-  getWeightSlabs: (params?: { page?: number; per_page?: number }): Promise<ApiResponse<any>> => {
-    const queryParams = new URLSearchParams();
-    if (params?.page) queryParams.append('page', params.page.toString());
-    if (params?.per_page) queryParams.append('per_page', params.per_page.toString());
-    const query = queryParams.toString();
-    return api.get(`/shipping/weight-slabs${query ? `?${query}` : ''}`).then(res => res.data);
-  },
-
-  createWeightSlab: (slab: any): Promise<ApiResponse<any>> =>
-    api.post('/shipping/weight-slabs', slab).then(res => res.data),
-
-  updateWeightSlab: (id: number, slab: any): Promise<ApiResponse<any>> =>
-    api.put(`/shipping/weight-slabs/${id}`, slab).then(res => res.data),
-
-  deleteWeightSlab: (id: number): Promise<ApiResponse> =>
-    api.delete(`/shipping/weight-slabs/${id}`).then(res => res.data),
-
   getPincodes: (params?: { page?: number; search?: string; zone?: string; state?: string }): Promise<ApiResponse<any>> => {
     const queryParams = new URLSearchParams();
     if (params?.page) queryParams.append('page', params.page.toString());
@@ -573,12 +544,6 @@ export const shippingApi = {
   deletePincodeZone: (id: number): Promise<ApiResponse> =>
     api.delete(`/shipping/pincodes/${id}`).then(res => res.data),
 
-  testCalculation: (data: any): Promise<ApiResponse<any>> =>
-    api.post('/shipping/test-calculation', data).then(res => res.data),
-
-  getAnalytics: (): Promise<ApiResponse<any>> =>
-    api.get('/shipping/analytics').then(res => res.data),
-
   // Warehouses
   getWarehouses: (): Promise<ApiResponse<any>> =>
     api.get('/shipping/warehouses').then(res => res.data),
@@ -594,13 +559,6 @@ export const shippingApi = {
 
   setDefaultWarehouse: (id: number): Promise<ApiResponse<any>> =>
     api.post(`/shipping/warehouses/${id}/set-default`).then(res => res.data),
-
-  // Free Shipping Thresholds
-  getFreeShippingThresholds: (): Promise<ApiResponse<any>> =>
-    api.get('/shipping/free-shipping-thresholds').then(res => res.data),
-
-  updateFreeShippingThreshold: (data: { zone: string; threshold?: number; enabled?: boolean }): Promise<ApiResponse<any>> =>
-    api.post('/shipping/free-shipping-thresholds', data).then(res => res.data),
 };
 
 // Settings API (base)

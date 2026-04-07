@@ -47,9 +47,6 @@ interface ProductForm {
   is_active: boolean;
   // Unified shipping config
   shipping_config: {
-    type: 'free' | 'fixed' | 'zone_based';
-    all_zones_free?: boolean;
-    min_quantity?: number;
     zones?: Record<string, { shipping: number | null; cod: number | null }>;
   };
   meta_title?: string;
@@ -100,9 +97,13 @@ const ProductCreate: React.FC = () => {
     is_featured: false,
     is_active: true,
     shipping_config: {
-      type: 'zone_based',
-      all_zones_free: false,
-      min_quantity: 1,
+      zones: {
+        A: { shipping: 0, cod: 0 },
+        B: { shipping: 0, cod: 0 },
+        C: { shipping: 0, cod: 0 },
+        D: { shipping: 0, cod: 0 },
+        E: { shipping: 0, cod: 0 },
+      },
     },
     length: undefined,
     width: undefined,

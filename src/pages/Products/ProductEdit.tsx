@@ -46,9 +46,6 @@ interface ProductForm {
   is_active: boolean;
   // Unified shipping config
   shipping_config: {
-    type: 'free' | 'fixed' | 'zone_based';
-    all_zones_free?: boolean;
-    min_quantity?: number;
     zones?: Record<string, { shipping: number | null; cod: number | null }>;
   };
   meta_title?: string;
@@ -56,6 +53,22 @@ interface ProductForm {
   meta_keywords?: string;
   images: File[];
   existing_images?: string[];
+}
+
+function normalizeShippingConfig(config: any): { zones: Record<string, { shipping: number | null; cod: number | null }> } {
+  const defaultZones = {
+    A: { shipping: 0, cod: 0 }, B: { shipping: 0, cod: 0 }, C: { shipping: 0, cod: 0 },
+    D: { shipping: 0, cod: 0 }, E: { shipping: 0, cod: 0 },
+  };
+  if (!config) return { zones: { ...defaultZones } };
+  if (config.zones && !config.type) return { zones: config.zones };
+  if (config.type === 'zone_based') return { zones: { ...defaultZones } };
+  if (config.type === 'free' && config.all_zones_free) {
+    const cod = config.cod ?? 0;
+    return { zones: { A: { shipping: 0, cod }, B: { shipping: 0, cod }, C: { shipping: 0, cod }, D: { shipping: 0, cod }, E: { shipping: 0, cod } } };
+  }
+  if (config.zones) return { zones: config.zones };
+  return { zones: { ...defaultZones } };
 }
 
 const ProductEdit: React.FC = () => {
@@ -84,9 +97,13 @@ const ProductEdit: React.FC = () => {
     is_featured: false,
     is_active: true,
     shipping_config: {
-      type: 'zone_based',
-      all_zones_free: false,
-      min_quantity: 1,
+      zones: {
+        A: { shipping: 0, cod: 0 },
+        B: { shipping: 0, cod: 0 },
+        C: { shipping: 0, cod: 0 },
+        D: { shipping: 0, cod: 0 },
+        E: { shipping: 0, cod: 0 },
+      },
     },
     length: undefined,
     width: undefined,
@@ -146,11 +163,7 @@ const ProductEdit: React.FC = () => {
         publication_date: p.publication_date || '',
         is_featured: p.is_featured || false,
         is_active: p.is_active !== false,
-        shipping_config: p.shipping_config || {
-          type: 'zone_based',
-          all_zones_free: false,
-          min_quantity: 1,
-        },
+        shipping_config: normalizeShippingConfig(p.shipping_config),
         meta_title: p.meta_title || '',
         meta_description: p.meta_description || '',
         meta_keywords: p.meta_keywords || '',

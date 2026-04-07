@@ -13,10 +13,7 @@ export interface ShippingZoneConfig {
 }
 
 export interface ShippingConfig {
-  type: 'free' | 'fixed' | 'zone_based';
-  all_zones_free?: boolean;
-  min_quantity?: number;
-  zones?: Record<string, ShippingZoneConfig>;  // Keyed by zone code: 'A', 'B', 'C', 'D', 'E'
+  zones?: Record<string, ShippingZoneConfig>;
 }
 
 export interface PaginatedResponse<T> {
