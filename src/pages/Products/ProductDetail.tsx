@@ -81,15 +81,8 @@ const ProductDetail: React.FC = () => {
   const getShippingConfig = (config: any): {
     zones?: Record<string, { shipping: number | null; cod: number | null }>;
   } | null => {
-    if (!config) return null;
-    if (typeof config === 'string') {
-      try { return JSON.parse(config); } catch { return null; }
-    }
-    if (typeof config === 'object') {
-      if (config.zones && !config.type) return config;
-      if (config.zones) return { zones: config.zones };
-      return { zones: { A: { shipping: 0, cod: 0 }, B: { shipping: 0, cod: 0 }, C: { shipping: 0, cod: 0 }, D: { shipping: 0, cod: 0 }, E: { shipping: 0, cod: 0 } } };
-    }
+    if (!config || typeof config !== 'object') return null;
+    if (config.zones) return config;
     return null;
   };
 

@@ -60,15 +60,8 @@ function normalizeShippingConfig(config: any): { zones: Record<string, { shippin
     A: { shipping: 0, cod: 0 }, B: { shipping: 0, cod: 0 }, C: { shipping: 0, cod: 0 },
     D: { shipping: 0, cod: 0 }, E: { shipping: 0, cod: 0 },
   };
-  if (!config) return { zones: { ...defaultZones } };
-  if (config.zones && !config.type) return { zones: config.zones };
-  if (config.type === 'zone_based') return { zones: { ...defaultZones } };
-  if (config.type === 'free' && config.all_zones_free) {
-    const cod = config.cod ?? 0;
-    return { zones: { A: { shipping: 0, cod }, B: { shipping: 0, cod }, C: { shipping: 0, cod }, D: { shipping: 0, cod }, E: { shipping: 0, cod } } };
-  }
-  if (config.zones) return { zones: config.zones };
-  return { zones: { ...defaultZones } };
+  if (!config || !config.zones) return { zones: defaultZones };
+  return { zones: config.zones };
 }
 
 const ProductEdit: React.FC = () => {
