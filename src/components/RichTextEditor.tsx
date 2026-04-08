@@ -50,6 +50,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
         'ul', 'ol', '|',
         'align', 'undo', 'redo',
       ],
+      colorPickerDefaultTab: 'color',
       style: {
         fontfamily:
           'Arial, Helvetica, sans-serif, serif, monospace, cursive, fantasy',
