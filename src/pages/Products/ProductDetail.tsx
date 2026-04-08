@@ -417,6 +417,10 @@ const ProductDetail: React.FC = () => {
                       <span className="text-gray-600">Created</span>
                       <span className="text-gray-900 font-medium">{format(new Date(product.created_at), 'MMM dd, yyyy')}</span>
                     </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Updated</span>
+                      <span className="text-gray-900 font-medium">{format(new Date(product.updated_at), 'MMM dd, yyyy')}</span>
+                    </div>
                     {product.pages && (
                       <div className="flex justify-between text-sm">
                         <span className="text-gray-600">Pages</span>
