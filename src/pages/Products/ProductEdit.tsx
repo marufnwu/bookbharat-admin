@@ -71,7 +71,7 @@ const ProductEdit: React.FC = () => {
   const [activeTab, setActiveTab] = useState('basic');
   const [images, setImages] = useState<File[]>([]);
   const [imagePreview, setImagePreview] = useState<string[]>([]);
-  const [existingImages, setExistingImages] = useState<string[]>([]);
+  const [existingImages, setExistingImages] = useState<{id: string, url: string}[]>([]);
   const [formData, setFormData] = useState<ProductForm>({
     name: '',
     sku: '',
@@ -178,7 +178,10 @@ const ProductEdit: React.FC = () => {
 
       // Set existing images
       if (p.images && Array.isArray(p.images)) {
-        setExistingImages(p.images.map((img: any) => img.image_url || img.url || img));
+        setExistingImages(p.images.map((img: any) => ({
+          id: String(img.id),
+          url: img.image_url || img.url || img,
+        })));
       }
     }
   }, [product]);
@@ -330,12 +333,9 @@ const ProductEdit: React.FC = () => {
     });
 
     // Append existing images to keep
-    existingImages.forEach(url => {
-      data.append('existing_images[]', url);
+    existingImages.forEach(img => {
+      data.append('existing_images[]', img.id);
     });
-
-    // Add _method field for Laravel
-    data.append('_method', 'PUT');
 
     updateMutation.mutate(data);
   };
@@ -828,10 +828,10 @@ const ProductEdit: React.FC = () => {
                     Current Images
                   </label>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    {existingImages.map((url, index) => (
-                      <div key={index} className="relative group">
+                    {existingImages.map((img, index) => (
+                      <div key={img.id} className="relative group">
                         <img
-                          src={url}
+                          src={img.url}
                           alt={`Current ${index + 1}`}
                           className="w-full h-32 object-cover rounded-lg"
                         />
