@@ -860,17 +860,22 @@ const OrderDetail: React.FC = () => {
                           {order.shipping_address?.name || `${order.shipping_address?.first_name || ''} ${order.shipping_address?.last_name || ''}`.trim() || 'N/A'}
                         </p>
                         <p className="text-sm text-gray-600">
-                          {order.shipping_address?.address_line_1 || order.shipping_address?.address_1 || order.shipping_address?.address}
-                          {(order.shipping_address?.address_line_2 || order.shipping_address?.address_2) && (
-                            <>, {order.shipping_address.address_line_2 || order.shipping_address.address_2}</>
-                          )}
+                          {[
+                            order.shipping_address?.house_number,
+                            order.shipping_address?.address_line_1,
+                            order.shipping_address?.address_1,
+                            order.shipping_address?.address,
+                            order.shipping_address?.address_line_2,
+                            order.shipping_address?.address_2,
+                            order.shipping_address?.landmark,
+                          ].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).join(', ') || 'N/A'}
                         </p>
                         <p className="text-sm text-gray-600">
-                          {order.shipping_address?.city}, {order.shipping_address?.state} {order.shipping_address?.pincode || order.shipping_address?.postal_code}
+                          {order.shipping_address?.city || ''}, {order.shipping_address?.state || ''} {order.shipping_address?.pincode || order.shipping_address?.postal_code || ''}
                         </p>
                         <p className="text-sm text-gray-600">{order.shipping_address?.country}</p>
-                        {(order.shipping_address?.phone || order.shipping_address?.mobile) && (
-                          <p className="text-sm text-gray-600">Phone: {order.shipping_address.phone || order.shipping_address.mobile}</p>
+                        {(order.shipping_address?.phone || order.shipping_address?.mobile || order.shipping_address?.whatsapp_number) && (
+                          <p className="text-sm text-gray-600">Phone: {order.shipping_address.phone || order.shipping_address.mobile || order.shipping_address.whatsapp_number}</p>
                         )}
                       </div>
                     </div>
@@ -917,17 +922,22 @@ const OrderDetail: React.FC = () => {
                     {order.billing_address?.name || `${order.billing_address?.first_name || ''} ${order.billing_address?.last_name || ''}`.trim() || 'N/A'}
                   </p>
                   <p className="text-sm text-gray-600">
-                    {order.billing_address?.address_line_1 || order.billing_address?.address_1 || order.billing_address?.address}
-                    {(order.billing_address?.address_line_2 || order.billing_address?.address_2) && (
-                      <>, {order.billing_address.address_line_2 || order.billing_address.address_2}</>
-                    )}
+                    {[
+                      order.billing_address?.house_number,
+                      order.billing_address?.address_line_1,
+                      order.billing_address?.address_1,
+                      order.billing_address?.address,
+                      order.billing_address?.address_line_2,
+                      order.billing_address?.address_2,
+                      order.billing_address?.landmark,
+                    ].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).join(', ') || 'N/A'}
                   </p>
                   <p className="text-sm text-gray-600">
-                    {order.billing_address?.city}, {order.billing_address?.state} {order.billing_address?.pincode || order.billing_address?.postal_code}
+                    {order.billing_address?.city || ''}, {order.billing_address?.state || ''} {order.billing_address?.pincode || order.billing_address?.postal_code || ''}
                   </p>
                   <p className="text-sm text-gray-600">{order.billing_address?.country}</p>
-                  {(order.billing_address?.phone || order.billing_address?.mobile) && (
-                    <p className="text-sm text-gray-600">Phone: {order.billing_address.phone || order.billing_address.mobile}</p>
+                  {(order.billing_address?.phone || order.billing_address?.mobile || order.billing_address?.whatsapp_number) && (
+                    <p className="text-sm text-gray-600">Phone: {order.billing_address.phone || order.billing_address.mobile || order.billing_address.whatsapp_number}</p>
                   )}
                 </div>
               </div>

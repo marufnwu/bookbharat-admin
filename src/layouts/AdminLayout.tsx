@@ -37,7 +37,7 @@ const AdminLayout: React.FC = () => {
         {/* Page Content */}
         <main className="flex-1 overflow-y-auto pb-20 lg:pb-0">
           <div className="py-6">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8">
               <Outlet />
             </div>
           </div>

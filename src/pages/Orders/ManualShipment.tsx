@@ -86,6 +86,12 @@ interface Order {
   total: number;
   payment_method: string;
   status: string;
+  cod_breakdown?: {
+    charge: number;
+    is_advance: boolean;
+    advance_amount?: number;
+    balance_amount?: number;
+  };
   items: Array<{
     id: number;
     product_name: string;
@@ -271,7 +277,8 @@ const ManualShipment: React.FC = () => {
   const createShipmentMutation = useMutation({
     mutationFn: async (data: ShipmentFormData) => {
       const payload = {
-        carrier_code: data.carrier_code,
+        carrier_id: data.carrier_id,
+        service_code: data.service_code || data.carrier_code,
         warehouse_id: data.warehouse_id,
         order_id: data.order_id || null,
         pickup_address: {
@@ -402,7 +409,11 @@ const ManualShipment: React.FC = () => {
       delivery_state: order.shipping_address.state,
       delivery_pincode: order.shipping_address.pincode,
       payment_mode: order.payment_method === 'cod' ? 'cod' : 'prepaid',
-      cod_amount: order.payment_method === 'cod' ? order.total.toString() : '0',
+      cod_amount: order.payment_method === 'cod'
+        ? (order.cod_breakdown?.is_advance && order.cod_breakdown?.balance_amount != null
+          ? order.cod_breakdown.balance_amount.toString()
+          : order.total.toString())
+        : '0',
       package_value: order.total.toString(),
       package_description: order.items.map(i => i.product_name).join(', ') || 'Books',
       package_quantity: order.items.reduce((sum, i) => sum + i.quantity, 0).toString(),

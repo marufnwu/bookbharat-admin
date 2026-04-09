@@ -662,7 +662,7 @@ const OrderList: React.FC = () => {
       key: 'total_amount' as const,
       title: 'Total',
       sortable: true,
-      render: (value: any) => (
+      render: (value: any, record: Order) => (
         <span className="font-medium">{formatCurrency(value)}</span>
       ),
     },
@@ -673,8 +673,40 @@ const OrderList: React.FC = () => {
       render: (value: any) => getStatusBadge(value),
     },
     {
-      key: 'payment_status' as const,
+      key: 'paid_amount' as any,
+      title: 'Paid',
+      render: (_: any, record: Order) => {
+        const paid = record.paid_amount ?? 0;
+        const total = record.total_amount ?? 0;
+        const isFullyPaid = paid >= total && total > 0;
+        return (
+          <div>
+            <span className={`font-medium ${isFullyPaid ? 'text-green-600' : paid > 0 ? 'text-blue-600' : 'text-gray-400'}`}>
+              {formatCurrency(paid)}
+            </span>
+          </div>
+        );
+      },
+    },
+    {
+      key: 'payment_method' as any,
       title: 'Payment',
+      render: (_: any, record: Order) => {
+        const isCOD = record.is_cod || record.payment_method === 'cod';
+        return isCOD ? (
+          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-800">
+            COD
+          </span>
+        ) : (
+          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+            Prepaid
+          </span>
+        );
+      },
+    },
+    {
+      key: 'payment_status' as const,
+      title: 'Pay Status',
       sortable: true,
       render: (value: any, record: Order) => getPaymentStatusBadge(value, () =>
         setPaymentStatusModal({
@@ -918,8 +950,28 @@ const OrderList: React.FC = () => {
                     <span className="text-gray-500">Total</span>
                     <span className="font-medium text-gray-900">₹{Number(order.total_amount || order.total || 0).toLocaleString('en-IN')}</span>
                   </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Paid</span>
+                    <span className={`font-medium ${(order.paid_amount || 0) >= (order.total_amount || 0) && (order.total_amount || 0) > 0 ? 'text-green-600' : (order.paid_amount || 0) > 0 ? 'text-blue-600' : 'text-gray-400'}`}>
+                      ₹{Number(order.paid_amount || 0).toLocaleString('en-IN')}
+                    </span>
+                  </div>
                   <div className="flex justify-between items-center">
                     <span className="text-gray-500">Payment</span>
+                    <div>
+                      {order.is_cod || order.payment_method === 'cod' ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-800">
+                          COD
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                          Prepaid
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-500">Pay Status</span>
                     <button
                       onClick={() => setPaymentStatusModal({
                         isOpen: true,

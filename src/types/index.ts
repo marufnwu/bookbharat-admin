@@ -187,6 +187,7 @@ export interface Order {
   user_id: number | null;
   status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | 'refunded';
   payment_status: 'pending' | 'paid' | 'failed' | 'refunded' | 'partially_refunded';
+  payment_method?: string;
   total_amount: number;
   tax_amount: number;
   shipping_amount: number;
@@ -236,6 +237,7 @@ export interface Order {
   is_cod_advance?: boolean;
   advance_amount?: number;
   balance_amount?: number;
+  paid_amount?: number;
   // Refunds
   refunds_list?: Array<{ id: number; amount: number; status: string; reason: string }>;
   // Referral
