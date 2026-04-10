@@ -90,6 +90,11 @@ const OrderDetail: React.FC = () => {
   const [showPartialRefundModal, setShowPartialRefundModal] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
+  const [trackingNumber, setTrackingNumber] = useState('');
+  const [carrierId, setCarrierId] = useState('');
+  const [carrierReference, setCarrierReference] = useState('');
+  const [shippingCost, setShippingCost] = useState('');
+
   // Fetch order details
   const { data: orderResponse, isLoading, refetch } = useQuery({
     queryKey: ['order', id],
@@ -117,6 +122,13 @@ const OrderDetail: React.FC = () => {
   });
 
   const shipment = shipmentResponse?.shipment;
+
+  const { data: carriersData } = useQuery({
+    queryKey: ['shipping-carriers'],
+    queryFn: () => api.get('/shipping/multi-carrier/carriers').then(res => res.data),
+    enabled: showStatusModal && selectedStatus === 'shipped',
+  });
+  const carriers = carriersData?.data || carriersData?.carriers || [];
 
   // Update status mutation
   const updateStatusMutation = useMutation({
@@ -177,13 +189,46 @@ const OrderDetail: React.FC = () => {
     },
   });
 
+  const manualShipMutation = useMutation({
+    mutationFn: (data: any) => ordersApi.updateTracking(Number(id), data),
+    onSuccess: () => {
+      toast.success('Order marked as shipped with tracking info');
+      setShowStatusModal(false);
+      setTrackingNumber('');
+      setCarrierId('');
+      setCarrierReference('');
+      setShippingCost('');
+      setStatusNote('');
+      setOverrideWorkflow(false);
+      refetch();
+      refetchShipment();
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to update tracking');
+    },
+  });
+
   const handleStatusUpdate = () => {
     if (!selectedStatus) {
       toast.error('Please select a status');
       return;
     }
+
+    if (selectedStatus === 'shipped' && trackingNumber) {
+      if (!carrierId) {
+        toast.error('Please select a carrier');
+        return;
+      }
+      manualShipMutation.mutate({
+        tracking_number: trackingNumber,
+        carrier_id: carrierId,
+        carrier_reference: carrierReference || undefined,
+        shipping_cost: shippingCost ? parseFloat(shippingCost) : undefined,
+        notes: statusNote || undefined,
+      });
+      return;
+    }
     
-    // Check if this is a non-standard transition without override
     const validTransitions: Record<string, string[]> = {
       pending: ['confirmed', 'processing', 'cancelled'],
       confirmed: ['processing', 'shipped', 'cancelled'],
@@ -1405,6 +1450,10 @@ const OrderDetail: React.FC = () => {
         onClose={() => {
           setShowStatusModal(false);
           setOverrideWorkflow(false);
+          setTrackingNumber('');
+          setCarrierId('');
+          setCarrierReference('');
+          setShippingCost('');
         }}
         title="Update Order Status"
         size="md"
@@ -1433,6 +1482,67 @@ const OrderDetail: React.FC = () => {
               ))}
             </select>
           </div>
+
+          {selectedStatus === 'shipped' && (
+            <div className="space-y-3 p-4 bg-indigo-50 border border-indigo-200 rounded-lg">
+              <p className="text-sm font-medium text-indigo-800">Shipment Details</p>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Carrier <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={carrierId}
+                  onChange={(e) => setCarrierId(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="">Select carrier</option>
+                  {carriers.map((carrier: any) => (
+                    <option key={carrier.id} value={carrier.id}>
+                      {carrier.name || carrier.display_name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Tracking Number <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={trackingNumber}
+                  onChange={(e) => setTrackingNumber(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Enter tracking number"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Carrier Reference ID
+                </label>
+                <input
+                  type="text"
+                  value={carrierReference}
+                  onChange={(e) => setCarrierReference(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Optional: carrier's internal reference"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Shipping Cost
+                </label>
+                <input
+                  type="number"
+                  value={shippingCost}
+                  onChange={(e) => setShippingCost(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="0.00"
+                  min="0"
+                  step="0.01"
+                />
+              </div>
+            </div>
+          )}
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
