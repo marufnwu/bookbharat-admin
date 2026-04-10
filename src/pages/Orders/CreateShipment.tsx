@@ -90,6 +90,13 @@ const CreateShipment: React.FC = () => {
   const [sortBy, setSortBy] = useState<"price" | "time" | "rating" | "recommended">("recommended");
   const [filterPreset, setFilterPreset] = useState<"all" | "budget" | "fast" | "premium">("all");
 
+  // Override package details
+  const [showOverridePackage, setShowOverridePackage] = useState(false);
+  const [overrideWeight, setOverrideWeight] = useState('');
+  const [overrideLength, setOverrideLength] = useState('');
+  const [overrideWidth, setOverrideWidth] = useState('');
+  const [overrideHeight, setOverrideHeight] = useState('');
+
   // Fetch order details
   const { data: orderResponse, isLoading: orderLoading } = useQuery({
     queryKey: ["order", orderId],
@@ -274,13 +281,21 @@ const CreateShipment: React.FC = () => {
       return;
     }
 
-    createShipmentMutation.mutate({
+    const currentWeight = overrideWeight ? parseFloat(overrideWeight) : (ratesData?.shipment_details?.billable_weight || calculateOrderWeight());
+    const currentLength = overrideLength ? parseFloat(overrideLength) : 30;
+    const currentWidth = overrideWidth ? parseFloat(overrideWidth) : 20;
+    const currentHeight = overrideHeight ? parseFloat(overrideHeight) : 10;
+
+    const payload = {
       order_id: orderId,
       carrier_id: selectedCarrier.carrier_id,
       service_code: selectedCarrier.service_code,
       warehouse_id: selectedWarehouse,
-      shipping_cost: selectedCarrier.total_charge, // Include shipping cost from rate
-    });
+      shipping_cost: selectedCarrier.total_charge,
+      ...(showOverridePackage && { weight: currentWeight, length: currentLength, width: currentWidth, height: currentHeight }),
+    };
+    console.log('Shipment payload:', JSON.stringify(payload, null, 2));
+    createShipmentMutation.mutate(payload);
   };
 
   // Loading state
@@ -803,7 +818,8 @@ const CreateShipment: React.FC = () => {
       {/* Shipment Confirmation Modal */}
       <Modal
         open={showShipmentModal}
-        onClose={() => setShowShipmentModal(false)}
+        onClose={() => {}}
+        closeOnOverlayClick={false}
         title="Confirm Shipment"
         size="lg"
       >
@@ -873,6 +889,73 @@ const CreateShipment: React.FC = () => {
             </div>
           )}
 
+          {/* Override Package Details */}
+          <div className="border border-gray-200 rounded-lg p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Package className="h-4 w-4 text-gray-500" />
+                <span className="text-sm font-medium text-gray-700">Override Package Weight & Dimensions</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowOverridePackage(!showOverridePackage)}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${showOverridePackage ? 'bg-blue-600' : 'bg-gray-300'}`}
+              >
+                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${showOverridePackage ? 'translate-x-6' : 'translate-x-1'}`} />
+              </button>
+            </div>
+            <div className={`grid grid-cols-2 gap-3 transition-opacity ${showOverridePackage ? 'opacity-100' : 'opacity-40 pointer-events-none'}`}>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Weight (kg)</label>
+                <input
+                  type="number"
+                  value={overrideWeight || (ratesData?.shipment_details?.billable_weight || calculateOrderWeight()).toFixed(2)}
+                  onChange={(e) => setOverrideWeight(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
+                  disabled={!showOverridePackage}
+                  min="0.1"
+                  step="0.1"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Length (cm)</label>
+                <input
+                  type="number"
+                  value={overrideLength || 30}
+                  onChange={(e) => setOverrideLength(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
+                  disabled={!showOverridePackage}
+                  min="1"
+                  step="1"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Width (cm)</label>
+                <input
+                  type="number"
+                  value={overrideWidth || 20}
+                  onChange={(e) => setOverrideWidth(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
+                  disabled={!showOverridePackage}
+                  min="1"
+                  step="1"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Height (cm)</label>
+                <input
+                  type="number"
+                  value={overrideHeight || 10}
+                  onChange={(e) => setOverrideHeight(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
+                  disabled={!showOverridePackage}
+                  min="1"
+                  step="1"
+                />
+              </div>
+            </div>
+          </div>
+
           {/* Shipment Summary */}
           <div className="bg-gray-50 rounded-lg p-4 space-y-2 text-sm">
             <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Shipment Details</p>
@@ -907,7 +990,14 @@ const CreateShipment: React.FC = () => {
             <Button
               variant="outline"
               fullWidth
-              onClick={() => setShowShipmentModal(false)}
+              onClick={() => {
+                setShowShipmentModal(false);
+                setShowOverridePackage(false);
+                setOverrideWeight('');
+                setOverrideLength('');
+                setOverrideWidth('');
+                setOverrideHeight('');
+              }}
             >
               Cancel
             </Button>
@@ -915,7 +1005,6 @@ const CreateShipment: React.FC = () => {
               variant="primary"
               fullWidth
               onClick={() => {
-                setShowShipmentModal(false);
                 handleCreateShipment();
               }}
               disabled={createShipmentMutation.isPending || (carrierWarehouses.length > 0 && !selectedWarehouse)}
