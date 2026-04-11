@@ -90,7 +90,7 @@ export interface Product {
   is_active?: boolean;
   is_featured?: boolean;
   featured?: boolean;
-  weight: number | null;
+  weight: number | null; // Weight in grams (g)
   dimensions: string | null;
   category_id: number;
   brand_id: number | null;

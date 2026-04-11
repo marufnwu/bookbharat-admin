@@ -21,6 +21,7 @@ import {
   ShoppingBagIcon,
 } from '@heroicons/react/24/outline';
 import { productsApi, bundleVariantsApi } from '../../api';
+import { formatWeight } from '../../utils/weight';
 import { Button, Badge, LoadingSpinner } from '../../components';
 import { useNotificationStore } from '../../store/notificationStore';
 import { format } from 'date-fns';
@@ -608,7 +609,7 @@ const ProductDetail: React.FC = () => {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">Weight</label>
-                <p className="mt-1 text-sm text-gray-900">{product.weight || 'N/A'} kg</p>
+                <p className="mt-1 text-sm text-gray-900">{formatWeight(product.weight)}</p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">Package Dimensions</label>
@@ -661,7 +662,7 @@ const ProductDetail: React.FC = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Weight</label>
-                  <p className="mt-1 text-sm text-gray-900">{product.weight ? `${product.weight} grams` : 'N/A'}</p>
+                <p className="mt-1 text-sm text-gray-900">{formatWeight(product.weight)}</p>
                 </div>
               </div>
 

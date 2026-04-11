@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { api } from "../../api/axios";
+import { toKg, toGrams } from "../../utils/weight";
 import toast from "react-hot-toast";
 import {
   Package,
@@ -177,7 +178,7 @@ const initialFormData: ShipmentFormData = {
   delivery_city: '',
   delivery_state: '',
   delivery_pincode: '',
-  package_weight: '0.5',
+  package_weight: '300',
   package_length: '30',
   package_width: '20',
   package_height: '10',
@@ -987,11 +988,11 @@ const ManualShipment: React.FC = () => {
                 <input
                   type="number"
                   name="package_weight"
-                  value={formData.package_weight}
-                  onChange={handleInputChange}
+                  value={toKg(parseFloat(formData.package_weight))}
+                  onChange={(e) => setFormData({ ...formData, package_weight: String(toGrams(parseFloat(e.target.value) || 0)) })}
                   placeholder="0.5"
                   step="0.01"
-                  min="0.1"
+                  min="0.01"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   required
                 />

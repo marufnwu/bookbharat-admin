@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../api/axios";
+import { toKg, toGrams, formatWeight } from "../../utils/weight";
 import toast from "react-hot-toast";
 import {
   Package,
@@ -180,14 +181,14 @@ const CreateShipment: React.FC = () => {
         order_id: orderId,
         pickup_pincode: pickupLocation?.pincode || "110001",
         delivery_pincode: deliveryPincode,
-        weight: calculateOrderWeight() || 1,
+        weight: calculateOrderWeight(),
         order_value: parseFloat(orderValue),
         payment_mode: isCOD ? "cod" : "prepaid",
         cod_amount: codAmount,
         items: order.order_items?.map((item: any) => ({
           product_id: item.product_id,
           name: item.product_name,
-          weight: parseFloat(item.product?.weight || "0.2"),
+          weight: parseFloat(item.product?.weight || "0"),
           quantity: item.quantity,
           value: parseFloat(item.unit_price),
         })),
@@ -218,12 +219,12 @@ const CreateShipment: React.FC = () => {
   });
 
   const calculateOrderWeight = () => {
-    if (!order?.order_items) return 1;
+    if (!order?.order_items) return 0;
     const result = order.order_items.reduce((total: number, item: any) => {
-      const weight = parseFloat(item.product?.weight || "0.2");
+      const weight = parseFloat(item.product?.weight || "0");
       return total + weight * item.quantity;
     }, 0);
-    return Math.max(result, 0.5); // Carrier minimum chargeable weight
+    return result;
   };
 
   const formatCurrency = (amount: number) => {
@@ -281,7 +282,7 @@ const CreateShipment: React.FC = () => {
       return;
     }
 
-    const currentWeight = overrideWeight ? parseFloat(overrideWeight) : (ratesData?.shipment_details?.billable_weight || calculateOrderWeight());
+    const currentWeight = overrideWeight ? toGrams(parseFloat(overrideWeight)) : (ratesData?.shipment_details?.billable_weight || calculateOrderWeight());
     const currentLength = overrideLength ? parseFloat(overrideLength) : 30;
     const currentWidth = overrideWidth ? parseFloat(overrideWidth) : 20;
     const currentHeight = overrideHeight ? parseFloat(overrideHeight) : 10;
@@ -538,7 +539,7 @@ const CreateShipment: React.FC = () => {
               <div className="grid grid-cols-2 gap-2">
                 <div className="bg-gray-50 rounded-lg p-2.5 text-center">
                   <p className="text-xs text-gray-400">Weight</p>
-                  <p className="text-lg font-bold text-gray-900">{ratesData?.shipment_details?.billable_weight || calculateOrderWeight().toFixed(2)} <span className="text-xs font-normal text-gray-500">kg</span></p>
+                  <p className="text-lg font-bold text-gray-900">{formatWeight(ratesData?.shipment_details?.billable_weight || calculateOrderWeight())}</p>
                 </div>
                 <div className="bg-gray-50 rounded-lg p-2.5 text-center">
                   <p className="text-xs text-gray-400">Shipping</p>
@@ -909,12 +910,12 @@ const CreateShipment: React.FC = () => {
                 <label className="block text-xs font-medium text-gray-600 mb-1">Weight (kg)</label>
                 <input
                   type="number"
-                  value={overrideWeight || (ratesData?.shipment_details?.billable_weight || calculateOrderWeight()).toFixed(2)}
+                  value={overrideWeight || toKg(ratesData?.shipment_details?.billable_weight || calculateOrderWeight())}
                   onChange={(e) => setOverrideWeight(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
                   disabled={!showOverridePackage}
-                  min="0.1"
-                  step="0.1"
+                  min="0.01"
+                  step="0.01"
                 />
               </div>
               <div>
@@ -969,7 +970,7 @@ const CreateShipment: React.FC = () => {
             </div>
             <div className="flex justify-between">
               <span className="text-gray-500">Weight</span>
-              <span className="font-medium">{ratesData?.shipment_details?.billable_weight || calculateOrderWeight().toFixed(2)} kg</span>
+              <span className="font-medium">{formatWeight(ratesData?.shipment_details?.billable_weight || calculateOrderWeight())}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-500">Payment</span>

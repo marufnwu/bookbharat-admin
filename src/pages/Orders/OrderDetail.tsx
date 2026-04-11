@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { ordersApi } from '../../api';
+import { formatWeight, toKg } from '../../utils/weight';
 import { useAuthStore } from '../../store/authStore';
 import {
   ArrowLeft,
@@ -607,9 +608,8 @@ const OrderDetail: React.FC = () => {
                 {order.order_items?.length || 0} item(s) in this order
                 {order.order_items?.some((item: any) => item.product?.weight) && (
                   <span className="ml-2 text-gray-400">
-                    • Total Weight: {order.order_items.reduce((sum: number, item: any) =>
-                      sum + (item.product?.weight || 0) * item.quantity, 0
-                    ).toFixed(2)} kg
+                    • Total Weight: {formatWeight(order.order_items.reduce((sum: number, item: any) =>
+                      sum + (item.product?.weight || 0) * item.quantity, 0))}
                   </span>
                 )}
               </CardDescription>
@@ -654,13 +654,13 @@ const OrderDetail: React.FC = () => {
                         <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-500 mt-1">
                           <span>SKU: {item.product_sku || item.product?.sku || 'N/A'}</span>
                           {item.product?.isbn && <span>ISBN: {item.product.isbn}</span>}
-                          {item.product?.weight && <span>Weight: {item.product.weight} kg</span>}
+                          {item.product?.weight && <span>Weight: {formatWeight(item.product.weight)}</span>}
                         </div>
                         <p className="text-sm text-gray-500 mt-1">
                           Qty: {item.quantity} × {formatCurrency(item.unit_price)}
                           {item.product?.weight && (
                             <span className="text-gray-400 ml-2">
-                              (Total: {(item.product.weight * item.quantity).toFixed(2)} kg)
+                              (Total: {formatWeight(item.product.weight * item.quantity)})
                             </span>
                           )}
                         </p>
@@ -802,7 +802,7 @@ const OrderDetail: React.FC = () => {
                     {shipment.weight && (
                       <div>
                         <p className="text-sm text-gray-500 mb-1">Weight</p>
-                        <p className="font-medium">{shipment.weight} kg</p>
+                        <p className="font-medium">{formatWeight(shipment.weight * 1000)}</p>
                       </div>
                     )}
 

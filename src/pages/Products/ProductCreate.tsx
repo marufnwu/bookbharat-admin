@@ -8,6 +8,7 @@ import RichTextEditor from '../../components/RichTextEditor';
 import BundleVariantManager from '../../components/BundleVariantManager';
 import AiFieldGenerator from '../../components/AiFieldGenerator';
 import { ShippingConfigInput } from '../../components/products/ShippingConfigInput';
+import { toKg, toGrams } from '../../utils/weight';
 import {
   Card,
   CardHeader,
@@ -705,15 +706,17 @@ const ProductCreate: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Weight (grams)
+                    Weight (kg)
                   </label>
                   <input
                     type="number"
                     name="weight"
-                    value={formData.weight || ''}
-                    onChange={handleInputChange}
+                    value={toKg(formData.weight)}
+                    onChange={(e) => setFormData({ ...formData, weight: toGrams(parseFloat(e.target.value)) })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Enter product weight in grams"
+                    placeholder="Enter product weight in kg"
+                    step="0.01"
+                    min="0.01"
                   />
                   <p className="text-xs text-gray-500 mt-1">
                     Used for shipping cost calculations
