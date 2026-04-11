@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { productsApi, categoriesApi, publishersApi, authorsApi } from '../../api';
-import { Upload, X, Plus, Save, ArrowLeft, Sparkles, Loader2, Truck } from 'lucide-react';
+import { Upload, X, Plus, Save, ArrowLeft, Sparkles, Loader2, Truck, Star, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import RichTextEditor from '../../components/RichTextEditor';
 import BundleVariantManager from '../../components/BundleVariantManager';
@@ -362,11 +362,10 @@ const ProductCreate: React.FC = () => {
               <button
                 key={tab.id}
                 onClick={() => handleTabChange(tab.id)}
-                className={`py-3 px-4 sm:px-6 border-b-2 font-medium text-sm whitespace-nowrap transition-colors ${
-                  activeTab === tab.id
-                    ? 'border-primary-500 text-primary-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
+                className={`py-3 px-4 sm:px-6 border-b-2 font-medium text-sm whitespace-nowrap transition-colors ${activeTab === tab.id
+                  ? 'border-primary-500 text-primary-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
               >
                 {tab.label}
               </button>
@@ -571,8 +570,8 @@ const ProductCreate: React.FC = () => {
                 />
               </div>
 
-    
-    
+
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Publication Date
@@ -837,57 +836,85 @@ const ProductCreate: React.FC = () => {
 
               {imagePreview.length > 0 && (
                 <div className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-sm font-medium text-gray-700">
+                      Uploaded Images ({imagePreview.length})
+                    </h4>
+                    <p className="text-xs text-gray-500">
+                      First image will be the primary product image
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-3">
                     {imagePreview.map((preview, index) => (
-                      <div key={index} className="relative group border rounded-lg p-3">
-                        <div className="flex gap-3">
-                          <div className="relative">
-                            <img
-                              src={preview}
-                              alt={`Preview ${index + 1}`}
-                              className="w-20 h-20 object-cover rounded-lg"
-                            />
-                            {index === 0 && (
-                              <span className="absolute -top-1 -right-1 px-2 py-1 bg-blue-500 text-white text-xs rounded">
-                                Primary
-                              </span>
-                            )}
+                      <div
+                        key={index}
+                        className={`relative group bg-white rounded-xl overflow-hidden border-2 transition-all duration-200 hover:shadow-md ${index === 0 ? 'border-blue-400 ring-2 ring-blue-100' : 'border-gray-200 hover:border-gray-300'
+                          }`}
+                      >
+                        {/* Image Container */}
+                        <div className="relative aspect-[9/16] bg-gray-50 p-2 flex items-center justify-center">
+                          <img
+                            src={preview}
+                            alt={`Preview ${index + 1}`}
+                            className="w-full h-full object-contain rounded-lg"
+                          />
+
+                          {/* Primary Badge */}
+                          {index === 0 && (
+                            <div className="absolute top-2 left-2 px-2.5 py-1 bg-blue-500 text-white text-xs font-semibold rounded-md shadow-sm flex items-center gap-1">
+                              <Star className="w-3 h-3" fill="currentColor" />
+                              Primary
+                            </div>
+                          )}
+
+                          {/* Image Number */}
+                          <div className="absolute top-2 right-2 w-6 h-6 bg-gray-900/70 text-white text-xs font-medium rounded-full flex items-center justify-center">
+                            {index + 1}
                           </div>
-                          <div className="flex-1 space-y-2">
-                            <input
-                              type="text"
-                              placeholder="Alt text for image (optional)"
-                              value={imageAltTexts[index] || ''}
-                              onChange={(e) => updateAltText(index, e.target.value)}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-sm"
-                            />
-                            <div className="flex gap-2">
+                        </div>
+
+                        {/* Controls Section */}
+                        <div className="p-3 space-y-2 border-t border-gray-100">
+                          <input
+                            type="text"
+                            placeholder="Alt text (optional)"
+                            value={imageAltTexts[index] || ''}
+                            onChange={(e) => updateAltText(index, e.target.value)}
+                            className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                          />
+
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-1">
                               {index > 0 && (
                                 <button
                                   type="button"
                                   onClick={() => moveImage(index, index - 1)}
-                                  className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded"
+                                  className="p-1.5 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                  title="Move left"
                                 >
-                                  Move Up
+                                  <ChevronLeft className="w-4 h-4" />
                                 </button>
                               )}
                               {index < imagePreview.length - 1 && (
                                 <button
                                   type="button"
                                   onClick={() => moveImage(index, index + 1)}
-                                  className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded"
+                                  className="p-1.5 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                  title="Move right"
                                 >
-                                  Move Down
+                                  <ChevronRight className="w-4 h-4" />
                                 </button>
                               )}
-                              <button
-                                type="button"
-                                onClick={() => removeImage(index)}
-                                className="px-2 py-1 text-xs bg-red-100 hover:bg-red-200 text-red-700 rounded"
-                              >
-                                Remove
-                              </button>
                             </div>
+
+                            <button
+                              type="button"
+                              onClick={() => removeImage(index)}
+                              className="p-1.5 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                              title="Remove image"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
                           </div>
                         </div>
                       </div>
@@ -988,7 +1015,7 @@ const ProductCreate: React.FC = () => {
               meta_description: fields.meta_description,
               meta_keywords: fields.meta_keywords,
             });
-            
+
             // Track which fields were AI-generated
             setAiGeneratedFields(new Set([
               'description',
@@ -997,7 +1024,7 @@ const ProductCreate: React.FC = () => {
               'meta_description',
               'meta_keywords',
             ]));
-            
+
             toast.success(
               <div>
                 <strong>AI content applied!</strong>

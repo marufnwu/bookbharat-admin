@@ -91,7 +91,7 @@ const ProductDetail: React.FC = () => {
 
   const isAllFree = (zones?: Record<string, { shipping: number | null; cod: number | null }>): boolean => {
     if (!zones) return true;
-    return ['A','B','C','D','E'].every(z => (zones[z]?.shipping ?? 0) === 0);
+    return ['A', 'B', 'C', 'D', 'E'].every(z => (zones[z]?.shipping ?? 0) === 0);
   };
 
   // Zone names for display
@@ -592,34 +592,34 @@ const ProductDetail: React.FC = () => {
                 {getStockBadge()}
               </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Stock Quantity</label>
-                <p className="mt-1 text-2xl font-bold text-gray-900">{product.stock_quantity}</p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Min Stock Level</label>
-                <p className="mt-1 text-2xl font-bold text-gray-900">{product.min_stock_level}</p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Manage Stock</label>
-                <p className="mt-1 text-sm text-gray-900">
-                  {product.manage_stock ? 'Yes' : 'No'}
-                </p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Weight</label>
-                <p className="mt-1 text-sm text-gray-900">{formatWeight(product.weight)}</p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Package Dimensions</label>
-                <p className="mt-1 text-sm text-gray-900">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Stock Quantity</label>
+                  <p className="mt-1 text-2xl font-bold text-gray-900">{product.stock_quantity}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Min Stock Level</label>
+                  <p className="mt-1 text-2xl font-bold text-gray-900">{product.min_stock_level}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Manage Stock</label>
+                  <p className="mt-1 text-sm text-gray-900">
+                    {product.manage_stock ? 'Yes' : 'No'}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Weight</label>
+                  <p className="mt-1 text-sm text-gray-900">{formatWeight(product.weight)}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Package Dimensions</label>
+                  <p className="mt-1 text-sm text-gray-900">
+                    {(() => {
+                      const dimensions = parseDimensions(product);
+                      return dimensions ? dimensions.display : 'N/A';
+                    })()}
+                  </p>
                   {(() => {
-                    const dimensions = parseDimensions(product);
-                    return dimensions ? dimensions.display : 'N/A';
-                  })()}
-                </p>
-                {(() => {
                     const dimensions = parseDimensions(product);
                     return dimensions ? (
                       <div className="mt-1 flex items-center space-x-2 text-xs text-gray-500">
@@ -631,140 +631,137 @@ const ProductDetail: React.FC = () => {
                       </div>
                     ) : null;
                   })()}
-              </div>
-            </div>
-
-            {/* Shipping Information */}
-            <div>
-              <h4 className="text-md font-medium text-gray-900 mb-3">Shipping Configuration</h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Shipping Type</label>
-                  <div className="mt-1">
-                    {shippingConfig ? (
-                      <div className="flex items-center">
-                        <div className={`w-2 h-2 rounded-full mr-2 ${
-                          isAllFree(shippingConfig.zones) ? 'bg-green-500' : 'bg-purple-500'
-                        }`}></div>
-                        <span className={`text-sm font-medium ${
-                          isAllFree(shippingConfig.zones) ? 'text-green-600' : 'text-purple-600'
-                        }`}>
-                          {isAllFree(shippingConfig.zones) ? 'Free Shipping' : 'Custom Charges'}
-                        </span>
-                      </div>
-                    ) : (
-                      <div className="flex items-center">
-                        <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
-                        <span className="text-sm text-green-600 font-medium">Free Shipping (Default)</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Weight</label>
-                <p className="mt-1 text-sm text-gray-900">{formatWeight(product.weight)}</p>
                 </div>
               </div>
 
-              {shippingConfig?.zones && (
-                <div className="mt-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Shipping & COD Charges
-                    {isAllFree(shippingConfig.zones) && (
-                      <span className="ml-2 text-xs text-green-600">✓ Free shipping to all zones</span>
-                    )}
-                  </label>
-                  <div className={`border rounded-lg p-4 ${
-                    isAllFree(shippingConfig.zones) ? 'bg-green-50 border-green-200' : 'bg-purple-50 border-purple-200'
-                  }`}>
-                    <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
-                      {['A', 'B', 'C', 'D', 'E'].map(zone => {
-                        const zoneConfig = shippingConfig.zones?.[zone];
-                        if (!zoneConfig) return null;
-                        return (
-                          <div key={zone} className="bg-white rounded p-2">
-                            <div className="text-xs font-medium text-purple-700 mb-1">
-                              Zone {zone} ({ZONE_NAMES[zone]})
-                            </div>
-                            <div className="space-y-1">
-                              <div className="flex justify-between text-xs">
-                                <span className="text-gray-600">Shipping:</span>
-                                <span className={`font-medium ${zoneConfig.shipping === 0 ? 'text-green-600' : 'text-purple-900'}`}>
-                                  {zoneConfig.shipping !== null ? `₹${zoneConfig.shipping}` : '₹0'}
-                                  {zoneConfig.shipping === 0 && ' (Free)'}
-                                </span>
-                              </div>
-                              <div className="flex justify-between text-xs">
-                                <span className="text-gray-600">COD:</span>
-                                <span className="font-medium text-purple-900">
-                                  {zoneConfig.cod !== null && zoneConfig.cod !== undefined ? `₹${zoneConfig.cod}` : '₹0'}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
+              {/* Shipping Information */}
+              <div>
+                <h4 className="text-md font-medium text-gray-900 mb-3">Shipping Configuration</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Shipping Type</label>
+                    <div className="mt-1">
+                      {shippingConfig ? (
+                        <div className="flex items-center">
+                          <div className={`w-2 h-2 rounded-full mr-2 ${isAllFree(shippingConfig.zones) ? 'bg-green-500' : 'bg-purple-500'
+                            }`}></div>
+                          <span className={`text-sm font-medium ${isAllFree(shippingConfig.zones) ? 'text-green-600' : 'text-purple-600'
+                            }`}>
+                            {isAllFree(shippingConfig.zones) ? 'Free Shipping' : 'Custom Charges'}
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center">
+                          <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+                          <span className="text-sm text-green-600 font-medium">Free Shipping (Default)</span>
+                        </div>
+                      )}
                     </div>
                   </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Weight</label>
+                    <p className="mt-1 text-sm text-gray-900">{formatWeight(product.weight)}</p>
+                  </div>
                 </div>
-              )}
 
-              {!shippingConfig && (
-                <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
-                  <div className="flex items-center">
-                    <TruckIcon className="h-5 w-5 text-green-600 mr-2" />
-                    <span className="text-sm text-green-800">
-                      Free shipping to all zones (default).
-                    </span>
+                {shippingConfig?.zones && (
+                  <div className="mt-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Shipping & COD Charges
+                      {isAllFree(shippingConfig.zones) && (
+                        <span className="ml-2 text-xs text-green-600">✓ Free shipping to all zones</span>
+                      )}
+                    </label>
+                    <div className={`border rounded-lg p-4 ${isAllFree(shippingConfig.zones) ? 'bg-green-50 border-green-200' : 'bg-purple-50 border-purple-200'
+                      }`}>
+                      <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+                        {['A', 'B', 'C', 'D', 'E'].map(zone => {
+                          const zoneConfig = shippingConfig.zones?.[zone];
+                          if (!zoneConfig) return null;
+                          return (
+                            <div key={zone} className="bg-white rounded p-2">
+                              <div className="text-xs font-medium text-purple-700 mb-1">
+                                Zone {zone} ({ZONE_NAMES[zone]})
+                              </div>
+                              <div className="space-y-1">
+                                <div className="flex justify-between text-xs">
+                                  <span className="text-gray-600">Shipping:</span>
+                                  <span className={`font-medium ${zoneConfig.shipping === 0 ? 'text-green-600' : 'text-purple-900'}`}>
+                                    {zoneConfig.shipping !== null ? `₹${zoneConfig.shipping}` : '₹0'}
+                                    {zoneConfig.shipping === 0 && ' (Free)'}
+                                  </span>
+                                </div>
+                                <div className="flex justify-between text-xs">
+                                  <span className="text-gray-600">COD:</span>
+                                  <span className="font-medium text-purple-900">
+                                    {zoneConfig.cod !== null && zoneConfig.cod !== undefined ? `₹${zoneConfig.cod}` : '₹0'}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {!shippingConfig && (
+                  <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+                    <div className="flex items-center">
+                      <TruckIcon className="h-5 w-5 text-green-600 mr-2" />
+                      <span className="text-sm text-green-800">
+                        Free shipping to all zones (default).
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Variants */}
+              {product.variants && product.variants.length > 0 && (
+                <div>
+                  <h4 className="text-md font-medium text-gray-900 mb-3">Product Variants</h4>
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                            Variant
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                            SKU
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                            Price
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                            Stock
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {product.variants.map((variant: any) => (
+                          <tr key={variant.id}>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {variant.name}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              {variant.sku}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {formatCurrency(variant.price)}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {variant.stock_quantity}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
               )}
-            </div>
-
-            {/* Variants */}
-            {product.variants && product.variants.length > 0 && (
-              <div>
-                <h4 className="text-md font-medium text-gray-900 mb-3">Product Variants</h4>
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                          Variant
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                          SKU
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                          Price
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                          Stock
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {product.variants.map((variant: any) => (
-                        <tr key={variant.id}>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {variant.name}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {variant.sku}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {formatCurrency(variant.price)}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {variant.stock_quantity}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
             </div>
           </div>
         )}
@@ -785,136 +782,136 @@ const ProductDetail: React.FC = () => {
                   <Button variant="outline">
                     <PencilIcon className="h-4 w-4 mr-2" />
                     Manage Bundles
-                </Button>
-              </Link>
-            </div>
-
-            {bundleVariants.length > 0 ? (
-              <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Bundle
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Quantity
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Pricing
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Price
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Savings
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Stock
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Status
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {bundleVariants.map((variant: ProductBundleVariant) => {
-                      const originalPrice = parseFloat(product.price) * variant.quantity;
-                      const bundlePrice = variant.calculated_price || 0;
-                      const savings = originalPrice - bundlePrice;
-                      const savingsPercent = originalPrice > 0 ? Math.round((savings / originalPrice) * 100) : 0;
-                      
-                      return (
-                        <tr key={variant.id} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div>
-                              <div className="text-sm font-medium text-gray-900">{variant.name}</div>
-                              <div className="text-xs text-gray-500">{variant.sku}</div>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {variant.quantity} items
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-800">
-                              {variant.pricing_type === 'percentage_discount' && `${variant.discount_percentage}% off`}
-                              {variant.pricing_type === 'fixed_price' && 'Fixed Price'}
-                              {variant.pricing_type === 'fixed_discount' && `₹${variant.fixed_discount} off`}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div>
-                              <div className="text-sm font-semibold text-gray-900">
-                                {formatCurrency(bundlePrice)}
-                              </div>
-                              <div className="text-xs text-gray-500 line-through">
-                                {formatCurrency(originalPrice)}
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
-                              {savingsPercent}% off
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {variant.stock_management_type === 'use_main_product'
-                              ? `Uses main stock`
-                              : `${variant.stock_quantity} bundles`}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <Badge variant={variant.is_active ? 'success' : 'default'}>
-                              {variant.is_active ? 'Active' : 'Inactive'}
-                            </Badge>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <div className="text-center py-12 bg-gray-50 rounded-lg">
-                <Squares2X2Icon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-500 mb-2">No bundle variants created</p>
-                <p className="text-sm text-gray-400 mb-4">
-                  Create quantity-based bundles to offer special pricing
-                </p>
-                <Link to={`/products/${id}/edit`}>
-                  <Button>
-                    <PencilIcon className="h-4 w-4 mr-2" />
-                    Add Bundle Variants
                   </Button>
                 </Link>
               </div>
-            )}
 
-            {/* Info box */}
-            {bundleVariants.length > 0 && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <h4 className="text-sm font-semibold text-blue-900 mb-2">Bundle Variants Summary</h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-blue-800">
-                  <div>
-                    <span className="font-medium">Total Bundles:</span>
-                    <span className="ml-2">{bundleVariants.length}</span>
-                  </div>
-                  <div>
-                    <span className="font-medium">Active Bundles:</span>
-                    <span className="ml-2">{bundleVariants.filter((v: ProductBundleVariant) => v.is_active).length}</span>
-                  </div>
-                  <div>
-                    <span className="font-medium">Best Savings:</span>
-                    <span className="ml-2">
-                      {Math.max(...bundleVariants.map((v: ProductBundleVariant) => {
-                        const original = parseFloat(product.price) * v.quantity;
-                        const bundle = v.calculated_price || 0;
-                        return original > 0 ? Math.round(((original - bundle) / original) * 100) : 0;
-                      }), 0)}%
-                    </span>
+              {bundleVariants.length > 0 ? (
+                <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Bundle
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Quantity
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Pricing
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Price
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Savings
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Stock
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Status
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {bundleVariants.map((variant: ProductBundleVariant) => {
+                        const originalPrice = parseFloat(product.price) * variant.quantity;
+                        const bundlePrice = variant.calculated_price || 0;
+                        const savings = originalPrice - bundlePrice;
+                        const savingsPercent = originalPrice > 0 ? Math.round((savings / originalPrice) * 100) : 0;
+
+                        return (
+                          <tr key={variant.id} className="hover:bg-gray-50">
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div>
+                                <div className="text-sm font-medium text-gray-900">{variant.name}</div>
+                                <div className="text-xs text-gray-500">{variant.sku}</div>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {variant.quantity} items
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-800">
+                                {variant.pricing_type === 'percentage_discount' && `${variant.discount_percentage}% off`}
+                                {variant.pricing_type === 'fixed_price' && 'Fixed Price'}
+                                {variant.pricing_type === 'fixed_discount' && `₹${variant.fixed_discount} off`}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div>
+                                <div className="text-sm font-semibold text-gray-900">
+                                  {formatCurrency(bundlePrice)}
+                                </div>
+                                <div className="text-xs text-gray-500 line-through">
+                                  {formatCurrency(originalPrice)}
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                                {savingsPercent}% off
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              {variant.stock_management_type === 'use_main_product'
+                                ? `Uses main stock`
+                                : `${variant.stock_quantity} bundles`}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <Badge variant={variant.is_active ? 'success' : 'default'}>
+                                {variant.is_active ? 'Active' : 'Inactive'}
+                              </Badge>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="text-center py-12 bg-gray-50 rounded-lg">
+                  <Squares2X2Icon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-500 mb-2">No bundle variants created</p>
+                  <p className="text-sm text-gray-400 mb-4">
+                    Create quantity-based bundles to offer special pricing
+                  </p>
+                  <Link to={`/products/${id}/edit`}>
+                    <Button>
+                      <PencilIcon className="h-4 w-4 mr-2" />
+                      Add Bundle Variants
+                    </Button>
+                  </Link>
+                </div>
+              )}
+
+              {/* Info box */}
+              {bundleVariants.length > 0 && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <h4 className="text-sm font-semibold text-blue-900 mb-2">Bundle Variants Summary</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-blue-800">
+                    <div>
+                      <span className="font-medium">Total Bundles:</span>
+                      <span className="ml-2">{bundleVariants.length}</span>
+                    </div>
+                    <div>
+                      <span className="font-medium">Active Bundles:</span>
+                      <span className="ml-2">{bundleVariants.filter((v: ProductBundleVariant) => v.is_active).length}</span>
+                    </div>
+                    <div>
+                      <span className="font-medium">Best Savings:</span>
+                      <span className="ml-2">
+                        {Math.max(...bundleVariants.map((v: ProductBundleVariant) => {
+                          const original = parseFloat(product.price) * v.quantity;
+                          const bundle = v.calculated_price || 0;
+                          return original > 0 ? Math.round(((original - bundle) / original) * 100) : 0;
+                        }), 0)}%
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
             </div>
           </div>
         )}
@@ -924,91 +921,91 @@ const ProductDetail: React.FC = () => {
             <div className="space-y-6">
               <h3 className="text-lg font-medium text-gray-900">Performance Analytics</h3>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="bg-gray-50 rounded-lg p-4">
-                <div className="flex items-center">
-                  <div className="p-2 bg-blue-100 rounded-lg">
-                    <CurrencyRupeeIcon className="h-6 w-6 text-blue-600" />
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <div className="flex items-center">
+                    <div className="p-2 bg-blue-100 rounded-lg">
+                      <CurrencyRupeeIcon className="h-6 w-6 text-blue-600" />
+                    </div>
+                    <div className="ml-4">
+                      <p className="text-sm font-medium text-gray-500">Total Revenue</p>
+                      <p className="text-2xl font-bold text-gray-900">
+                        {formatCurrency(analytics.sales_data?.total_revenue || 0)}
+                      </p>
+                    </div>
                   </div>
-                  <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-500">Total Revenue</p>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {formatCurrency(analytics.sales_data?.total_revenue || 0)}
-                    </p>
+                </div>
+
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <div className="flex items-center">
+                    <div className="p-2 bg-green-100 rounded-lg">
+                      <ChartBarIcon className="h-6 w-6 text-green-600" />
+                    </div>
+                    <div className="ml-4">
+                      <p className="text-sm font-medium text-gray-500">Total Sold</p>
+                      <p className="text-2xl font-bold text-gray-900">
+                        {analytics.sales_data?.total_sold || 0}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <div className="flex items-center">
+                    <div className="p-2 bg-yellow-100 rounded-lg">
+                      <StarIcon className="h-6 w-6 text-yellow-600" />
+                    </div>
+                    <div className="ml-4">
+                      <p className="text-sm font-medium text-gray-500">Avg Rating</p>
+                      <p className="text-2xl font-bold text-gray-900">
+                        {analytics.performance_metrics?.average_rating || 0}
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>
 
-              <div className="bg-gray-50 rounded-lg p-4">
-                <div className="flex items-center">
-                  <div className="p-2 bg-green-100 rounded-lg">
-                    <ChartBarIcon className="h-6 w-6 text-green-600" />
-                  </div>
-                  <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-500">Total Sold</p>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {analytics.sales_data?.total_sold || 0}
-                    </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <h4 className="text-md font-medium text-gray-900 mb-3">Performance Metrics</h4>
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">View Count</span>
+                      <span className="text-sm font-medium">{analytics.performance_metrics?.view_count || 0}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">Conversion Rate</span>
+                      <span className="text-sm font-medium">{analytics.performance_metrics?.conversion_rate || 0}%</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">Wishlist Count</span>
+                      <span className="text-sm font-medium">{analytics.performance_metrics?.wishlist_count || 0}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">Return Rate</span>
+                      <span className="text-sm font-medium">{analytics.performance_metrics?.return_rate || 0}%</span>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="bg-gray-50 rounded-lg p-4">
-                <div className="flex items-center">
-                  <div className="p-2 bg-yellow-100 rounded-lg">
-                    <StarIcon className="h-6 w-6 text-yellow-600" />
-                  </div>
-                  <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-500">Avg Rating</p>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {analytics.performance_metrics?.average_rating || 0}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <h4 className="text-md font-medium text-gray-900 mb-3">Performance Metrics</h4>
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">View Count</span>
-                    <span className="text-sm font-medium">{analytics.performance_metrics?.view_count || 0}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Conversion Rate</span>
-                    <span className="text-sm font-medium">{analytics.performance_metrics?.conversion_rate || 0}%</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Wishlist Count</span>
-                    <span className="text-sm font-medium">{analytics.performance_metrics?.wishlist_count || 0}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Return Rate</span>
-                    <span className="text-sm font-medium">{analytics.performance_metrics?.return_rate || 0}%</span>
+                <div>
+                  <h4 className="text-md font-medium text-gray-900 mb-3">Inventory Levels</h4>
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">Current Stock</span>
+                      <span className="text-sm font-medium">{analytics.inventory_levels?.current_stock || 0}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">Reserved Stock</span>
+                      <span className="text-sm font-medium">{analytics.inventory_levels?.reserved_stock || 0}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">Available Stock</span>
+                      <span className="text-sm font-medium">{analytics.inventory_levels?.available_stock || 0}</span>
+                    </div>
                   </div>
                 </div>
               </div>
-
-              <div>
-                <h4 className="text-md font-medium text-gray-900 mb-3">Inventory Levels</h4>
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Current Stock</span>
-                    <span className="text-sm font-medium">{analytics.inventory_levels?.current_stock || 0}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Reserved Stock</span>
-                    <span className="text-sm font-medium">{analytics.inventory_levels?.reserved_stock || 0}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Available Stock</span>
-                    <span className="text-sm font-medium">{analytics.inventory_levels?.available_stock || 0}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
             </div>
           </div>
         )}
@@ -1016,7 +1013,7 @@ const ProductDetail: React.FC = () => {
         {activeTab === 'reviews' && (
           <div className="p-6 bg-white rounded-lg">
             <div className="space-y-6">
-                <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-medium text-gray-900">Customer Reviews</h3>
                 <div className="flex items-center space-x-2">
                   <StarIcon className="h-5 w-5 text-yellow-400 fill-current" />
@@ -1037,9 +1034,8 @@ const ProductDetail: React.FC = () => {
                               {[...Array(5)].map((_, i) => (
                                 <StarIcon
                                   key={i}
-                                  className={`h-4 w-4 ${
-                                    i < review.rating ? 'text-yellow-400 fill-current' : 'text-gray-300'
-                                  }`}
+                                  className={`h-4 w-4 ${i < review.rating ? 'text-yellow-400 fill-current' : 'text-gray-300'
+                                    }`}
                                 />
                               ))}
                             </div>
@@ -1068,34 +1064,49 @@ const ProductDetail: React.FC = () => {
             <div className="space-y-6">
               <h3 className="text-lg font-medium text-gray-900">Product Images</h3>
 
-          <div>
-            {product.images && product.images.length > 0 ? (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {product.images.map((image: any) => (
-                  <div key={image.id} className="relative group">
-                    <img
-                      src={getFullImageUrl(image.image_url) || getFullImageUrl(image.url) || '/placeholder-image.png'}
-                      alt={image.alt_text || image.alt || product.name}
-                      className="w-full h-48 object-cover rounded-lg"
-                      onError={(e) => {
-                        e.currentTarget.src = '/placeholder-image.png';
-                      }}
-                    />
-                    {image.is_primary && (
-                      <span className="absolute top-2 left-2 bg-blue-600 text-white text-xs px-2 py-1 rounded">
-                        Primary
-                      </span>
-                    )}
+              <div>
+                {product.images && product.images.length > 0 ? (
+                  <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-3">
+                    {product.images.map((image: any, index: number) => (
+                      <div
+                        key={image.id}
+                        className={`relative group bg-white rounded-xl overflow-hidden border-2 transition-all duration-200 hover:shadow-md ${image.is_primary ? 'border-blue-400 ring-2 ring-blue-100' : 'border-gray-200 hover:border-gray-300'
+                          }`}
+                      >
+                        {/* Image Container */}
+                        <div className="relative aspect-[9/16] bg-gray-50 p-2 flex items-center justify-center">
+                          <img
+                            src={getFullImageUrl(image.image_url) || getFullImageUrl(image.url) || '/placeholder-image.png'}
+                            alt={image.alt_text || image.alt || product.name}
+                            className="w-full h-full object-contain rounded-lg"
+                            onError={(e) => {
+                              e.currentTarget.src = '/placeholder-image.png';
+                            }}
+                          />
+
+                          {/* Primary Badge */}
+                          {image.is_primary && (
+                            <div className="absolute top-2 left-2 px-2.5 py-1 bg-blue-500 text-white text-xs font-semibold rounded-md shadow-sm flex items-center gap-1">
+                              <StarIcon className="w-3 h-3" />
+                              Primary
+                            </div>
+                          )}
+
+                          {/* Image Number Badge */}
+                          <div className="absolute top-2 right-2 w-6 h-6 bg-gray-900/70 text-white text-xs font-medium rounded-full flex items-center justify-center">
+                            {index + 1}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                ))}
+                ) : (
+                  <div className="text-center py-12 bg-gray-50 rounded-lg">
+                    <PhotoIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-500">No images uploaded</p>
+                  </div>
+                )}
               </div>
-            ) : (
-              <div className="text-center py-12 bg-gray-50 rounded-lg">
-                <PhotoIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-500">No images uploaded</p>
-              </div>
-            )}
-          </div>
             </div>
           </div>
         )}
