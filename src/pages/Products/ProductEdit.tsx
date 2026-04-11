@@ -2,7 +2,25 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { productsApi, categoriesApi, publishersApi, authorsApi } from '../../api';
-import { Upload, X, Save, ArrowLeft, Loader2, Truck } from 'lucide-react';
+import { productsApiExtended } from '../../api/extended';
+import { Upload, X, Save, ArrowLeft, Loader2, Truck, GripVertical, Star } from 'lucide-react';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { toast } from 'react-hot-toast';
 import RichTextEditor from '../../components/RichTextEditor';
 import BundleVariantManager from '../../components/BundleVariantManager';
@@ -65,6 +83,77 @@ function normalizeShippingConfig(config: any): { zones: Record<string, { shippin
   return { zones: config.zones };
 }
 
+function SortableImage({ img, index, isPrimary, onRemove, onSetPrimary }: {
+  img: { id: string; url: string };
+  index: number;
+  isPrimary: boolean;
+  onRemove: () => void;
+  onSetPrimary: () => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: img.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 10 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`relative group rounded-lg overflow-hidden border-2 transition-all bg-white flex flex-col items-center justify-center p-2 ${
+        isPrimary ? 'border-blue-500 ring-2 ring-blue-200' : 'border-gray-200 hover:border-gray-300'
+      } ${isDragging ? 'shadow-lg scale-105' : 'shadow-sm'}`}
+    >
+      <img
+        src={img.url}
+        alt={`Image ${index + 1}`}
+        className="w-full h-40 object-contain rounded"
+      />
+      <div
+        {...listeners}
+        {...attributes}
+        className="absolute top-2 left-2 p-1 bg-white rounded-md cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity hover:bg-gray-100"
+      >
+        <GripVertical className="h-4 w-4 text-gray-600" />
+      </div>
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); onSetPrimary(); }}
+        className={`absolute top-2 right-2 p-1 rounded-md transition-all ${
+          isPrimary
+            ? 'bg-blue-500 text-white'
+            : 'bg-white/80 text-gray-600 opacity-0 group-hover:opacity-100 hover:bg-white hover:text-blue-500'
+        }`}
+        title={isPrimary ? 'Primary image' : 'Set as primary'}
+      >
+        <Star className="h-4 w-4" fill={isPrimary ? 'currentColor' : 'none'} />
+      </button>
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); onRemove(); }}
+        className="absolute bottom-2 right-2 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+      >
+        <X className="h-3 w-3" />
+      </button>
+      {isPrimary && (
+        <span className="absolute bottom-2 left-2 px-2 py-0.5 bg-blue-500 text-white text-xs rounded font-medium">
+          Primary
+        </span>
+      )}
+    </div>
+  );
+}
+
 const ProductEdit: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -73,6 +162,8 @@ const ProductEdit: React.FC = () => {
   const [images, setImages] = useState<File[]>([]);
   const [imagePreview, setImagePreview] = useState<string[]>([]);
   const [existingImages, setExistingImages] = useState<{id: string, url: string}[]>([]);
+  const [primaryImageId, setPrimaryImageId] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState<ProductForm>({
     name: '',
     sku: '',
@@ -104,6 +195,11 @@ const ProductEdit: React.FC = () => {
     height: undefined,
     images: []
   });
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
 
   // Fetch product details
   const { data: product, isLoading: productLoading } = useQuery({
@@ -179,10 +275,17 @@ const ProductEdit: React.FC = () => {
 
       // Set existing images
       if (p.images && Array.isArray(p.images)) {
-        setExistingImages(p.images.map((img: any) => ({
+        const sortedImages = [...p.images].sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+        setExistingImages(sortedImages.map((img: any) => ({
           id: String(img.id),
           url: img.image_url || img.url || img,
         })));
+        const primary = sortedImages.find((img: any) => img.is_primary);
+        if (primary) {
+          setPrimaryImageId(String(primary.id));
+        } else if (sortedImages.length > 0) {
+          setPrimaryImageId(String(sortedImages[0].id));
+        }
       }
     }
   }, [product]);
@@ -190,13 +293,6 @@ const ProductEdit: React.FC = () => {
   const updateMutation = useMutation({
     mutationFn: async (data: FormData) => {
       return productsApi.update(Number(id), data);
-    },
-    onSuccess: () => {
-      toast.success('Product updated successfully');
-      // Invalidate and refetch the product query to show updated data
-      queryClient.invalidateQueries({ queryKey: ['product', id] });
-      queryClient.invalidateQueries({ queryKey: ['products'] });
-      navigate(`/products/${id}`);
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.message || 'Failed to update product');
@@ -282,7 +378,29 @@ const ProductEdit: React.FC = () => {
   };
 
   const removeExistingImage = (index: number) => {
-    setExistingImages(prev => prev.filter((_, i) => i !== index));
+    setExistingImages(prev => {
+      const removed = prev[index];
+      const next = prev.filter((_, i) => i !== index);
+      if (primaryImageId === removed.id) {
+        setPrimaryImageId(next.length > 0 ? next[0].id : null);
+      }
+      return next;
+    });
+  };
+
+  const setPrimaryImage = (imageId: string) => {
+    setPrimaryImageId(imageId);
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    setExistingImages(prev => {
+      const oldIndex = prev.findIndex(img => img.id === active.id);
+      const newIndex = prev.findIndex(img => img.id === over.id);
+      return arrayMove(prev, oldIndex, newIndex);
+    });
   };
 
   const buildDimensionsString = (): string => {
@@ -292,22 +410,21 @@ const ProductEdit: React.FC = () => {
     return formData.dimensions || '';
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validate required fields
     if (!formData.name || !formData.sku || !formData.category_id) {
       toast.error('Please fill in all required fields');
       return;
     }
 
-    // Create FormData for multipart upload
+    setIsSaving(true);
+
     const data = new FormData();
     Object.keys(formData).forEach(key => {
       if (key !== 'images' && key !== 'existing_images' && key !== 'length' && key !== 'width' && key !== 'height' && key !== 'tags' && key !== 'shipping_config') {
         const value = (formData as any)[key];
         if (value !== undefined && value !== null) {
-          // Handle boolean fields properly
           if (typeof value === 'boolean') {
             data.append(key, value ? '1' : '0');
           } else {
@@ -317,28 +434,44 @@ const ProductEdit: React.FC = () => {
       }
     });
 
-    // Handle shipping_config as JSON
     if (formData.shipping_config) {
       data.append('shipping_config', JSON.stringify(formData.shipping_config));
     }
 
-    // Add dimensions as a combined string
     const dimensionsString = buildDimensionsString();
     if (dimensionsString) {
       data.append('dimensions', dimensionsString);
     }
 
-    // Append new images
     images.forEach(image => {
       data.append('images[]', image);
     });
 
-    // Append existing images to keep
     existingImages.forEach(img => {
       data.append('existing_images[]', img.id);
     });
 
-    updateMutation.mutate(data);
+    try {
+      await updateMutation.mutateAsync(data);
+
+      if (existingImages.length > 0) {
+        const imageOrders = existingImages.map((img, index) => ({
+          id: parseInt(img.id),
+          sort_order: index,
+        }));
+        const primaryId = primaryImageId ? parseInt(primaryImageId) : undefined;
+        await productsApiExtended.reorderImages(Number(id), { image_orders: imageOrders, primary_image_id: primaryId });
+      }
+
+      toast.success('Product updated successfully');
+      queryClient.invalidateQueries({ queryKey: ['product', id] });
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+      navigate(`/products/${id}`);
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to update product');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const tabs = [
@@ -387,11 +520,10 @@ const ProductEdit: React.FC = () => {
             variant="primary"
             size="sm"
             onClick={handleSubmit}
-            disabled={updateMutation.isPending}
-            loading={updateMutation.isPending}
+            disabled={isSaving}
           >
             <Save className="h-4 w-4 mr-2" />
-            {updateMutation.isPending ? 'Saving...' : 'Save Changes'}
+            {isSaving ? 'Saving...' : 'Save Changes'}
           </Button>
         </div>
       </div>
@@ -829,30 +961,31 @@ const ProductEdit: React.FC = () => {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Current Images
+                    <span className="text-xs font-normal text-gray-500 ml-2">Drag to reorder, click star to set primary</span>
                   </label>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    {existingImages.map((img, index) => (
-                      <div key={img.id} className="relative group">
-                        <img
-                          src={img.url}
-                          alt={`Current ${index + 1}`}
-                          className="w-full h-32 object-cover rounded-lg"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => removeExistingImage(index)}
-                          className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                          <X className="h-4 w-4" />
-                        </button>
-                        {index === 0 && (
-                          <span className="absolute bottom-2 left-2 px-2 py-1 bg-blue-500 text-white text-xs rounded">
-                            Primary
-                          </span>
-                        )}
+                  <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={handleDragEnd}
+                  >
+                    <SortableContext
+                      items={existingImages.map(img => img.id)}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        {existingImages.map((img, index) => (
+                          <SortableImage
+                            key={img.id}
+                            img={img}
+                            index={index}
+                            isPrimary={primaryImageId === img.id}
+                            onRemove={() => removeExistingImage(index)}
+                            onSetPrimary={() => setPrimaryImage(img.id)}
+                          />
+                        ))}
                       </div>
-                    ))}
-                  </div>
+                    </SortableContext>
+                  </DndContext>
                 </div>
               )}
 
@@ -889,11 +1022,11 @@ const ProductEdit: React.FC = () => {
                   </label>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     {imagePreview.map((preview, index) => (
-                      <div key={index} className="relative group">
+                      <div key={index} className="relative group bg-white rounded-lg overflow-hidden border border-gray-200 p-2 flex items-center justify-center">
                         <img
                           src={preview}
                           alt={`Preview ${index + 1}`}
-                          className="w-full h-32 object-cover rounded-lg"
+                          className="w-full h-40 object-contain rounded"
                         />
                         <button
                           type="button"
