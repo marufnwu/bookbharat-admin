@@ -462,22 +462,11 @@ const ProductDetail: React.FC = () => {
                 Pricing Information
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-green-700">Selling Price</span>
-                    <div className="p-1.5 bg-green-100 rounded">
-                      <CurrencyRupeeIcon className="h-4 w-4 text-green-600" />
-                    </div>
-                  </div>
-                  <p className="text-2xl font-bold text-green-900">
-                    {formatCurrency(parseFloat(product.price))}
-                  </p>
-                </div>
 
                 {product.compare_price && Number(product.compare_price) > Number(product.price) && (
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium text-blue-700">Compare Price</span>
+                      <span className="text-sm font-medium text-blue-700">MRP</span>
                       <div className="p-1.5 bg-blue-100 rounded">
                         <TagIcon className="h-4 w-4 text-blue-600" />
                       </div>
@@ -490,6 +479,20 @@ const ProductDetail: React.FC = () => {
                     </p>
                   </div>
                 )}
+                
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-green-700">Price</span>
+                    <div className="p-1.5 bg-green-100 rounded">
+                      <CurrencyRupeeIcon className="h-4 w-4 text-green-600" />
+                    </div>
+                  </div>
+                  <p className="text-2xl font-bold text-green-900">
+                    {formatCurrency(parseFloat(product.price))}
+                  </p>
+                </div>
+
+                
 
                 {product.our_price && (
                   <div className="bg-teal-50 border border-teal-200 rounded-lg p-4">
@@ -508,7 +511,7 @@ const ProductDetail: React.FC = () => {
                   </div>
                 )}
 
-                {product.cost_price && (
+                {/* {product.cost_price && (
                   <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-sm font-medium text-orange-700">Cost Price</span>
@@ -523,7 +526,7 @@ const ProductDetail: React.FC = () => {
                       Margin: {Math.round(((Number(product.price) - Number(product.cost_price)) / Number(product.price)) * 100)}%
                     </p>
                   </div>
-                )}
+                )} */}
 
                 <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
                   <div className="flex items-center justify-between mb-2">
@@ -535,7 +538,7 @@ const ProductDetail: React.FC = () => {
                   {product.cost_price ? (
                     <>
                       <p className="text-xl font-bold text-purple-900">
-                        {formatCurrency(Number(product.price) - Number(product.cost_price))}
+                        {formatCurrency(Number(product.price) - Number(product.our_price))}
                       </p>
                       <p className="text-xs text-purple-600 mt-1">
                         Per unit

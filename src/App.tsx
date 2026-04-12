@@ -32,6 +32,7 @@ import CustomerEdit from "./pages/Customers/CustomerEdit";
 import Settings from "./pages/Settings";
 import TestTailwind from "./pages/TestTailwind";
 import Categories from "./pages/Categories";
+import PublishersList from "./pages/Publishers/PublishersList";
 import Reviews from "./pages/Reviews";
 import Coupons from "./pages/Coupons";
 import AdminUsers from "./pages/AdminUsers";
@@ -172,6 +173,7 @@ const App: React.FC = () => {
 
               {/* Categories */}
               <Route path="categories" element={<Categories />} />
+              <Route path="publishers" element={<PublishersList />} />
 
               {/* Reviews */}
               <Route path="reviews" element={<Reviews />} />

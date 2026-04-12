@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { productsApi, categoriesApi, publishersApi, authorsApi } from '../../api';
 import { productsApiExtended } from '../../api/extended';
-import { Upload, X, Save, ArrowLeft, Loader2, Truck, GripVertical, Star } from 'lucide-react';
+import { Upload, X, Save, ArrowLeft, Loader2, Truck, GripVertical, Star, Plus, Search, Check } from 'lucide-react';
 import {
   DndContext,
   closestCenter,
@@ -52,6 +52,7 @@ interface ProductForm {
   category_id: number;
   author?: string;
   publisher?: string;
+  publisher_id?: number;
   isbn?: string;
   language?: string;
   pages?: number;
@@ -184,6 +185,10 @@ const ProductEdit: React.FC = () => {
   const [existingImages, setExistingImages] = useState<{ id: string, url: string }[]>([]);
   const [primaryImageId, setPrimaryImageId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [publisherSearch, setPublisherSearch] = useState('');
+  const [showPublisherDropdown, setShowPublisherDropdown] = useState(false);
+  const [showPublisherCreate, setShowPublisherCreate] = useState(false);
+  const [newPublisherName, setNewPublisherName] = useState('');
   const [formData, setFormData] = useState<ProductForm>({
     name: '',
     sku: '',
@@ -197,6 +202,7 @@ const ProductEdit: React.FC = () => {
     category_id: 0,
     author: '',
     publisher: '',
+    publisher_id: undefined,
     isbn: '',
     language: 'English',
     is_featured: false,
@@ -234,10 +240,12 @@ const ProductEdit: React.FC = () => {
     queryFn: categoriesApi.getCategoryTree,
   });
 
-  const { data: publishers } = useQuery({
+  const { data: publishersResponse } = useQuery({
     queryKey: ['publishers'],
     queryFn: publishersApi.getAll,
   });
+
+  const publishers = publishersResponse?.data?.data || publishersResponse?.data || [];
 
   const { data: authors } = useQuery({
     queryKey: ['authors'],
@@ -695,14 +703,247 @@ const ProductEdit: React.FC = () => {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Publisher
                     </label>
-                    <input
-                      type="text"
-                      name="publisher"
-                      value={formData.publisher}
-                      onChange={handleInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="Enter publisher name"
-                    />
+
+                    {showPublisherCreate ? (
+                      <div className="relative bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl p-4 space-y-3 shadow-sm">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+                              <Plus className="h-4 w-4 text-white" />
+                            </div>
+                            <span className="text-sm font-semibold text-gray-900">Create New Publisher</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowPublisherCreate(false);
+                              setNewPublisherName('');
+                              setPublisherSearch('');
+                            }}
+                            className="text-gray-400 hover:text-gray-600 p-1 hover:bg-white rounded-lg transition-colors"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                        <div>
+                          <input
+                            type="text"
+                            value={newPublisherName}
+                            onChange={(e) => setNewPublisherName(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && newPublisherName.trim()) {
+                                setFormData({
+                                  ...formData,
+                                  publisher: newPublisherName.trim(),
+                                  publisher_id: undefined,
+                                });
+                                setShowPublisherCreate(false);
+                                setNewPublisherName('');
+                                setPublisherSearch('');
+                              }
+                            }}
+                            placeholder="Enter publisher name..."
+                            className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                            autoFocus
+                          />
+                          <p className="mt-1 text-xs text-gray-500">Press Enter to create and select</p>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (newPublisherName.trim()) {
+                                setFormData({
+                                  ...formData,
+                                  publisher: newPublisherName.trim(),
+                                  publisher_id: undefined,
+                                });
+                                setShowPublisherCreate(false);
+                                setNewPublisherName('');
+                                setPublisherSearch('');
+                              }
+                            }}
+                            disabled={!newPublisherName.trim()}
+                            className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
+                          >
+                            Create & Select
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowPublisherCreate(false);
+                              setNewPublisherName('');
+                              setPublisherSearch('');
+                            }}
+                            className="px-4 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="relative">
+                        <div className="relative">
+                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                          <input
+                            type="text"
+                            value={publisherSearch || formData.publisher || ''}
+                            onChange={(e) => {
+                              setPublisherSearch(e.target.value);
+                              setShowPublisherDropdown(true);
+                              if (formData.publisher && e.target.value !== formData.publisher) {
+                                setFormData({
+                                  ...formData,
+                                  publisher_id: undefined,
+                                  publisher: e.target.value,
+                                });
+                              }
+                            }}
+                            onFocus={() => setShowPublisherDropdown(true)}
+                            onBlur={() => {
+                              setTimeout(() => setShowPublisherDropdown(false), 200);
+                            }}
+                            placeholder="Search or type publisher name..."
+                            className="w-full pl-10 pr-10 py-2.5 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                          />
+                          {formData.publisher_id && (
+                            <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                              <Check className="h-4 w-4 text-green-600" />
+                            </div>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => setShowPublisherCreate(true)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            title="Create new publisher"
+                          >
+                            <Plus className="h-4 w-4" />
+                          </button>
+                        </div>
+
+                        {showPublisherDropdown && (
+                          <div className="absolute z-50 mt-2 w-full bg-white border border-gray-200 rounded-xl shadow-lg max-h-60 overflow-auto">
+                            {(() => {
+                              const filtered = Array.isArray(publishers)
+                                ? publishers.filter((p: any) =>
+                                  p.name.toLowerCase().includes(publisherSearch.toLowerCase())
+                                )
+                                : [];
+
+                              const exactMatch = publisherSearch.trim() && filtered.some((p: any) =>
+                                p.name.toLowerCase() === publisherSearch.trim().toLowerCase()
+                              );
+
+                              if (filtered.length === 0 && publisherSearch.trim()) {
+                                return (
+                                  <button
+                                    type="button"
+                                    onMouseDown={(e) => {
+                                      e.preventDefault();
+                                      setNewPublisherName(publisherSearch);
+                                      setShowPublisherCreate(true);
+                                      setShowPublisherDropdown(false);
+                                    }}
+                                    className="w-full px-4 py-3 text-left flex items-center gap-3 hover:bg-blue-50 transition-colors"
+                                  >
+                                    <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                                      <Plus className="h-4 w-4 text-blue-600" />
+                                    </div>
+                                    <div>
+                                      <p className="text-sm font-medium text-blue-700">Create "{publisherSearch}"</p>
+                                      <p className="text-xs text-gray-500">Publisher not found, click to create</p>
+                                    </div>
+                                  </button>
+                                );
+                              }
+
+                              return (
+                                <>
+                                  {filtered.slice(0, 10).map((publisher: any) => (
+                                    <button
+                                      key={publisher.id}
+                                      type="button"
+                                      onMouseDown={(e) => {
+                                        e.preventDefault();
+                                        setFormData({
+                                          ...formData,
+                                          publisher_id: publisher.id,
+                                          publisher: publisher.name,
+                                        });
+                                        setPublisherSearch('');
+                                        setShowPublisherDropdown(false);
+                                      }}
+                                      className={`w-full px-4 py-2.5 text-left flex items-center gap-3 hover:bg-gray-50 transition-colors ${formData.publisher_id === publisher.id ? 'bg-blue-50' : ''
+                                        }`}
+                                    >
+                                      <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                                        <span className="text-xs font-semibold text-gray-600">
+                                          {publisher.name.charAt(0).toUpperCase()}
+                                        </span>
+                                      </div>
+                                      <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-medium text-gray-900 truncate">{publisher.name}</p>
+                                      </div>
+                                      {formData.publisher_id === publisher.id && (
+                                        <Check className="h-4 w-4 text-blue-600 flex-shrink-0" />
+                                      )}
+                                    </button>
+                                  ))}
+                                  {filtered.length > 10 && (
+                                    <div className="px-4 py-2 text-xs text-gray-500 text-center border-t">
+                                      Showing 10 of {filtered.length} publishers
+                                    </div>
+                                  )}
+                                  {publisherSearch.trim() && !exactMatch && (
+                                    <button
+                                      type="button"
+                                      onMouseDown={(e) => {
+                                        e.preventDefault();
+                                        setNewPublisherName(publisherSearch);
+                                        setShowPublisherCreate(true);
+                                        setShowPublisherDropdown(false);
+                                      }}
+                                      className="w-full px-4 py-2.5 text-left flex items-center gap-3 hover:bg-blue-50 transition-colors border-t"
+                                    >
+                                      <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                                        <Plus className="h-4 w-4 text-blue-600" />
+                                      </div>
+                                      <div>
+                                        <p className="text-sm font-medium text-blue-700">Create "{publisherSearch}"</p>
+                                        <p className="text-xs text-gray-500">Add new publisher</p>
+                                      </div>
+                                    </button>
+                                  )}
+                                </>
+                              );
+                            })()}
+                          </div>
+                        )}
+
+                        {formData.publisher && !showPublisherDropdown && (
+                          <div className="mt-2 flex items-center gap-2 px-3 py-2 bg-blue-50 rounded-lg border border-blue-100">
+                            <div className="w-6 h-6 bg-blue-600 rounded-md flex items-center justify-center flex-shrink-0">
+                              <span className="text-xs font-bold text-white">
+                                {formData.publisher.charAt(0).toUpperCase()}
+                              </span>
+                            </div>
+                            <span className="text-sm font-medium text-blue-900 truncate flex-1">
+                              {formData.publisher}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setFormData({ ...formData, publisher_id: undefined, publisher: '' });
+                                setPublisherSearch('');
+                              }}
+                              className="text-blue-400 hover:text-blue-600 p-1"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   <div>
@@ -780,10 +1021,27 @@ const ProductEdit: React.FC = () => {
               )}
 
               {activeTab === 'pricing' && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Regular Price (₹) <span className="text-red-500">*</span>
+                      MRP (₹)
+                    </label>
+                    <input
+                      type="number"
+                      name="compare_price"
+                      value={formData.compare_price || ''}
+                      onChange={handleInputChange}
+                      step="0.01"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Price (₹) <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="number"
@@ -796,19 +1054,7 @@ const ProductEdit: React.FC = () => {
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Compare Price (₹)
-                    </label>
-                    <input
-                      type="number"
-                      name="compare_price"
-                      value={formData.compare_price || ''}
-                      onChange={handleInputChange}
-                      step="0.01"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </div>
+
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">

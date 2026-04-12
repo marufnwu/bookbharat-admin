@@ -76,6 +76,7 @@ const navigation: NavigationItem[] = [
     children: [
       { name: 'Products', href: '/products', icon: ShoppingBag },
       { name: 'Categories', href: '/categories', icon: FolderOpen },
+      { name: 'Publishers', href: '/publishers', icon: BookOpen },
       { name: 'Reviews', href: '/reviews', icon: Star },
       { name: 'Packaging', href: '/packaging', icon: Gift },
     ],

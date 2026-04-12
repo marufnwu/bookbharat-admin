@@ -899,6 +899,7 @@ export default {
   dashboard: dashboardApi,
   products: productsApi,
   categories: categoriesApi,
+  publishers: publishersApi,
   brands: brandsApi,
   orders: ordersApi,
   users: usersApi,

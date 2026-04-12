@@ -67,7 +67,7 @@ export const productsApiExtended = {
   delete: (id: number) => api.delete(`/products/${id}`).then(res => res.data),
   getReviews: (id: number) => api.get(`/products/${id}/reviews`).then(res => res.data),
   getAnalytics: (id: number) => api.get(`/products/${id}/analytics`).then(res => res.data),
-  
+
   // Soft delete methods
   restore: (id: number) => api.post(`/products/${id}/restore`).then(res => res.data),
   forceDelete: (id: number) => api.delete(`/products/${id}/force-delete`).then(res => res.data),
@@ -81,7 +81,7 @@ export const bundleVariantsApi = {
   update: (productId: number, variantId: number, data: any) => api.put(`/products/${productId}/bundle-variants/${variantId}`, data).then(res => res.data),
   delete: (productId: number, variantId: number) => api.delete(`/products/${productId}/bundle-variants/${variantId}`).then(res => res.data),
   calculatePrice: (productId: number, data: any) => api.post(`/products/${productId}/bundle-variants/calculate-price`, data).then(res => res.data),
-  updateSortOrder: (productId: number, variants: Array<{ id: number; sort_order: number }>) => 
+  updateSortOrder: (productId: number, variants: Array<{ id: number; sort_order: number }>) =>
     api.post(`/products/${productId}/bundle-variants/update-sort-order`, { variants }).then(res => res.data),
 };
 
@@ -290,9 +290,15 @@ export const rolesApi = {
   delete: (id: number) => api.delete(`/settings/roles/${id}`).then(res => res.data),
 };
 
-// Publishers API (stub)
+// Publishers API
 export const publishersApi = {
-  getAll: () => Promise.resolve({ publishers: [] }),
+  getAll: (params?: any) => api.get('/publishers', { params }).then(res => res.data),
+  getById: (id: number) => api.get(`/publishers/${id}`).then(res => res.data),
+  create: (data: any) => api.post('/publishers', data).then(res => res.data),
+  update: (id: number, data: any) => api.put(`/publishers/${id}`, data).then(res => res.data),
+  delete: (id: number) => api.delete(`/publishers/${id}`).then(res => res.data),
+  toggleStatus: (id: number) => api.post(`/publishers/${id}/toggle-status`).then(res => res.data),
+  bulkImport: (publishers: any[]) => api.post('/publishers/bulk-import', { publishers }).then(res => res.data),
 };
 
 // Authors API (stub)
@@ -331,8 +337,8 @@ export const bundleDiscountRulesApi = {
 };
 
 // Global bundle discount settings API  
-export const bundleDiscountSettingsApi = {  
-  getSettings: () => api.get('/bundle-discount-rules/settings').then(res => res.data),  
+export const bundleDiscountSettingsApi = {
+  getSettings: () => api.get('/bundle-discount-rules/settings').then(res => res.data),
   updateSettings: (data: { enabled: boolean }) => api.put('/bundle-discount-rules/settings', data).then(res => res.data),
 };
 
