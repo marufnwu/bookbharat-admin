@@ -96,6 +96,11 @@ import MigrationDocumentation from "./pages/Migration/Documentation";
 // System Pages
 import ErrorLogs from "./pages/System/ErrorLogs";
 
+// Payment Pages
+import Refunds from "./pages/Payments/Refunds";
+import TransactionLog from "./pages/Payments/TransactionLog";
+import WebhookLog from "./pages/Payments/WebhookLog";
+
 // Components
 import { ProtectedRoute } from "./components";
 
@@ -180,6 +185,11 @@ const App: React.FC = () => {
               {/* Shipping */}
               <Route path="shipping" element={<Shipping />} />
 
+              {/* Payment Management */}
+              <Route path="payments/transactions" element={<TransactionLog />} />
+              <Route path="payments/refunds" element={<Refunds />} />
+              <Route path="payments/webhooks" element={<WebhookLog />} />
+
               {/* Bundle Manager (Frequently Bought Together) */}
               <Route path="bundle-manager" element={<BundleManagerLayout />}>
                 <Route
@@ -233,63 +243,19 @@ const App: React.FC = () => {
               {/* Email Templates */}
               <Route path="email-templates" element={<EmailTemplates />} />
 
-              {/* Settings - with sub-routes */}
-              <Route
-                path="settings/*"
-                element={<Settings key="settings-default" />}
-              />
-              <Route
-                path="settings/general"
-                element={<Settings key="settings-general" />}
-              />
-              <Route
-                path="settings/site"
-                element={<Settings key="settings-site" />}
-              />
-              <Route
-                path="settings/payment"
-                element={<Settings key="settings-payment" />}
-              />
-              <Route
-                path="settings/shipping"
-                element={<Settings key="settings-shipping" />}
-              />
-              <Route
-                path="settings/email"
-                element={<Settings key="settings-email" />}
-              />
-              <Route
-                path="settings/roles"
-                element={<Settings key="settings-roles" />}
-              />
-              <Route
-                path="settings/charges"
-                element={<Settings key="settings-charges" />}
-              />
-              <Route
-                path="settings/taxes"
-                element={<Settings key="settings-taxes" />}
-              />
-              <Route
-                path="settings/system"
-                element={<Settings key="settings-system" />}
-              />
-              <Route
-                path="settings/cache"
-                element={<Settings key="settings-cache" />}
-              />
-              <Route
-                path="settings/messaging-channels"
-                element={<MessagingChannels />}
-              />
-              <Route
-                path="settings/whatsapp-templates"
-                element={<WhatsAppTemplates />}
-              />
-              <Route
-                path="settings/ai-providers"
-                element={<AiProvidersPage />}
-              />
+              {/* Settings - single catch-all route (dynamic) */}
+              <Route path="settings" element={<Settings />} />
+              <Route path="settings/:settingsType" element={<Settings />} />
+
+              {/* Legacy Settings Pages */}
+              <Route path="settings/site" element={<Settings key="settings-site" />} />
+              <Route path="settings/payment" element={<Settings key="settings-payment" />} />
+              <Route path="settings/taxes" element={<Settings key="settings-taxes" />} />
+              <Route path="settings/charges" element={<Settings key="settings-charges" />} />
+              <Route path="settings/messaging-channels" element={<MessagingChannels />} />
+              <Route path="settings/whatsapp-templates" element={<WhatsAppTemplates />} />
+              <Route path="settings/ai-providers" element={<AiProvidersPage />} />
+
               {/* Communication & Notifications - REMOVED */}
 
               {/* Marketing Management */}

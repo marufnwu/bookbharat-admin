@@ -1,421 +1,120 @@
-import React, { useEffect } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useLocation, useNavigate } from 'react-router-dom';
-import {
-  Save,
-  Plus,
-  Edit,
-  Trash2
-} from 'lucide-react';
+import React, { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { Loader2, Settings as SettingsIcon, AlertTriangle } from 'lucide-react';
 import { api } from '../../api/axios';
-import toast from 'react-hot-toast';
-import PaymentSettings from './PaymentSettings';
-import SiteSettings from './SiteSettings';
-import SystemSettings from './SystemSettings';
-import OrderCharges from './OrderCharges';
-import TaxConfigurations from './TaxConfigurations';
-import EmailTemplates from '../Content/EmailTemplates';
-import AbandonedCartRecoverySettings from './AbandonedCartRecoverySettings';
-import CacheManagement from './CacheManagement';
+import DynamicSettings from '../../components/settings/DynamicSettings';
+
+interface SettingsGroup {
+  label: string;
+  description: string;
+  icon: string;
+  sort_order: number;
+  field_count: number;
+}
 
 const Settings: React.FC = () => {
-  const location = useLocation();
-  const navigate = useNavigate();
-  const queryClient = useQueryClient();
+  const [activeTab, setActiveTab] = useState<string>('');
 
-  // Determine which settings page to show from URL
-  const getSettingsType = () => {
-    const path = location.pathname.split('/').pop();
-    return path || 'general';
-  };
-
-  const settingsType = getSettingsType();
-
-  // Redirect /settings to /settings/general
-  useEffect(() => {
-    if (location.pathname === '/settings') {
-      navigate('/settings/general', { replace: true });
-    }
-  }, [location.pathname, navigate]);
-
-  // Fetch settings from backend
-  const { data: generalSettings, isLoading: generalLoading } = useQuery({
-    queryKey: ['settings', 'general'],
+  // Fetch available settings groups from backend
+  const { data: groupsData, isLoading, error } = useQuery({
+    queryKey: ['settings', 'groups'],
     queryFn: async () => {
-      const response = await api.get('/settings');
-      return response.data.data;
-    },
-    enabled: settingsType === 'general',
-  });
-
-  const { data: rolesData, isLoading: rolesLoading } = useQuery({
-    queryKey: ['settings', 'roles'],
-    queryFn: async () => {
-      const response = await api.get('/roles');
-      return response.data.data;
-    },
-    enabled: settingsType === 'roles',
-  });
-
-  const { data: shippingSettings, isLoading: shippingLoading } = useQuery({
-    queryKey: ['settings', 'shipping'],
-    queryFn: async () => {
-      const response = await api.get('/shipping-zones');
-      return response.data.data;
-    },
-    enabled: settingsType === 'shipping',
-  });
-
-
-
-  // Update general settings mutation
-  const updateSettingsMutation = useMutation({
-    mutationFn: async (data: any) => {
-      const response = await api.put('/settings', data);
-      return response.data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['settings'] });
-      toast.success('Settings updated successfully');
-    },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Failed to update settings');
+      const response = await api.get('/settings/groups');
+      return response.data.data as Record<string, SettingsGroup>;
     },
   });
 
-  const renderGeneralSettings = () => {
-    if (generalLoading) {
-      return (
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-        </div>
-      );
-    }
-
-    const settings = generalSettings || {};
-
+  if (isLoading) {
     return (
-      <div className="space-y-6">
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Business Information</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Currency</label>
-              <select className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
-                <option value="INR">INR (₹)</option>
-                <option value="USD">USD ($)</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">GST Number</label>
-              <input
-                type="text"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                defaultValue={settings.gst_number || ''}
-                placeholder="29XXXXXXXXXX1Z5"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Timezone</label>
-              <select
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                defaultValue={settings.timezone || 'Asia/Kolkata'}
-              >
-                <option value="Asia/Kolkata">Asia/Kolkata (IST)</option>
-                <option value="UTC">UTC</option>
-              </select>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Order Settings</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Min Order Amount (₹)</label>
-              <input
-                type="number"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                defaultValue={settings.min_order_amount || 100}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Max Order Amount (₹)</label>
-              <input
-                type="number"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                defaultValue={settings.max_order_amount || 100000}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Free Shipping Above (₹)</label>
-              <input
-                type="number"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                defaultValue={settings.free_shipping_threshold || 500}
-              />
-            </div>
-          </div>
-          <div className="mt-4 space-y-3">
-            <label className="flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                className="mr-2 rounded"
-                defaultChecked={settings.allow_guest_checkout !== false}
-              />
-              <span className="text-sm">Allow Guest Checkout</span>
-            </label>
-            <label className="flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                className="mr-2 rounded"
-                defaultChecked={settings.enable_wishlist !== false}
-              />
-              <span className="text-sm">Enable Wishlist</span>
-            </label>
-            <label className="flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                className="mr-2 rounded"
-                defaultChecked={settings.enable_coupons !== false}
-              />
-              <span className="text-sm">Enable Coupons</span>
-            </label>
-            <label className="flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                className="mr-2 rounded"
-                defaultChecked={settings.enable_reviews !== false}
-              />
-              <span className="text-sm">Enable Product Reviews</span>
-            </label>
-          </div>
-        </div>
-
-        <div className="flex justify-end">
-          <button
-            onClick={() => updateSettingsMutation.mutate({})}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center"
-          >
-            <Save className="mr-2 h-4 w-4" />
-            Save Settings
-          </button>
-        </div>
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 text-gray-400 animate-spin" />
+        <span className="ml-2 text-gray-500">Loading settings...</span>
       </div>
     );
-  };
+  }
 
-  const renderRolesSettings = () => {
-    if (rolesLoading) {
-      return (
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-        </div>
-      );
-    }
-
-    const roles = rolesData?.roles || [];
-
+  if (error) {
     return (
-      <div className="space-y-6">
-        <div className="bg-white rounded-lg shadow">
-          <div className="p-6 border-b border-gray-200">
-            <div className="flex justify-between items-center">
-              <h3 className="text-lg font-medium text-gray-900">Roles & Permissions</h3>
-              <button className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center">
-                <Plus className="mr-2 h-4 w-4" />
-                Add Role
-              </button>
-            </div>
-          </div>
-          <div className="p-6">
-            <div className="space-y-4">
-              {roles.map((role: any) => (
-                <div key={role.id} className="border rounded-lg p-4">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h4 className="font-medium text-gray-900">{role.display_name || role.name}</h4>
-                      <p className="text-sm text-gray-500">Internal name: {role.name}</p>
-                      <p className="text-sm text-gray-500">{role.users_count || 0} users</p>
-                      <div className="mt-2 flex flex-wrap gap-1">
-                        {(role.permissions || []).slice(0, 5).map((permission: any) => (
-                          <span key={permission.id || permission} className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded">
-                            {permission.name || permission}
-                          </span>
-                        ))}
-                        {(role.permissions || []).length > 5 && (
-                          <span className="px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded">
-                            +{role.permissions.length - 5} more
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <button className="p-2 text-gray-600 hover:bg-gray-100 rounded">
-                        <Edit className="h-4 w-4" />
-                      </button>
-                      {!['super-admin', 'admin', 'customer'].includes(role.name) && (
-                        <button className="p-2 text-red-600 hover:bg-red-50 rounded">
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+      <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+        <div className="flex items-start gap-3">
+          <AlertTriangle className="h-5 w-5 text-red-600 mt-0.5" />
+          <div>
+            <h4 className="text-sm font-medium text-red-800">Failed to load settings</h4>
+            <p className="text-sm text-red-700 mt-1">
+              Please ensure the backend is running and /settings/groups endpoint is available.
+            </p>
           </div>
         </div>
       </div>
     );
-  };
+  }
 
-  const renderShippingSettings = () => {
-    if (shippingLoading) {
-      return (
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-        </div>
-      );
-    }
-
-    const zones = shippingSettings || [];
-
+  if (!groupsData || Object.keys(groupsData).length === 0) {
     return (
-      <div className="space-y-6">
-        <div className="bg-white rounded-lg shadow">
-          <div className="p-6 border-b border-gray-200">
-            <div className="flex justify-between items-center">
-              <h3 className="text-lg font-medium text-gray-900">Shipping Zones</h3>
-              <button className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center">
-                <Plus className="mr-2 h-4 w-4" />
-                Add Zone
-              </button>
-            </div>
-          </div>
-          <div className="p-6">
-            <div className="space-y-4">
-              {zones.map((zone: any) => (
-                <div key={zone.id} className="border rounded-lg p-4">
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <h4 className="font-medium text-gray-900">{zone.name}</h4>
-                      <p className="text-sm text-gray-500">
-                        Zone {zone.zone_code} | States: {zone.states_count || 0}
-                      </p>
-                      <p className="text-sm text-gray-500">
-                        Base: ₹{zone.base_shipping_cost} | Per kg: ₹{zone.per_kg_cost || 0}
-                      </p>
-                      <p className="text-sm text-gray-500">
-                        Delivery: {zone.estimated_delivery_days} days
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className={`px-2 py-1 text-xs rounded ${
-                        zone.is_active
-                          ? 'bg-green-100 text-green-700'
-                          : 'bg-gray-100 text-gray-700'
-                      }`}>
-                        {zone.is_active ? 'Active' : 'Inactive'}
-                      </span>
-                      <button className="p-2 text-gray-600 hover:bg-gray-100 rounded">
-                        <Edit className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
+        <div className="flex items-start gap-3">
+          <AlertTriangle className="h-5 w-5 text-yellow-600 mt-0.5" />
+          <div>
+            <h4 className="text-sm font-medium text-yellow-800">No settings groups found</h4>
+            <p className="text-sm text-yellow-700 mt-1">
+              Add config files in backend: config/settings/{'{group}'}.php
+            </p>
           </div>
         </div>
       </div>
     );
-  };
+  }
 
-  const renderEmailTemplates = () => {
-    return <EmailTemplates />;
-  };
+  // Sort groups by sort_order
+  const sortedGroups = Object.entries(groupsData)
+    .sort(([, a], [, b]) => a.sort_order - b.sort_order);
 
+  // Set first group as active on initial load
+  if (!activeTab && sortedGroups.length > 0) {
+    setActiveTab(sortedGroups[0][0]);
+  }
 
-
-  // Page titles mapping
-  const getPageTitle = () => {
-    switch (settingsType) {
-      case 'general': return 'General Settings';
-      case 'site': return 'Site Settings';
-      case 'payment': return 'Payment Gateways';
-      case 'shipping': return 'Shipping Zones';
-      case 'charges': return 'Order Charges';
-      case 'taxes': return 'Tax Configuration';
-      case 'email': return 'Email Templates';
-      case 'roles': return 'Roles & Permissions';
-      case 'system': return 'System Management';
-      case 'recovery': return 'Abandoned Cart Recovery';
-      case 'cache': return 'Cache Management';
-      default: return 'Settings';
-    }
-  };
-
-  const getPageDescription = () => {
-    switch (settingsType) {
-      case 'general': return 'Configure general site information and business settings';
-      case 'site': return 'Manage site branding, SEO, and appearance settings';
-      case 'payment': return 'Configure payment gateways and payment methods';
-      case 'shipping': return 'Manage shipping zones and delivery settings';
-      case 'charges': return 'Manage additional charges like COD fees, handling fees, etc.';
-      case 'taxes': return 'Configure tax settings for GST, IGST, VAT, and other tax types';
-      case 'email': return 'Customize email templates and notifications';
-      case 'roles': return 'Manage user roles and permissions';
-      case 'system': return 'System configuration and maintenance settings';
-      case 'recovery': return 'Configure abandoned cart recovery and email settings';
-      case 'cache': return 'Manage frontend and backend cache invalidation';
-      default: return 'Manage your application settings';
-    }
-  };
-
-  const renderContent = () => {
-    switch (settingsType) {
-      case 'general':
-        return renderGeneralSettings();
-      case 'site':
-        return <SiteSettings />;
-      case 'roles':
-        return renderRolesSettings();
-      case 'payment':
-        return <PaymentSettings />;
-      case 'shipping':
-        return renderShippingSettings();
-      case 'charges':
-        return <OrderCharges />;
-      case 'taxes':
-        return <TaxConfigurations />;
-      case 'email':
-        return renderEmailTemplates();
-      case 'system':
-        return <SystemSettings />;
-      case 'recovery':
-        return <AbandonedCartRecoverySettings />;
-      case 'cache':
-        return <CacheManagement />;
-      default:
-        return renderGeneralSettings();
-    }
-  };
+  const currentGroup = groupsData[activeTab];
 
   return (
     <div className="space-y-6">
       {/* Page Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-semibold text-gray-900">{getPageTitle()}</h1>
-          <p className="mt-1 text-sm text-gray-600">
-            {getPageDescription()}
-          </p>
-        </div>
+      <div>
+        <h1 className="text-2xl font-semibold text-gray-900">Settings</h1>
+        <p className="mt-1 text-sm text-gray-600">
+          Manage your application settings and configuration
+        </p>
       </div>
 
-      {/* Page Content - No tabs anymore */}
-      {renderContent()}
+      {/* Tabs */}
+      <div className="border-b border-gray-200">
+        <nav className="-mb-px flex space-x-8 overflow-x-auto" aria-label="Tabs">
+          {sortedGroups.map(([key, group]) => (
+            <button
+              key={key}
+              onClick={() => setActiveTab(key)}
+              className={`
+                whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors
+                ${activeTab === key
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }
+              `}
+            >
+              {group.label}
+            </button>
+          ))}
+        </nav>
+      </div>
+
+      {/* Tab Content */}
+      {activeTab && currentGroup && (
+        <DynamicSettings
+          group={activeTab}
+          title={currentGroup.label}
+          description={currentGroup.description}
+        />
+      )}
     </div>
   );
 };

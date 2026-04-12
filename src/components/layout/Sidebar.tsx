@@ -40,6 +40,7 @@ import {
   Globe,
   Gift,
   LucideIcon,
+  Lock,
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 
@@ -82,6 +83,18 @@ const navigation: NavigationItem[] = [
 
   // Customers
   { name: 'Customers', href: '/customers', icon: Users },
+
+  // Payments
+  {
+    name: 'Payments',
+    href: '/payments',
+    icon: CreditCard,
+    children: [
+      { name: 'Transactions', href: '/payments/transactions', icon: DollarSign },
+      { name: 'Refunds', href: '/payments/refunds', icon: Receipt },
+      { name: 'Webhooks', href: '/payments/webhooks', icon: Activity },
+    ],
+  },
 
   // Marketing
   {
@@ -127,20 +140,18 @@ const navigation: NavigationItem[] = [
 
   // Store Settings
   {
-    name: 'Store Settings',
+    name: 'Settings',
     href: '/settings',
     icon: Settings,
     children: [
-      { name: 'General', href: '/settings', icon: Settings },
       { name: 'Site Settings', href: '/settings/site', icon: Globe },
-      { name: 'Payment Settings', href: '/settings/payment', icon: CreditCard },
+      { name: 'Payment', href: '/settings/payment', icon: CreditCard },
       { name: 'Shipping', href: '/shipping', icon: Truck },
       { name: 'Taxes', href: '/settings/taxes', icon: DollarSign },
       { name: 'Order Charges', href: '/settings/charges', icon: Receipt },
-      { name: 'Invoice Templates', href: '/invoice-templates', icon: FileText },
-      { name: 'AI Providers', href: '/settings/ai-providers', icon: Sparkles },
-      { name: 'Messaging Channels', href: '/settings/messaging-channels', icon: MessageSquare },
+      { name: 'Messaging', href: '/settings/messaging-channels', icon: MessageSquare },
       { name: 'WhatsApp Templates', href: '/settings/whatsapp-templates', icon: MessageSquare },
+      { name: 'AI Providers', href: '/settings/ai-providers', icon: Sparkles },
     ],
   },
 
