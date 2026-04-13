@@ -56,6 +56,8 @@ interface ProductForm {
   isbn?: string;
   language?: string;
   pages?: number;
+  format?: 'Hardcover' | 'Paperback' | 'Ebook' | 'Audiobook';
+  video_url?: string;
   weight?: number;
   dimensions?: string;
   length?: number;
@@ -205,6 +207,8 @@ const ProductEdit: React.FC = () => {
     publisher_id: undefined,
     isbn: '',
     language: 'English',
+    format: 'Paperback',
+    video_url: '',
     is_featured: false,
     is_active: true,
     shipping_config: {
@@ -273,6 +277,8 @@ const ProductEdit: React.FC = () => {
         isbn: p.isbn || '',
         language: p.language || 'English',
         pages: p.pages || undefined,
+        format: p.format || 'Paperback',
+        video_url: p.video_url || '',
         weight: p.weight || undefined,
         dimensions: p.dimensions || '',
         length: undefined,
@@ -694,6 +700,42 @@ const ProductEdit: React.FC = () => {
                       placeholder="Enter ISBN (optional)"
                     />
                   </div>
+
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      YouTube Video Link
+                    </label>
+                    <input
+                      type="url"
+                      name="video_url"
+                      value={formData.video_url}
+                      onChange={handleInputChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="https://youtube.com/watch?v=..."
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Add a YouTube video URL (supports standard videos and Shorts)
+                    </p>
+                    {formData.video_url && (() => {
+                      const videoId = formData.video_url?.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/)([^&\n?#]+)/)?.[1];
+                      return videoId ? (
+                        <div className="mt-3">
+                          <p className="text-sm text-green-600 mb-2">✓ Valid YouTube video detected</p>
+                          <div className="aspect-video w-full max-w-md rounded-lg overflow-hidden border border-gray-300">
+                            <iframe
+                              width="100%"
+                              height="100%"
+                              src={`https://www.youtube.com/embed/${videoId}`}
+                              title="YouTube video preview"
+                              frameBorder="0"
+                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                              allowFullScreen
+                            />
+                          </div>
+                        </div>
+                      ) : null;
+                    })()}
+                  </div>
                 </div>
               )}
 
@@ -944,6 +986,58 @@ const ProductEdit: React.FC = () => {
                         )}
                       </div>
                     )}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Cover Type / Format
+                    </label>
+                    <div className="flex gap-4">
+                      <label className="flex items-center">
+                        <input
+                          type="radio"
+                          name="format"
+                          value="Paperback"
+                          checked={formData.format === 'Paperback'}
+                          onChange={handleInputChange}
+                          className="mr-2"
+                        />
+                        <span className="text-sm font-medium text-gray-700">Paper Back</span>
+                      </label>
+                      <label className="flex items-center">
+                        <input
+                          type="radio"
+                          name="format"
+                          value="Hardcover"
+                          checked={formData.format === 'Hardcover'}
+                          onChange={handleInputChange}
+                          className="mr-2"
+                        />
+                        <span className="text-sm font-medium text-gray-700">Hard Cover</span>
+                      </label>
+                      <label className="flex items-center">
+                        <input
+                          type="radio"
+                          name="format"
+                          value="Ebook"
+                          checked={formData.format === 'Ebook'}
+                          onChange={handleInputChange}
+                          className="mr-2"
+                        />
+                        <span className="text-sm font-medium text-gray-700">E-book</span>
+                      </label>
+                      <label className="flex items-center">
+                        <input
+                          type="radio"
+                          name="format"
+                          value="Audiobook"
+                          checked={formData.format === 'Audiobook'}
+                          onChange={handleInputChange}
+                          className="mr-2"
+                        />
+                        <span className="text-sm font-medium text-gray-700">Audiobook</span>
+                      </label>
+                    </div>
                   </div>
 
                   <div>

@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import {
   MagnifyingGlassIcon,
   FunnelIcon,
@@ -23,6 +23,13 @@ import { Table, Button, Badge, LoadingSpinner, Card, CardContent, StatusBadge, M
 import { useNotificationStore } from '../../store/notificationStore';
 import { Order, FilterOptions, TableColumn } from '../../types';
 import { format } from 'date-fns';
+import { OrderStatusTabs } from '../../components/Orders/OrderStatusTabs';
+import { InlineStatusDropdown } from '../../components/Orders/InlineStatusDropdown';
+import { OrderQuickView } from '../../components/Orders/OrderQuickView';
+import { MobileActionBar } from '../../components/Orders/MobileActionBar';
+import { OrderSearchWithSuggestions } from '../../components/Orders/OrderSearchWithSuggestions';
+import { KeyboardShortcutsHelp } from '../../components/Orders/KeyboardShortcutsHelp';
+import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 
 // Order Stats Widget Component
 interface OrderStatsWidgetProps {
@@ -278,22 +285,109 @@ const PaymentStatusModal: React.FC<PaymentStatusModalProps> = ({
   );
 };
 
+// Special tab keys that map to backend filter params (not real statuses)
+const SPECIAL_TABS = ['unshipped_prepaid', 'unshipped_cod'] as const;
+type SpecialTab = typeof SPECIAL_TABS[number];
+
+// Default filter values
+const defaultFilters: FilterOptions = {
+  page: 1,
+  per_page: 10,
+  search: '',
+  status: '',
+  payment_status: '',
+  date_from: '',
+  date_to: '',
+  sort_by: 'created_at',
+  sort_direction: 'desc',
+};
+
 // Main OrderList Component
 const OrderList: React.FC = () => {
-  const [filters, setFilters] = useState<FilterOptions>({
-    page: 1,
-    per_page: 10,
-    search: '',
-    status: '',
-    payment_status: '',
-    date_from: '',
-    date_to: '',
-    sort_by: 'created_at',
-    sort_direction: 'desc',
-  });
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Determine which special tab is active (unshipped_prepaid / unshipped_cod)
+  const activeTab: string = searchParams.get('tab') || searchParams.get('status') || '';
+
+  // Read filters from URL, falling back to defaults
+  const filters: FilterOptions & Record<string, any> = {
+    page: Number(searchParams.get('page')) || defaultFilters.page!,
+    per_page: Number(searchParams.get('per_page')) || defaultFilters.per_page!,
+    search: searchParams.get('search') || defaultFilters.search!,
+    status: (() => {
+      // If a special tab is active, don't set status filter
+      const tab = searchParams.get('tab');
+      if (tab && (SPECIAL_TABS as readonly string[]).includes(tab)) return '';
+      return searchParams.get('status') || defaultFilters.status!;
+    })(),
+    payment_status: searchParams.get('payment_status') || defaultFilters.payment_status!,
+    date_from: searchParams.get('date_from') || defaultFilters.date_from!,
+    date_to: searchParams.get('date_to') || defaultFilters.date_to!,
+    sort_by: searchParams.get('sort_by') || defaultFilters.sort_by!,
+    sort_direction: (searchParams.get('sort_direction') as 'asc' | 'desc') || defaultFilters.sort_direction!,
+    // Special filter flags for backend
+    unshipped_prepaid: searchParams.get('tab') === 'unshipped_prepaid' ? '1' : '',
+    unshipped_cod: searchParams.get('tab') === 'unshipped_cod' ? '1' : '',
+  };
+
+  // Active status for OrderStatusTabs (combines status + special tabs)
+  const activeStatus = searchParams.get('tab') || searchParams.get('status') || '';
+
+  // Update a single filter and sync to URL
+  const setFilter = (updates: Record<string, any>) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+
+      // If changing status/tab, clear the other
+      if ('status' in updates) {
+        next.delete('tab');
+        if (updates.status && updates.status !== '') {
+          next.set('status', updates.status);
+        } else {
+          next.delete('status');
+        }
+      }
+
+      if ('tab' in updates) {
+        next.delete('status');
+        if (updates.tab && updates.tab !== '') {
+          next.set('tab', updates.tab);
+        } else {
+          next.delete('tab');
+        }
+      }
+
+      // Handle page reset on filter change
+      if (updates.page !== undefined) {
+        next.set('page', String(updates.page));
+      } else if ('status' in updates || 'tab' in updates || 'search' in updates) {
+        next.delete('page'); // reset page on filter change
+      }
+
+      // Handle other filter fields
+      const simpleKeys = ['search', 'payment_status', 'date_from', 'date_to', 'sort_by', 'sort_direction', 'per_page'] as const;
+      for (const key of simpleKeys) {
+        if (key in updates) {
+          const val = updates[key];
+          const defaultVal = defaultFilters[key as keyof FilterOptions];
+          if (val !== undefined && val !== '' && val !== defaultVal) {
+            next.set(key, String(val));
+          } else {
+            next.delete(key);
+          }
+        }
+      }
+
+      return next;
+    }, { replace: true });
+  };
 
   const [showFilters, setShowFilters] = useState(false);
   const [selectedOrders, setSelectedOrders] = useState<Set<number>>(new Set());
+  const [quickViewOrderId, setQuickViewOrderId] = useState<number | null>(null);
+  const [selectedMobileOrder, setSelectedMobileOrder] = useState<Order | null>(null);
+  const [highlightedRowIndex, setHighlightedRowIndex] = useState<number>(-1);
+  const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
   const [paymentStatusModal, setPaymentStatusModal] = useState<{
     isOpen: boolean;
     orderId: number | null;
@@ -324,6 +418,8 @@ const OrderList: React.FC = () => {
   const { data: ordersResponse, isLoading } = useQuery({
     queryKey: ['orders', filters],
     queryFn: () => ordersApi.getOrders(filters),
+    refetchInterval: 30000,
+    refetchIntervalInBackground: false,
   });
 
   // Extract stats from response
@@ -387,24 +483,25 @@ const OrderList: React.FC = () => {
   });
 
   // Handlers
-  const handleFilterChange = (key: keyof FilterOptions, value: any) => {
-    setFilters(prev => ({
-      ...prev,
-      [key]: value,
-      page: 1,
-    }));
+  const handleFilterChange = (key: string, value: any) => {
+    if (key === 'status') {
+      // Special tabs use 'tab' param, real statuses use 'status' param
+      if ((SPECIAL_TABS as readonly string[]).includes(value)) {
+        setFilter({ tab: value });
+      } else {
+        setFilter({ status: value });
+      }
+    } else {
+      setFilter({ [key]: value });
+    }
   };
 
   const handleSort = (key: string, direction: 'asc' | 'desc') => {
-    setFilters(prev => ({
-      ...prev,
-      sort_by: key,
-      sort_direction: direction,
-    }));
+    setFilter({ sort_by: key, sort_direction: direction });
   };
 
   const handlePageChange = (page: number) => {
-    setFilters(prev => ({ ...prev, page }));
+    setFilter({ page });
   };
 
   const handleStatusUpdate = (id: number, status: string) => {
@@ -511,6 +608,41 @@ const OrderList: React.FC = () => {
     { value: 'refunded', label: 'Refunded', icon: CurrencyDollarIcon, color: 'gray' },
   ];
 
+  // Visual priority indicators for table rows
+  const getRowClassName = (record: Order, index: number) => {
+    const classes: string[] = [];
+
+    // Keyboard navigation highlight
+    if (index === highlightedRowIndex) {
+      classes.push('ring-2 ring-inset ring-blue-400 bg-blue-50');
+    }
+
+    // Pending >24h: yellow background
+    if (record.status === 'pending' && record.created_at) {
+      const hoursSinceCreated = (Date.now() - new Date(record.created_at).getTime()) / (1000 * 60 * 60);
+      if (hoursSinceCreated > 24) {
+        classes.push('bg-yellow-50');
+      }
+    }
+
+    // COD orders: orange left border
+    if (record.is_cod || record.payment_method === 'cod') {
+      classes.push('border-l-4 border-l-orange-400');
+    }
+
+    // Failed payment: red left border
+    if (record.payment_status === 'failed') {
+      classes.push('border-l-4 border-l-red-400');
+    }
+
+    // High-value orders (>5000): gold left border
+    if ((record.total_amount || 0) > 5000 && record.payment_status !== 'failed') {
+      classes.push('border-l-4 border-l-yellow-500');
+    }
+
+    return classes.join(' ');
+  };
+
   const getStatusActions = (order: Order) => {
     const actions = [];
 
@@ -529,8 +661,8 @@ const OrderList: React.FC = () => {
       );
     }
 
-    // Create Shipment button for processing/shipped orders (if no shipment exists)
-    if (order.status === 'processing' || order.status === 'shipped') {
+    // Create Shipment button for processing orders
+    if (order.status === 'processing') {
       actions.push(
         <Link key="create-shipment" to={`/orders/${order.id}/create-shipment`}>
           <Button
@@ -597,7 +729,7 @@ const OrderList: React.FC = () => {
   // Handle status update with optional override
   const handleStatusUpdateWithOverride = () => {
     if (!statusModal.orderId || !statusModal.selectedStatus) return;
-    
+
     // If overriding workflow or status is different, proceed
     if (statusModal.overrideWorkflow || statusModal.selectedStatus !== statusModal.currentStatus) {
       updateStatusMutation.mutate({
@@ -614,6 +746,54 @@ const OrderList: React.FC = () => {
       });
     }
   };
+
+  // Current orders list reference for keyboard navigation
+  const currentOrders = (ordersResponse as any)?.orders?.data || [];
+
+  // Keyboard shortcuts
+  useKeyboardShortcuts([
+    { key: 'j', handler: () => setHighlightedRowIndex(prev => Math.min(prev + 1, currentOrders.length - 1)), description: 'Next row' },
+    { key: 'k', handler: () => setHighlightedRowIndex(prev => Math.max(prev - 1, 0)), description: 'Prev row' },
+    { key: 'Enter', handler: () => {
+      if (highlightedRowIndex >= 0 && highlightedRowIndex < currentOrders.length) {
+        setQuickViewOrderId(currentOrders[highlightedRowIndex].id);
+      }
+    }, description: 'Open quick view' },
+    { key: 'p', handler: () => {
+      if (highlightedRowIndex >= 0 && currentOrders[highlightedRowIndex]?.status === 'pending') {
+        handleStatusUpdate(currentOrders[highlightedRowIndex].id, 'processing');
+      }
+    }, description: 'Process order' },
+    { key: 's', handler: () => {
+      if (highlightedRowIndex >= 0 && currentOrders[highlightedRowIndex]?.status === 'processing') {
+        handleStatusUpdate(currentOrders[highlightedRowIndex].id, 'shipped');
+      }
+    }, description: 'Ship order' },
+    { key: 'd', handler: () => {
+      if (highlightedRowIndex >= 0 && currentOrders[highlightedRowIndex]?.status === 'shipped') {
+        handleStatusUpdate(currentOrders[highlightedRowIndex].id, 'delivered');
+      }
+    }, description: 'Mark delivered' },
+    { key: 'x', handler: () => {
+      if (highlightedRowIndex >= 0 && ['pending', 'processing'].includes(currentOrders[highlightedRowIndex]?.status)) {
+        handleStatusUpdate(currentOrders[highlightedRowIndex].id, 'cancelled');
+      }
+    }, description: 'Cancel order' },
+    { key: '1', handler: () => handleFilterChange('status', ''), description: 'Tab: All' },
+    { key: '2', handler: () => handleFilterChange('status', 'pending'), description: 'Tab: Pending' },
+    { key: '3', handler: () => handleFilterChange('status', 'processing'), description: 'Tab: Processing' },
+    { key: '4', handler: () => handleFilterChange('status', 'unshipped_prepaid'), description: 'Tab: Prepaid Unshipped' },
+    { key: '5', handler: () => handleFilterChange('status', 'unshipped_cod'), description: 'Tab: COD Unshipped' },
+    { key: '6', handler: () => handleFilterChange('status', 'shipped'), description: 'Tab: Shipped' },
+    { key: '7', handler: () => handleFilterChange('status', 'delivered'), description: 'Tab: Delivered' },
+    { key: '8', handler: () => handleFilterChange('status', 'cancelled'), description: 'Tab: Cancelled' },
+    { key: 'e', handler: handleExport, description: 'Export' },
+    { key: '/', handler: () => {
+      const input = document.querySelector('input[placeholder*="Search"]') as HTMLInputElement;
+      input?.focus();
+    }, description: 'Focus search' },
+    { key: '?', handler: () => setShowShortcutsHelp(true), description: 'Show help' },
+  ]);
 
   // Column definitions with checkbox
   const columns = useMemo(() => [
@@ -640,8 +820,21 @@ const OrderList: React.FC = () => {
       key: 'order_number' as const,
       title: 'Order #',
       sortable: true,
-      render: (value: any) => (
-        <span className="font-medium text-blue-600">#{value}</span>
+      render: (value: any, record: Order) => (
+        <button
+          className="font-medium text-blue-600 hover:text-blue-800 hover:underline"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (e.ctrlKey || e.metaKey) {
+              window.open(`/orders/${record.id}`, '_blank');
+            } else {
+              setQuickViewOrderId(record.id);
+            }
+          }}
+        >
+          #{value}
+        </button>
       ),
     },
     {
@@ -670,7 +863,12 @@ const OrderList: React.FC = () => {
       key: 'status' as const,
       title: 'Status',
       sortable: true,
-      render: (value: any) => getStatusBadge(value),
+      render: (value: any, record: Order) => (
+        <InlineStatusDropdown
+          currentStatus={value}
+          onStatusChange={(newStatus) => handleStatusUpdate(record.id, newStatus)}
+        />
+      ),
     },
     {
       key: 'paid_amount' as any,
@@ -770,21 +968,22 @@ const OrderList: React.FC = () => {
       {/* Order Stats Widget */}
       <OrderStatsWidget stats={stats} isLoading={isLoading} />
 
+      {/* Status Tabs */}
+      <OrderStatusTabs
+        activeStatus={activeStatus}
+        onStatusChange={(status) => handleFilterChange('status', status)}
+        stats={stats}
+      />
+
       {/* Filters */}
       <div className="bg-white p-4 rounded-lg shadow space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4 flex-1">
             <div className="flex-1 max-w-md">
-              <div className="relative">
-                <MagnifyingGlassIcon className="h-5 w-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Search orders..."
-                  className="pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 w-full"
-                  value={filters.search}
-                  onChange={(e) => handleFilterChange('search', e.target.value)}
-                />
-              </div>
+              <OrderSearchWithSuggestions
+                value={filters.search || ''}
+                onChange={(value) => handleFilterChange('search', value)}
+              />
             </div>
             <Button
               variant="outline"
@@ -804,7 +1003,7 @@ const OrderList: React.FC = () => {
               </label>
               <select
                 className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
-                value={filters.status}
+                value={activeStatus}
                 onChange={(e) => handleFilterChange('status', e.target.value)}
               >
                 <option value="">All Status</option>
@@ -814,6 +1013,9 @@ const OrderList: React.FC = () => {
                 <option value="delivered">Delivered</option>
                 <option value="cancelled">Cancelled</option>
                 <option value="refunded">Refunded</option>
+                <option disabled>──────────</option>
+                <option value="unshipped_prepaid">Prepaid Unshipped</option>
+                <option value="unshipped_cod">COD Unshipped</option>
               </select>
             </div>
 
@@ -884,6 +1086,7 @@ const OrderList: React.FC = () => {
           data={(ordersResponse as any)?.orders?.data || []}
           columns={columns}
           loading={isLoading}
+          rowClassName={getRowClassName}
           pagination={{
             current: filters.page || 1,
             total: (ordersResponse as any)?.orders?.total || 0,
@@ -907,9 +1110,20 @@ const OrderList: React.FC = () => {
             </CardContent>
           </Card>
         ) : (
-          ((ordersResponse as any)?.orders?.data || []).map((order: any) => (
-            <Card key={order.id} className="overflow-hidden">
-              <CardContent className="p-4">
+          ((ordersResponse as any)?.orders?.data || []).map((order: any) => {
+            // Mobile visual priority indicators
+            const isPendingOld = order.status === 'pending' && order.created_at &&
+              ((Date.now() - new Date(order.created_at).getTime()) / (1000 * 60 * 60)) > 24;
+            const isCOD = order.is_cod || order.payment_method === 'cod';
+            const isFailedPayment = order.payment_status === 'failed';
+            const isHighValue = (order.total_amount || 0) > 5000 && !isFailedPayment;
+            const borderClass = isFailedPayment ? 'border-l-4 border-l-red-400' :
+              isCOD ? 'border-l-4 border-l-orange-400' :
+              isHighValue ? 'border-l-4 border-l-yellow-500' : '';
+
+            return (
+            <Card key={order.id} className={`overflow-hidden ${isPendingOld ? 'bg-yellow-50' : ''} ${borderClass}`}>
+              <CardContent className="p-4" onClick={() => setSelectedMobileOrder(order)}>
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-2">
                     <input
@@ -930,7 +1144,10 @@ const OrderList: React.FC = () => {
                       </p>
                     </div>
                   </div>
-                  <StatusBadge status={order.status as any} size="sm" />
+                  <InlineStatusDropdown
+                    currentStatus={order.status}
+                    onStatusChange={(newStatus) => handleStatusUpdate(order.id, newStatus)}
+                  />
                 </div>
 
                 <div className="space-y-2 text-sm">
@@ -995,7 +1212,8 @@ const OrderList: React.FC = () => {
                 </div>
               </CardContent>
             </Card>
-          ))
+            );
+          })
         )}
       </div>
 
@@ -1145,6 +1363,52 @@ const OrderList: React.FC = () => {
           </div>
         </div>
       </Modal>
+
+      {/* Order Quick View Drawer */}
+      <OrderQuickView
+        orderId={quickViewOrderId}
+        open={quickViewOrderId !== null}
+        onClose={() => setQuickViewOrderId(null)}
+        onStatusChange={(id, status) => {
+          handleStatusUpdate(id, status);
+        }}
+        onNavigatePrev={() => {
+          const orders = (ordersResponse as any)?.orders?.data || [];
+          const currentIdx = orders.findIndex((o: Order) => o.id === quickViewOrderId);
+          if (currentIdx > 0) setQuickViewOrderId(orders[currentIdx - 1].id);
+        }}
+        onNavigateNext={() => {
+          const orders = (ordersResponse as any)?.orders?.data || [];
+          const currentIdx = orders.findIndex((o: Order) => o.id === quickViewOrderId);
+          if (currentIdx < orders.length - 1) setQuickViewOrderId(orders[currentIdx + 1].id);
+        }}
+        hasPrev={(() => {
+          const orders = (ordersResponse as any)?.orders?.data || [];
+          const idx = orders.findIndex((o: Order) => o.id === quickViewOrderId);
+          return idx > 0;
+        })()}
+        hasNext={(() => {
+          const orders = (ordersResponse as any)?.orders?.data || [];
+          const idx = orders.findIndex((o: Order) => o.id === quickViewOrderId);
+          return idx >= 0 && idx < orders.length - 1;
+        })()}
+      />
+
+      {/* Mobile Action Bar */}
+      <MobileActionBar
+        order={selectedMobileOrder}
+        onStatusChange={(id, status) => {
+          handleStatusUpdate(id, status);
+          setSelectedMobileOrder(null);
+        }}
+        isLoading={updateStatusMutation.isPending}
+      />
+
+      {/* Keyboard Shortcuts Help */}
+      <KeyboardShortcutsHelp
+        isOpen={showShortcutsHelp}
+        onClose={() => setShowShortcutsHelp(false)}
+      />
     </div>
   );
 };

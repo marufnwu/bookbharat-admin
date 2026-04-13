@@ -99,6 +99,8 @@ export interface Product {
   isbn?: string;
   language?: string;
   pages?: number;
+  format?: 'Hardcover' | 'Paperback' | 'Ebook' | 'Audiobook';
+  video_url?: string;
   created_at: string;
   updated_at: string;
   rating?: number; // Product rating
@@ -356,6 +358,7 @@ export interface TableProps<T = any> {
     onChange: (page: number) => void;
   };
   onSort?: (key: string, direction: 'asc' | 'desc') => void;
+  rowClassName?: (record: T, index: number) => string;
 }
 
 // Form Types

@@ -518,3 +518,56 @@
 .admin-product-description table tr:hover {
   @apply bg-gray-50;
 }
+
+/* Print Styles for Order Pages */
+@media print {
+  /* Hide navigation, sidebar, actions, modals, bottom bars */
+  nav,
+  aside,
+  [role="navigation"],
+  .print\\:hidden,
+  button,
+  .modal-backdrop,
+  .drawer-backdrop,
+  .fixed.bottom-0 {
+    display: none !important;
+  }
+
+  /* Reset layout for print */
+  body {
+    background: white !important;
+    font-size: 12px !important;
+    color: #000 !important;
+  }
+
+  /* Remove shadows and borders */
+  .shadow,
+  .shadow-card,
+  .shadow-lg,
+  .shadow-sm {
+    box-shadow: none !important;
+  }
+
+  /* Make cards print-friendly */
+  .card,
+  [class*="bg-white rounded"] {
+    border: 1px solid #ddd !important;
+    break-inside: avoid;
+  }
+
+  /* Sticky header should be static for print */
+  .sticky {
+    position: static !important;
+    border-bottom: 2px solid #000 !important;
+  }
+
+  /* Ensure single column layout */
+  .grid {
+    display: block !important;
+  }
+
+  /* Show order header, items, addresses, financials */
+  h1 { font-size: 18px !important; }
+  h2 { font-size: 16px !important; }
+  h3 { font-size: 14px !important; }
+}

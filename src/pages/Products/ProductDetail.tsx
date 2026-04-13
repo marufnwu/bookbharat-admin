@@ -428,6 +428,12 @@ const ProductDetail: React.FC = () => {
                         <span className="text-gray-900 font-medium">{product.pages}</span>
                       </div>
                     )}
+                    {product.format && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">Format</span>
+                        <span className="text-gray-900 font-medium">{product.format}</span>
+                      </div>
+                    )}
                     {product.language && (
                       <div className="flex justify-between text-sm">
                         <span className="text-gray-600">Language</span>
@@ -453,6 +459,27 @@ const ProductDetail: React.FC = () => {
                   }}
                 />
               </div>
+
+              {/* YouTube Video */}
+              {product.video_url && (() => {
+                const videoId = product.video_url?.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/)([^&\n?#]+)/)?.[1];
+                return videoId ? (
+                  <div className="mt-6">
+                    <h4 className="text-sm font-semibold text-gray-700 mb-3">Product Video</h4>
+                    <div className="aspect-video w-full max-w-2xl rounded-lg overflow-hidden border border-gray-200">
+                      <iframe
+                        width="100%"
+                        height="100%"
+                        src={`https://www.youtube.com/embed/${videoId}`}
+                        title="Product video"
+                        frameBorder="0"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                      />
+                    </div>
+                  </div>
+                ) : null;
+              })()}
             </div>
 
             {/* Pricing */}

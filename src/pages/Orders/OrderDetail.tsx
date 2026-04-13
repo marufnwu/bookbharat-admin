@@ -96,11 +96,13 @@ const OrderDetail: React.FC = () => {
   const [carrierReference, setCarrierReference] = useState('');
   const [shippingCost, setShippingCost] = useState('');
 
-  // Fetch order details
+  // Fetch order details with real-time polling
   const { data: orderResponse, isLoading, refetch } = useQuery({
     queryKey: ['order', id],
     queryFn: () => ordersApi.getById(Number(id)),
     enabled: !!id,
+    refetchInterval: 30000,
+    refetchIntervalInBackground: false,
   });
 
   const order = orderResponse?.order;
@@ -401,8 +403,8 @@ const OrderDetail: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header - Mobile Responsive */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+      {/* Header - Sticky on scroll (desktop) */}
+      <div className="sticky top-0 z-20 bg-white/95 backdrop-blur-sm border-b border-gray-100 -mx-6 px-6 py-4 print:static print:border-0">
         <div className="flex items-center gap-4">
           <Button
             variant="ghost"
@@ -1619,6 +1621,71 @@ const OrderDetail: React.FC = () => {
           </Button>
         </div>
       </Modal>
+
+      {/* Mobile Fixed Bottom Action Bar */}
+      {order && order.status !== 'refunded' && order.status !== 'cancelled' && (
+        <div className="fixed bottom-0 left-0 right-0 z-40 lg:hidden bg-white border-t border-gray-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] print:hidden">
+          <div className="flex items-center gap-2 px-4 py-3">
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-1"
+              onClick={handlePrintInvoice}
+            >
+              <Printer className="h-4 w-4 mr-1" />
+              Print
+            </Button>
+            {order.status === 'pending' && (
+              <Button
+                variant="primary"
+                size="sm"
+                className="flex-1"
+                onClick={() => {
+                  setSelectedStatus('processing');
+                  handleStatusUpdate();
+                }}
+              >
+                Process
+              </Button>
+            )}
+            {order.status === 'processing' && (
+              <Button
+                variant="success"
+                size="sm"
+                className="flex-1"
+                onClick={() => navigate(`/orders/${id}/create-shipment`)}
+              >
+                <Send className="h-4 w-4 mr-1" />
+                Ship
+              </Button>
+            )}
+            {order.status === 'shipped' && (
+              <Button
+                variant="primary"
+                size="sm"
+                className="flex-1"
+                onClick={() => {
+                  setSelectedStatus('delivered');
+                  handleStatusUpdate();
+                }}
+              >
+                <CheckCircle className="h-4 w-4 mr-1" />
+                Delivered
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setSelectedStatus(order.status);
+                setShowStatusModal(true);
+              }}
+            >
+              <Edit className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

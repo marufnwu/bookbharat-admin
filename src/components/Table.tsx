@@ -10,6 +10,7 @@ function Table<T extends Record<string, any>>({
   loading = false,
   pagination,
   onSort,
+  rowClassName,
 }: TableProps<T>) {
   const [sortConfig, setSortConfig] = React.useState<{
     key: string;
@@ -83,7 +84,7 @@ function Table<T extends Record<string, any>>({
               </tr>
             ) : (
               data.map((row, index) => (
-                <tr key={index} className="hover:bg-gray-50">
+                <tr key={index} className={`hover:bg-gray-50 ${rowClassName ? rowClassName(row, index) : ''}`}>
                   {columns.map((column) => (
                     <td
                       key={String(column.key)}
