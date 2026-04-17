@@ -36,6 +36,7 @@ import PublishersList from "./pages/Publishers/PublishersList";
 import Reviews from "./pages/Reviews";
 import Coupons from "./pages/Coupons";
 import AdminUsers from "./pages/AdminUsers";
+import AdminUserDetail from "./pages/AdminUsers/AdminUserDetail";
 import Profile from "./pages/Profile";
 import Shipping from "./pages/Shipping";
 import ProductAssociations from "./pages/FrequentlyBoughtTogether/ProductAssociations";
@@ -63,6 +64,7 @@ import DynamicDocumentationPage from "./pages/Documentation/DynamicDocumentation
 // Communication & Notification Pages - REMOVED
 
 import MarketingSettings from "./pages/Marketing/MarketingSettings";
+import RolesPermissions from "./pages/Settings/RolesPermissions";
 import MarketingAnalytics from "./pages/Marketing/MarketingAnalytics";
 import FeedManagement from "./pages/Marketing/FeedManagement";
 import AnalyticsHub from "./pages/Analytics";
@@ -183,6 +185,7 @@ const App: React.FC = () => {
 
               {/* Admin Users */}
               <Route path="users" element={<AdminUsers />} />
+              <Route path="users/:id" element={<AdminUserDetail />} />
 
               {/* Shipping */}
               <Route path="shipping" element={<Shipping />} />
@@ -247,6 +250,7 @@ const App: React.FC = () => {
 
               {/* Settings - single catch-all route (dynamic) */}
               <Route path="settings" element={<Settings />} />
+              <Route path="settings/roles" element={<RolesPermissions />} />
               <Route path="settings/:settingsType" element={<Settings />} />
 
               {/* Legacy Settings Pages */}

@@ -235,7 +235,7 @@ export const usersApiExtended = {
   updateUser: (id: number, user: any) => api.put(`/users/${id}`, user).then(res => res.data),
 
   // Extended methods for admin users
-  getAdminUsers: (params?: any) => api.get('/users?role=admin', { params }).then(res => res.data),
+  getAdminUsers: (params?: any) => api.get('/users', { params: { ...params, role: params?.role || 'all' } }).then(res => res.data),
   createAdminUser: (data: any) => api.post('/users', { ...data, role: 'admin' }).then(res => res.data),
   updateAdminUser: (id: number, data: any) => api.put(`/users/${id}`, data).then(res => res.data),
   deleteAdminUser: (id: number) => api.delete(`/users/${id}`).then(res => res.data),
