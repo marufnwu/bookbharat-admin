@@ -10,6 +10,8 @@ import {
   User,
   LogOut,
   ChevronRight,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 
@@ -20,6 +22,8 @@ interface BreadcrumbItem {
 
 interface HeaderProps {
   onMenuClick: () => void;
+  onToggleSidebar?: () => void;
+  sidebarCollapsed?: boolean;
   userName?: string;
   onLogout: () => void;
   className?: string;
@@ -27,6 +31,8 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({
   onMenuClick,
+  onToggleSidebar,
+  sidebarCollapsed = false,
   userName = 'Admin',
   onLogout,
   className,
@@ -75,6 +81,22 @@ export const Header: React.FC<HeaderProps> = ({
         >
           <MenuIcon className="w-6 h-6" />
         </button>
+
+        {/* Desktop sidebar toggle */}
+        {onToggleSidebar && (
+          <button
+            type="button"
+            onClick={onToggleSidebar}
+            className="hidden lg:flex p-2 -ml-2 text-gray-500 hover:text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
+            title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            {sidebarCollapsed ? (
+              <PanelLeftOpen className="w-5 h-5" />
+            ) : (
+              <PanelLeftClose className="w-5 h-5" />
+            )}
+          </button>
+        )}
 
         {/* Breadcrumbs */}
         <nav className="hidden sm:flex items-center text-sm">

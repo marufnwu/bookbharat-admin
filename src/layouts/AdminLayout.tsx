@@ -30,6 +30,8 @@ const AdminLayout: React.FC = () => {
         {/* Header */}
         <Header
           onMenuClick={() => setMobileDrawerOpen(true)}
+          onToggleSidebar={() => setSidebarCollapsed((prev) => !prev)}
+          sidebarCollapsed={sidebarCollapsed}
           userName={user?.name}
           onLogout={handleLogout}
         />
