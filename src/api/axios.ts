@@ -37,8 +37,9 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-    // Handle 401 Unauthorized
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    // Handle 401 Unauthorized or 419 CSRF Token Expired
+    const status = error.response?.status;
+    if ((status === 401 || status === 419) && !originalRequest._retry) {
       originalRequest._retry = true;
 
       // Clear auth state and redirect to login
@@ -60,9 +61,17 @@ api.interceptors.response.use(
       console.error('Server Error:', error.response?.data?.message || error.message);
     }
 
-    // Handle Network Errors
+    // Handle Network Errors (includes CORS-blocked responses)
     if (!error.response && error.request) {
-       toast.error('Network error. Please check your connection.');
+      // If authenticated, session likely expired and server returned error without CORS headers
+      const isAuthenticated = useAuthStore.getState().isAuthenticated;
+      if (isAuthenticated) {
+        useAuthStore.getState().logout();
+        window.location.href = '/login';
+        toast.error('Session expired. Please login again.');
+      } else {
+        toast.error('Network error. Please check your connection.');
+      }
     }
 
     return Promise.reject(error);
