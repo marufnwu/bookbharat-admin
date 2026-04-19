@@ -145,6 +145,7 @@ const navigation: NavigationItem[] = [
     href: '/settings',
     icon: Settings,
     children: [
+      { name: 'All Settings', href: '/settings', icon: Settings },
       { name: 'Site Settings', href: '/settings/site', icon: Globe },
       { name: 'Payment', href: '/settings/payment', icon: CreditCard },
       { name: 'Shipping', href: '/shipping', icon: Truck },

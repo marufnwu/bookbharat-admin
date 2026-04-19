@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Loader2, Settings as SettingsIcon, AlertTriangle } from 'lucide-react';
+import { Loader2, AlertTriangle, ChevronRightIcon, Settings as SettingsIcon } from 'lucide-react';
 import { api } from '../../api/axios';
 import DynamicSettings from '../../components/settings/DynamicSettings';
 
@@ -13,7 +13,7 @@ interface SettingsGroup {
 }
 
 const Settings: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<string>('');
+  const [activeSection, setActiveSection] = useState<string>('');
 
   // Fetch available settings groups from backend
   const { data: groupsData, isLoading, error } = useQuery({
@@ -23,6 +23,29 @@ const Settings: React.FC = () => {
       return response.data.data as Record<string, SettingsGroup>;
     },
   });
+
+  // Set initial active section from URL path
+  const sortedGroups = groupsData
+    ? Object.entries(groupsData).sort(([, a], [, b]) => a.sort_order - b.sort_order)
+    : [];
+
+  useEffect(() => {
+    if (groupsData && !activeSection) {
+      const pathParts = window.location.pathname.split('/');
+      const settingsType = pathParts[pathParts.length - 1];
+      if (settingsType && settingsType in groupsData) {
+        setActiveSection(settingsType);
+      } else if (sortedGroups.length > 0) {
+        setActiveSection(sortedGroups[0][0]);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [groupsData]);
+
+  const handleSectionChange = (sectionId: string) => {
+    setActiveSection(sectionId);
+    window.history.replaceState(null, '', `/settings/${sectionId}`);
+  };
 
   if (isLoading) {
     return (
@@ -65,56 +88,74 @@ const Settings: React.FC = () => {
     );
   }
 
-  // Sort groups by sort_order
-  const sortedGroups = Object.entries(groupsData)
-    .sort(([, a], [, b]) => a.sort_order - b.sort_order);
-
-  // Set first group as active on initial load
-  if (!activeTab && sortedGroups.length > 0) {
-    setActiveTab(sortedGroups[0][0]);
-  }
-
-  const currentGroup = groupsData[activeTab];
+  const currentGroup = groupsData[activeSection];
 
   return (
-    <div className="space-y-6">
-      {/* Page Header */}
-      <div>
-        <h1 className="text-2xl font-semibold text-gray-900">Settings</h1>
-        <p className="mt-1 text-sm text-gray-600">
-          Manage your application settings and configuration
-        </p>
+    <div className="flex gap-6">
+      {/* Left Sidebar Navigation */}
+      <div className="w-64 flex-shrink-0">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 sticky top-6">
+          <div className="p-3 border-b border-gray-100 bg-gray-50 rounded-t-lg">
+            <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Settings</h2>
+          </div>
+          <nav className="p-1.5">
+            {sortedGroups.map(([key, group]) => {
+              const isActive = activeSection === key;
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => handleSectionChange(key)}
+                  className={`
+                    w-full flex items-center gap-2 px-3 py-2 rounded-md text-left transition-all text-sm
+                    ${isActive
+                      ? 'bg-blue-50 text-blue-700 shadow-sm'
+                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                    }
+                  `}
+                >
+                  <SettingsIcon className={`h-4 w-4 flex-shrink-0 ${isActive ? 'text-blue-500' : 'text-gray-400'}`} />
+                  <span className={`flex-1 font-medium truncate ${isActive ? 'text-blue-700' : ''}`}>
+                    {group.label}
+                  </span>
+                  <ChevronRightIcon className={`h-3 w-3 flex-shrink-0 ${isActive ? 'text-blue-400' : 'text-gray-300'}`} />
+                </button>
+              );
+            })}
+          </nav>
+        </div>
       </div>
 
-      {/* Tabs */}
-      <div className="border-b border-gray-200">
-        <nav className="-mb-px flex space-x-8 overflow-x-auto" aria-label="Tabs">
-          {sortedGroups.map(([key, group]) => (
-            <button
-              key={key}
-              onClick={() => setActiveTab(key)}
-              className={`
-                whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors
-                ${activeTab === key
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }
-              `}
-            >
-              {group.label}
-            </button>
-          ))}
-        </nav>
-      </div>
+      {/* Content Area */}
+      <div className="flex-1 min-w-0">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+          {/* Section Header */}
+          <div className="px-6 py-4 border-b border-gray-100">
+            <div className="flex items-center gap-3">
+              <SettingsIcon className="h-5 w-5 text-blue-500" />
+              <div>
+                <h1 className="text-lg font-semibold text-gray-900">
+                  {currentGroup?.label || activeSection}
+                </h1>
+                <p className="text-sm text-gray-500">
+                  {currentGroup?.description || `Manage ${activeSection} settings`}
+                </p>
+              </div>
+            </div>
+          </div>
 
-      {/* Tab Content */}
-      {activeTab && currentGroup && (
-        <DynamicSettings
-          group={activeTab}
-          title={currentGroup.label}
-          description={currentGroup.description}
-        />
-      )}
+          {/* Section Content */}
+          <div className="p-6">
+            {activeSection && currentGroup && (
+              <DynamicSettings
+                group={activeSection}
+                title={currentGroup.label}
+                description={currentGroup.description}
+              />
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

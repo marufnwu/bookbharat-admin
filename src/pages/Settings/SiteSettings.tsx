@@ -1,12 +1,15 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  GlobeAltIcon,
-  PaintBrushIcon,
-  CogIcon,
   PhotoIcon,
+  PhoneIcon,
+  ClockIcon,
+  PaintBrushIcon,
   LinkIcon,
   MagnifyingGlassIcon,
+  CogIcon,
+  ChevronRightIcon,
+  CheckCircleIcon,
 } from '@heroicons/react/24/outline';
 import { Button, Card, CardContent, PageSkeleton } from '../../components';
 import { useNotificationStore } from '../../store/notificationStore';
@@ -20,16 +23,13 @@ interface SiteConfig {
     description: string;
     logo: string;
     favicon: string;
-    contact_email: string;
-    contact_phone: string;
-    address: {
-      line1: string;
-      line2: string;
-      city: string;
-      state: string;
-      pincode: string;
-      country: string;
-    };
+    email: string;
+    phone: string;
+    address: string;
+    city: string;
+    state: string;
+    pincode: string;
+    country: string;
   };
   theme: {
     primary_color: string;
@@ -70,32 +70,41 @@ interface SiteConfig {
     og_image: string;
     twitter_card: string;
   };
+  business_hours: {
+    weekday_hours: string;
+    saturday_hours: string;
+    sunday_closed: boolean;
+    sunday_hours: string;
+    timezone: string;
+  };
 }
 
+const inputClass =
+  'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm';
+const selectClass =
+  'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm';
+
 const SiteSettings: React.FC = () => {
-  const [activeSection, setActiveSection] = useState('general');
+  const [activeSection, setActiveSection] = useState('brand');
   const queryClient = useQueryClient();
   const { showSuccess, showError } = useNotificationStore();
   const formRef = useRef<HTMLFormElement>(null);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [faviconUrl, setFaviconUrl] = useState<string | null>(null);
 
-  // Read initial section from URL hash
   useEffect(() => {
     const hash = window.location.hash.replace('#', '');
-    const validSections = ['general', 'theme', 'features', 'social', 'seo'];
+    const validSections = ['brand', 'contact', 'hours', 'theme', 'social', 'seo', 'features'];
     if (hash && validSections.includes(hash)) {
       setActiveSection(hash);
     }
   }, []);
 
-  // Update URL hash when section changes
   const handleSectionChange = (sectionId: string) => {
     setActiveSection(sectionId);
     window.location.hash = sectionId;
   };
 
-  // Fetch site configuration from API
   const { data: siteConfigData, isLoading: siteConfigLoading } = useQuery<ApiResponse<SiteConfig>>({
     queryKey: ['configuration', 'site-config'],
     queryFn: settingsApi.getSiteConfig,
@@ -114,7 +123,6 @@ const SiteSettings: React.FC = () => {
     },
   });
 
-  // Initialize logo and favicon when data loads
   useEffect(() => {
     const siteData = siteConfigData?.data?.site;
     if (siteData) {
@@ -127,7 +135,6 @@ const SiteSettings: React.FC = () => {
 
   const siteConfig = siteConfigData?.data ?? ({} as SiteConfig);
 
-  // Function to collect form data
   const collectFormData = () => {
     if (!formRef.current) return {};
 
@@ -140,30 +147,29 @@ const SiteSettings: React.FC = () => {
       theme: {},
       features: {},
       social: {},
-      seo: {}
+      seo: {},
+      business_hours: {},
     };
 
-    // Process form data
     Array.from(formData.entries()).forEach(([key, value]) => {
       const [section, field] = key.split('.');
 
       if (section === 'site' && field === 'address') {
-        // Handle nested address object
         const addressField = key.split('.')[2];
         if (!data.site.address) data.site.address = {};
         data.site.address[addressField] = value;
       } else if (section === 'features') {
-        // Handle boolean features - checkbox values
         data[section][field] = value === 'on';
       } else if (section === 'seo' && field === 'meta_keywords') {
-        // Handle array of keywords
         data[section][field] = String(value).split(',').map(k => k.trim()).filter(k => k);
       } else if (section && field) {
         data[section][field] = value;
       }
     });
 
-    // Handle unchecked checkboxes for features (they don't appear in FormData)
+    if (data.business_hours && data.business_hours.sunday_closed === undefined) {
+      data.business_hours.sunday_closed = false;
+    }
     if (siteConfig.features) {
       Object.keys(siteConfig.features).forEach(key => {
         if (data.features[key] === undefined) {
@@ -175,50 +181,58 @@ const SiteSettings: React.FC = () => {
     return data;
   };
 
+  const handleSave = () => {
+    const formData = collectFormData();
+    updateSiteConfigMutation.mutate(formData);
+  };
+
   const sections = [
-    { id: 'general', name: 'General', icon: GlobeAltIcon },
-    { id: 'theme', name: 'Theme', icon: PaintBrushIcon },
-    { id: 'features', name: 'Features', icon: CogIcon },
-    { id: 'social', name: 'Social Media', icon: LinkIcon },
-    { id: 'seo', name: 'SEO', icon: MagnifyingGlassIcon },
+    { id: 'brand', name: 'Brand Identity', icon: PhotoIcon, description: 'Name, logo & description' },
+    { id: 'contact', name: 'Contact Info', icon: PhoneIcon, description: 'Phone, email & address' },
+    { id: 'hours', name: 'Business Hours', icon: ClockIcon, description: 'Opening hours & timezone' },
+    { id: 'theme', name: 'Theme', icon: PaintBrushIcon, description: 'Colors & typography' },
+    { id: 'social', name: 'Social Media', icon: LinkIcon, description: 'Platform URLs' },
+    { id: 'seo', name: 'SEO', icon: MagnifyingGlassIcon, description: 'Meta tags & search' },
+    { id: 'features', name: 'Features', icon: CogIcon, description: 'Toggle features on/off' },
   ];
 
-  const renderGeneralSection = () => (
-    <div className="space-y-6">
+  // ── Section Renderers ──────────────────────────────────────────
+
+  const renderBrandSection = () => (
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <Card>
-        <CardContent className="p-4 sm:p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Site Information</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <CardContent className="p-6">
+          <div className="flex items-center gap-2 mb-1">
+            <PhotoIcon className="h-5 w-5 text-blue-500" />
+            <h3 className="text-base font-semibold text-gray-900">Site Identity</h3>
+          </div>
+          <p className="text-sm text-gray-500 mb-5">How your store appears to customers</p>
+          <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Site Name</label>
-              <input
-                type="text"
-                name="site.name"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                defaultValue={siteConfig.site?.name}
-              />
+              <input type="text" name="site.name" className={inputClass} defaultValue={siteConfig.site?.name} />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Contact Email</label>
-              <input
-                type="email"
-                name="site.contact_email"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                defaultValue={siteConfig.site?.contact_email}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Contact Phone</label>
-              <input
-                type="tel"
-                name="site.contact_phone"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                defaultValue={siteConfig.site?.contact_phone}
+              <label className="block text-sm font-medium text-gray-700 mb-1">Site Description</label>
+              <textarea
+                rows={3}
+                name="site.description"
+                className={inputClass}
+                defaultValue={siteConfig.site?.description}
               />
             </div>
           </div>
+        </CardContent>
+      </Card>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+      <Card>
+        <CardContent className="p-6">
+          <div className="flex items-center gap-2 mb-1">
+            <PhotoIcon className="h-5 w-5 text-blue-500" />
+            <h3 className="text-base font-semibold text-gray-900">Logo & Favicon</h3>
+          </div>
+          <p className="text-sm text-gray-500 mb-5">Used in header, browser tab, and search results</p>
+          <div className="space-y-4">
             <div>
               <ImageUploader
                 label="Site Logo"
@@ -228,9 +242,7 @@ const SiteSettings: React.FC = () => {
                 maxSizeMB={2}
                 folder="site"
               />
-              <p className="text-xs text-gray-500 mt-1">
-                Recommended: PNG or SVG, max 2MB. Best size: 200x50px
-              </p>
+              <p className="text-xs text-gray-500 mt-1">PNG or SVG, max 2MB. Best: 200x50px</p>
             </div>
             <div>
               <ImageUploader
@@ -241,107 +253,179 @@ const SiteSettings: React.FC = () => {
                 maxSizeMB={1}
                 folder="site"
               />
-              <p className="text-xs text-gray-500 mt-1">
-                Recommended: ICO or PNG, max 1MB. Best size: 32x32px or 16x16px
-              </p>
+              <p className="text-xs text-gray-500 mt-1">ICO or PNG, max 1MB. Best: 32x32px</p>
+            </div>
+          </div>
+          {(logoUrl || faviconUrl) && (
+            <div className="mt-4 pt-4 border-t border-gray-100">
+              <p className="text-sm font-medium text-gray-700 mb-3">Preview</p>
+              <div className="flex items-center gap-4">
+                {logoUrl && (
+                  <div className="p-2 bg-gray-50 rounded-lg border border-gray-200">
+                    <img src={logoUrl} alt="Logo" className="h-8 max-w-[120px] object-contain" />
+                  </div>
+                )}
+                {faviconUrl && (
+                  <div className="p-2 bg-gray-50 rounded-lg border border-gray-200">
+                    <img src={faviconUrl} alt="Favicon" className="h-5 w-5 object-contain" />
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+
+  const renderContactSection = () => (
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <Card>
+        <CardContent className="p-6">
+          <div className="flex items-center gap-2 mb-1">
+            <PhoneIcon className="h-5 w-5 text-blue-500" />
+            <h3 className="text-base font-semibold text-gray-900">Contact Details</h3>
+          </div>
+          <p className="text-sm text-gray-500 mb-5">Shown on contact page, footer, and support emails</p>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Contact Email</label>
+              <input type="email" name="site.contact_email" className={inputClass} defaultValue={siteConfig.site?.email} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Contact Phone</label>
+              <input type="tel" name="site.contact_phone" className={inputClass} defaultValue={siteConfig.site?.phone} />
             </div>
           </div>
         </CardContent>
       </Card>
 
       <Card>
-        <CardContent className="p-4 sm:p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Site Description</h3>
-          <textarea
-            rows={3}
-            name="site.description"
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-            defaultValue={siteConfig.site?.description}
-          />
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardContent className="p-4 sm:p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Preview</h3>
-          <div className="space-y-4">
-            {logoUrl && (
-              <div>
-                <p className="text-sm font-medium text-gray-700 mb-2">Logo Preview:</p>
-                <div className="inline-block p-4 bg-gray-50 rounded-lg border border-gray-200">
-                  <img src={logoUrl} alt="Logo preview" className="h-12 max-w-xs object-contain" />
-                </div>
-              </div>
-            )}
-            {faviconUrl && (
-              <div>
-                <p className="text-sm font-medium text-gray-700 mb-2">Favicon Preview:</p>
-                <div className="inline-block p-4 bg-gray-50 rounded-lg border border-gray-200">
-                  <img src={faviconUrl} alt="Favicon preview" className="h-8 w-8 object-contain" />
-                </div>
-              </div>
-            )}
+        <CardContent className="p-6">
+          <div className="flex items-center gap-2 mb-1">
+            <PhoneIcon className="h-5 w-5 text-blue-500" />
+            <h3 className="text-base font-semibold text-gray-900">Business Address</h3>
           </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardContent className="p-4 sm:p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Business Address</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <p className="text-sm text-gray-500 mb-5">Used in contact page, invoices, and search engine listings</p>
+          <div className="space-y-3">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Address Line 1</label>
-              <input
-                type="text"
-                name="site.address.line1"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                defaultValue={siteConfig.site?.address?.line1}
-              />
+              <input type="text" name="site.address.line1" className={inputClass} defaultValue={siteConfig.site?.address} />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Address Line 2</label>
-              <input
-                type="text"
-                name="site.address.line2"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                defaultValue={siteConfig.site?.address?.line2}
-              />
+              <label className="block text-sm font-medium text-gray-700 mb-1">Address Line 2 (Optional)</label>
+              <input type="text" name="site.address.line2" className={inputClass} defaultValue="" placeholder="Apartment, suite, unit, etc." />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
-              <input
-                type="text"
-                name="site.address.city"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                defaultValue={siteConfig.site?.address?.city}
-              />
+              <input type="text" name="site.city" className={inputClass} defaultValue={siteConfig.site?.city} />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">State</label>
-              <input
-                type="text"
-                name="site.address.state"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                defaultValue={siteConfig.site?.address?.state}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Pincode</label>
-              <input
-                type="text"
-                name="site.address.pincode"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                defaultValue={siteConfig.site?.address?.pincode}
-              />
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">State</label>
+                <input type="text" name="site.state" className={inputClass} defaultValue={siteConfig.site?.state} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Pincode</label>
+                <input type="text" name="site.pincode" className={inputClass} defaultValue={siteConfig.site?.pincode} />
+              </div>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Country</label>
+              <input type="text" name="site.country" className={inputClass} defaultValue={siteConfig.site?.country} />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+
+  const renderHoursSection = () => (
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <Card>
+        <CardContent className="p-6">
+          <div className="flex items-center gap-2 mb-1">
+            <ClockIcon className="h-5 w-5 text-blue-500" />
+            <h3 className="text-base font-semibold text-gray-900">Business Hours</h3>
+          </div>
+          <p className="text-sm text-gray-500 mb-5">Displayed on contact page, help center, and search engine listings</p>
+          <div className="space-y-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Weekday Hours (Mon–Fri)</label>
               <input
                 type="text"
-                name="site.address.country"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                defaultValue={siteConfig.site?.address?.country}
+                name="business_hours.weekday_hours"
+                className={inputClass}
+                defaultValue={siteConfig.business_hours?.weekday_hours || '9:00 AM - 6:00 PM'}
+                placeholder="e.g. 9:00 AM - 6:00 PM"
               />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Saturday Hours</label>
+                <input
+                  type="text"
+                  name="business_hours.saturday_hours"
+                  className={inputClass}
+                  defaultValue={siteConfig.business_hours?.saturday_hours || '9:00 AM - 6:00 PM'}
+                  placeholder="e.g. 9:00 AM - 6:00 PM"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Sunday Hours</label>
+                <input
+                  type="text"
+                  name="business_hours.sunday_hours"
+                  className={inputClass}
+                  defaultValue={siteConfig.business_hours?.sunday_hours || 'Closed'}
+                  placeholder="e.g. Closed or 10:00 AM - 2:00 PM"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Timezone</label>
+              <select
+                name="business_hours.timezone"
+                className={selectClass}
+                defaultValue={siteConfig.business_hours?.timezone || 'Asia/Kolkata'}
+              >
+                <option value="Asia/Kolkata">IST (Asia/Kolkata)</option>
+                <option value="UTC">UTC</option>
+              </select>
+            </div>
+            <label className="flex items-center space-x-2 pt-2">
+              <input
+                type="checkbox"
+                name="business_hours.sunday_closed"
+                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                defaultChecked={siteConfig.business_hours?.sunday_closed !== false}
+              />
+              <span className="text-sm text-gray-700">Closed on Sunday</span>
+            </label>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <CheckCircleIcon className="h-5 w-5 text-green-500" />
+            <h3 className="text-base font-semibold text-gray-900">Hours Preview</h3>
+          </div>
+          <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+            <div className="flex justify-between py-2 border-b border-gray-200">
+              <span className="text-gray-600">Monday – Friday</span>
+              <span className="font-medium text-gray-900">{siteConfig.business_hours?.weekday_hours || '9:00 AM - 6:00 PM'}</span>
+            </div>
+            <div className="flex justify-between py-2 border-b border-gray-200">
+              <span className="text-gray-600">Saturday</span>
+              <span className="font-medium text-gray-900">{siteConfig.business_hours?.saturday_hours || '9:00 AM - 6:00 PM'}</span>
+            </div>
+            <div className="flex justify-between py-2">
+              <span className="text-gray-600">Sunday</span>
+              <span className="font-medium text-gray-400">
+                {siteConfig.business_hours?.sunday_closed !== false ? 'Closed' : (siteConfig.business_hours?.sunday_hours || 'Closed')}
+              </span>
             </div>
           </div>
         </CardContent>
@@ -350,241 +434,225 @@ const SiteSettings: React.FC = () => {
   );
 
   const renderThemeSection = () => (
-    <div className="space-y-6">
-      <div className="bg-white p-6 rounded-lg shadow">
-        <h3 className="text-lg font-medium text-gray-900 mb-4">Color Scheme</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Primary Color</label>
-            <div className="flex items-center space-x-2">
-              <input
-                type="color"
-                name="theme.primary_color"
-                className="h-10 w-16 border border-gray-300 rounded-md"
-                defaultValue={siteConfig.theme?.primary_color}
-                onChange={(e) => {
-                  const textInput = e.target.nextElementSibling as HTMLInputElement;
-                  if (textInput) textInput.value = e.target.value;
-                }}
-              />
-              <input
-                type="text"
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                defaultValue={siteConfig.theme?.primary_color}
-                readOnly
-              />
-            </div>
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <Card>
+        <CardContent className="p-6">
+          <div className="flex items-center gap-2 mb-1">
+            <PaintBrushIcon className="h-5 w-5 text-blue-500" />
+            <h3 className="text-base font-semibold text-gray-900">Color Scheme</h3>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Secondary Color</label>
-            <div className="flex items-center space-x-2">
-              <input
-                type="color"
-                name="theme.secondary_color"
-                className="h-10 w-16 border border-gray-300 rounded-md"
-                defaultValue={siteConfig.theme?.secondary_color}
-                onChange={(e) => {
-                  const textInput = e.target.nextElementSibling as HTMLInputElement;
-                  if (textInput) textInput.value = e.target.value;
-                }}
-              />
-              <input
-                type="text"
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                defaultValue={siteConfig.theme?.secondary_color}
-                readOnly
-              />
-            </div>
+          <p className="text-sm text-gray-500 mb-5">Brand colors used across the storefront</p>
+          <div className="space-y-4">
+            {[
+              { name: 'theme.primary_color', label: 'Primary', value: siteConfig.theme?.primary_color },
+              { name: 'theme.secondary_color', label: 'Secondary', value: siteConfig.theme?.secondary_color },
+              { name: 'theme.accent_color', label: 'Accent', value: siteConfig.theme?.accent_color },
+            ].map((color) => (
+              <div key={color.name} className="flex items-center gap-4">
+                <div className="w-24">
+                  <label className="block text-sm font-medium text-gray-700">{color.label}</label>
+                </div>
+                <div className="flex items-center space-x-2 flex-1">
+                  <input
+                    type="color"
+                    name={color.name}
+                    className="h-9 w-12 border border-gray-300 rounded-md cursor-pointer"
+                    defaultValue={color.value}
+                    onChange={(e) => {
+                      const textInput = e.target.nextElementSibling as HTMLInputElement;
+                      if (textInput) textInput.value = e.target.value;
+                    }}
+                  />
+                  <input
+                    type="text"
+                    className="flex-1 px-2 py-1.5 border border-gray-300 rounded-md text-sm"
+                    defaultValue={color.value}
+                    readOnly
+                  />
+                </div>
+              </div>
+            ))}
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Accent Color</label>
-            <div className="flex items-center space-x-2">
-              <input
-                type="color"
-                name="theme.accent_color"
-                className="h-10 w-16 border border-gray-300 rounded-md"
-                defaultValue={siteConfig.theme?.accent_color}
-                onChange={(e) => {
-                  const textInput = e.target.nextElementSibling as HTMLInputElement;
-                  if (textInput) textInput.value = e.target.value;
-                }}
-              />
-              <input
-                type="text"
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                defaultValue={siteConfig.theme?.accent_color}
-                readOnly
-              />
-            </div>
-          </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
-      <div className="bg-white p-6 rounded-lg shadow">
-        <h3 className="text-lg font-medium text-gray-900 mb-4">Typography & Layout</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Font Family</label>
-            <select name="theme.font_family" className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" defaultValue={siteConfig.theme?.font_family}>
-              <option value="Inter, sans-serif">Inter</option>
-              <option value="Roboto, sans-serif">Roboto</option>
-              <option value="Poppins, sans-serif">Poppins</option>
-              <option value="Open Sans, sans-serif">Open Sans</option>
-            </select>
+      <Card>
+        <CardContent className="p-6">
+          <div className="flex items-center gap-2 mb-1">
+            <PaintBrushIcon className="h-5 w-5 text-blue-500" />
+            <h3 className="text-base font-semibold text-gray-900">Typography & Layout</h3>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Layout Style</label>
-            <select name="theme.layout" className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" defaultValue={siteConfig.theme?.layout}>
-              <option value="standard">Standard</option>
-              <option value="wide">Wide</option>
-              <option value="boxed">Boxed</option>
-            </select>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderFeaturesSection = () => (
-    <div className="bg-white p-6 rounded-lg shadow">
-      <h3 className="text-lg font-medium text-gray-900 mb-4">Feature Toggles</h3>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {Object.entries(siteConfig.features || {}).map(([key, value]) => (
-          <div key={key} className="flex items-center justify-between py-2">
+          <p className="text-sm text-gray-500 mb-5">Font and overall page layout</p>
+          <div className="space-y-4">
             <div>
-              <h4 className="font-medium text-gray-900 capitalize">
-                {key.replace(/_/g, ' ').replace(' enabled', '')}
-              </h4>
-              <p className="text-sm text-gray-500">
-                {key.includes('wishlist') && 'Allow users to save products for later'}
-                {key.includes('reviews') && 'Enable product reviews and ratings'}
-                {key.includes('chat') && 'Live chat support for customers'}
-                {key.includes('notifications') && 'Push notifications for users'}
-                {key.includes('newsletter') && 'Email newsletter subscriptions'}
-                {key.includes('social_login') && 'Login with social media accounts'}
-                {key.includes('guest_checkout') && 'Checkout without creating account'}
-                {key.includes('multi_currency') && 'Support multiple currencies'}
-                {key.includes('inventory') && 'Track product stock levels'}
-                {key.includes('promotional') && 'Display promotional banners'}
-              </p>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Font Family</label>
+              <select name="theme.font_family" className={selectClass} defaultValue={siteConfig.theme?.font_family}>
+                <option value="Inter, sans-serif">Inter</option>
+                <option value="Roboto, sans-serif">Roboto</option>
+                <option value="Poppins, sans-serif">Poppins</option>
+                <option value="Open Sans, sans-serif">Open Sans</option>
+              </select>
             </div>
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input type="checkbox" name={`features.${key}`} className="sr-only peer" defaultChecked={Boolean(value)} />
-              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-            </label>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Layout Style</label>
+              <select name="theme.layout" className={selectClass} defaultValue={siteConfig.theme?.layout}>
+                <option value="standard">Standard</option>
+                <option value="wide">Wide</option>
+                <option value="boxed">Boxed</option>
+              </select>
+            </div>
           </div>
-        ))}
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 
   const renderSocialSection = () => (
-    <div className="bg-white p-6 rounded-lg shadow">
-      <h3 className="text-lg font-medium text-gray-900 mb-4">Social Media Links</h3>
-      <div className="space-y-4">
-        {Object.entries(siteConfig.social || {}).map(([platform, url]) => (
-          <div key={platform}>
-            <label className="block text-sm font-medium text-gray-700 mb-1 capitalize">
-              {platform.replace('_url', '')} URL
-            </label>
-            <input
-              type="url"
-              name={`social.${platform}`}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-              defaultValue={String(url)}
-              placeholder={`https://${platform.replace('_url', '')}.com/your-page`}
-            />
-          </div>
-        ))}
-      </div>
-    </div>
+    <Card>
+      <CardContent className="p-6">
+        <div className="flex items-center gap-2 mb-1">
+          <LinkIcon className="h-5 w-5 text-blue-500" />
+          <h3 className="text-base font-semibold text-gray-900">Social Media Links</h3>
+        </div>
+        <p className="text-sm text-gray-500 mb-5">Displayed in footer and search engine listings</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {Object.entries(siteConfig.social || {}).map(([platform, url]) => (
+            <div key={platform}>
+              <label className="block text-sm font-medium text-gray-700 mb-1 capitalize">
+                {platform.replace('_url', '')}
+              </label>
+              <input
+                type="url"
+                name={`social.${platform}`}
+                className={inputClass}
+                defaultValue={String(url)}
+                placeholder={`https://${platform.replace('_url', '')}.com/your-page`}
+              />
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
   );
 
   const renderSEOSection = () => (
-    <div className="bg-white p-6 rounded-lg shadow">
-      <h3 className="text-lg font-medium text-gray-900 mb-4">SEO Settings</h3>
-      <div className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Meta Title</label>
-          <input
-            type="text"
-            name="seo.meta_title"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-            defaultValue={siteConfig.seo?.meta_title}
-          />
+    <Card>
+      <CardContent className="p-6">
+        <div className="flex items-center gap-2 mb-1">
+          <MagnifyingGlassIcon className="h-5 w-5 text-blue-500" />
+          <h3 className="text-base font-semibold text-gray-900">SEO Settings</h3>
         </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Meta Description</label>
-          <textarea
-            rows={3}
-            name="seo.meta_description"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-            defaultValue={siteConfig.seo?.meta_description}
-          />
+        <p className="text-sm text-gray-500 mb-5">Controls how your store appears in search engines</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Meta Title</label>
+            <input type="text" name="seo.meta_title" className={inputClass} defaultValue={siteConfig.seo?.meta_title} />
+          </div>
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Meta Description</label>
+            <textarea rows={2} name="seo.meta_description" className={inputClass} defaultValue={siteConfig.seo?.meta_description} />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Meta Keywords</label>
+            <input
+              type="text"
+              name="seo.meta_keywords"
+              className={inputClass}
+              defaultValue={siteConfig.seo?.meta_keywords?.join(', ')}
+              placeholder="keyword1, keyword2, keyword3"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Open Graph Image</label>
+            <input type="url" name="seo.og_image" className={inputClass} defaultValue={siteConfig.seo?.og_image} />
+          </div>
         </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Meta Keywords</label>
-          <input
-            type="text"
-            name="seo.meta_keywords"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-            defaultValue={siteConfig.seo?.meta_keywords?.join(', ')}
-            placeholder="keyword1, keyword2, keyword3"
-          />
+      </CardContent>
+    </Card>
+  );
+
+  const renderFeaturesSection = () => (
+    <Card>
+      <CardContent className="p-6">
+        <div className="flex items-center gap-2 mb-1">
+          <CogIcon className="h-5 w-5 text-blue-500" />
+          <h3 className="text-base font-semibold text-gray-900">Feature Toggles</h3>
         </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Open Graph Image</label>
-          <input
-            type="url"
-            name="seo.og_image"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-            defaultValue={siteConfig.seo?.og_image}
-          />
+        <p className="text-sm text-gray-500 mb-5">Enable or disable storefront features</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          {Object.entries(siteConfig.features || {}).map(([key, value]) => (
+            <div key={key} className="flex items-center justify-between py-2 px-3 rounded-lg border border-gray-100 hover:bg-gray-50">
+              <div className="flex-1 min-w-0">
+                <h4 className="font-medium text-gray-900 text-sm capitalize truncate">
+                  {key.replace(/_/g, ' ').replace(' enabled', '')}
+                </h4>
+                <p className="text-xs text-gray-500 truncate">
+                  {key.includes('wishlist') && 'Save products for later'}
+                  {key.includes('reviews') && 'Product reviews and ratings'}
+                  {key.includes('chat') && 'Live chat support'}
+                  {key.includes('notifications') && 'Push notifications'}
+                  {key.includes('newsletter') && 'Email newsletter'}
+                  {key.includes('social_login') && 'Login with social media'}
+                  {key.includes('guest_checkout') && 'Checkout without account'}
+                  {key.includes('multi_currency') && 'Multiple currencies'}
+                  {key.includes('inventory') && 'Stock level tracking'}
+                  {key.includes('promotional') && 'Promotional banners'}
+                </p>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer flex-shrink-0 ml-2">
+                <input type="checkbox" name={`features.${key}`} className="sr-only peer" defaultChecked={Boolean(value)} />
+                <div className="w-10 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+              </label>
+            </div>
+          ))}
         </div>
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 
   const renderContent = () => {
     switch (activeSection) {
-      case 'general':
-        return renderGeneralSection();
-      case 'theme':
-        return renderThemeSection();
-      case 'features':
-        return renderFeaturesSection();
-      case 'social':
-        return renderSocialSection();
-      case 'seo':
-        return renderSEOSection();
-      default:
-        return renderGeneralSection();
+      case 'brand': return renderBrandSection();
+      case 'contact': return renderContactSection();
+      case 'hours': return renderHoursSection();
+      case 'theme': return renderThemeSection();
+      case 'social': return renderSocialSection();
+      case 'seo': return renderSEOSection();
+      case 'features': return renderFeaturesSection();
+      default: return renderBrandSection();
     }
   };
 
   return (
-    <form ref={formRef} className="space-y-6">
-      {/* Section Navigation */}
-      <div className="bg-white rounded-lg shadow">
-        <div className="border-b border-gray-200">
-          <nav className="flex space-x-8 px-6" aria-label="Tabs">
+    <div className="flex gap-6">
+      {/* Compact Left Sidebar Navigation */}
+      <div className="w-52 flex-shrink-0">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 sticky top-6">
+          <div className="p-3 border-b border-gray-100 bg-gray-50 rounded-t-lg">
+            <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Settings</h2>
+          </div>
+          <nav className="p-1.5">
             {sections.map((section) => {
               const Icon = section.icon;
+              const isActive = activeSection === section.id;
               return (
                 <button
                   key={section.id}
                   type="button"
                   onClick={() => handleSectionChange(section.id)}
                   className={`
-                    flex items-center py-4 px-1 border-b-2 font-medium text-sm
-                    ${activeSection === section.id
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    w-full flex items-center gap-2 px-3 py-2 rounded-md text-left transition-all text-sm
+                    ${isActive
+                      ? 'bg-blue-50 text-blue-700 shadow-sm'
+                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                     }
                   `}
                 >
-                  <Icon className="h-5 w-5 mr-2" />
-                  {section.name}
+                  <Icon className={`h-4 w-4 flex-shrink-0 ${isActive ? 'text-blue-500' : 'text-gray-400'}`} />
+                  <span className={`flex-1 font-medium truncate ${isActive ? 'text-blue-700' : ''}`}>
+                    {section.name}
+                  </span>
+                  <ChevronRightIcon className={`h-3 w-3 flex-shrink-0 ${isActive ? 'text-blue-400' : 'text-gray-300'}`} />
                 </button>
               );
             })}
@@ -592,24 +660,45 @@ const SiteSettings: React.FC = () => {
         </div>
       </div>
 
-      {/* Section Content */}
-      {renderContent()}
+      {/* Content Area */}
+      <form ref={formRef} className="flex-1 min-w-0">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+          {/* Section Header */}
+          <div className="px-6 py-4 border-b border-gray-100">
+            <div className="flex items-center gap-3">
+              {(() => {
+                const SectionIcon = sections.find(s => s.id === activeSection)?.icon;
+                return SectionIcon ? <SectionIcon className="h-5 w-5 text-blue-500" /> : null;
+              })()}
+              <div>
+                <h1 className="text-lg font-semibold text-gray-900">
+                  {sections.find(s => s.id === activeSection)?.name}
+                </h1>
+                <p className="text-sm text-gray-500">
+                  {sections.find(s => s.id === activeSection)?.description}
+                </p>
+              </div>
+            </div>
+          </div>
 
-      {/* Save Button */}
-      <div className="flex justify-end">
-        <Button
-          type="button"
-          onClick={() => {
-            const formData = collectFormData();
-            console.log('Collected form data:', formData);
-            updateSiteConfigMutation.mutate(formData);
-          }}
-          disabled={updateSiteConfigMutation.isPending}
-        >
-          {updateSiteConfigMutation.isPending ? 'Saving...' : 'Save Changes'}
-        </Button>
-      </div>
-    </form>
+          {/* Section Content */}
+          <div className="p-6">
+            {renderContent()}
+          </div>
+
+          {/* Save Button */}
+          <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 rounded-b-xl flex justify-end">
+            <Button
+              type="button"
+              onClick={handleSave}
+              disabled={updateSiteConfigMutation.isPending}
+            >
+              {updateSiteConfigMutation.isPending ? 'Saving...' : 'Save Changes'}
+            </Button>
+          </div>
+        </div>
+      </form>
+    </div>
   );
 };
 

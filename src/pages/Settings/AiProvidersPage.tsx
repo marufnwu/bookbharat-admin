@@ -125,19 +125,19 @@ const AiProvidersPage: React.FC = () => {
           />
           <StatCard
             title="Success Rate"
-            value={`${((stats.successful_tasks / stats.total_tasks) * 100).toFixed(1)}%`}
+            value={`${stats.total_tasks > 0 ? ((Number(stats.successful_tasks) / Number(stats.total_tasks)) * 100).toFixed(1) : 0}%`}
             icon={<CheckCircle className="w-5 h-5" />}
             color="green"
           />
           <StatCard
             title="Total Tokens"
-            value={stats.total_tokens.toLocaleString()}
+            value={Number(stats.total_tokens).toLocaleString()}
             icon={<TrendingUp className="w-5 h-5" />}
             color="purple"
           />
           <StatCard
             title="Total Cost"
-            value={`$${stats.total_cost.toFixed(4)}`}
+            value={`$${Number(stats.total_cost).toFixed(4)}`}
             icon={<TrendingUp className="w-5 h-5" />}
             color="orange"
           />
@@ -209,7 +209,7 @@ const AiProvidersPage: React.FC = () => {
                     <td className="px-6 py-4 text-sm text-gray-600">
                       {provider.usage_stats.total_requests} requests
                       <br />
-                      {provider.usage_stats.total_tokens.toLocaleString()} tokens
+                      {Number(provider.usage_stats.total_tokens).toLocaleString()} tokens
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-2">

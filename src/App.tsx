@@ -30,6 +30,7 @@ import CustomerDetail from "./pages/Customers/CustomerDetail";
 import CustomerCreate from "./pages/Customers/CustomerCreate";
 import CustomerEdit from "./pages/Customers/CustomerEdit";
 import Settings from "./pages/Settings";
+import SiteSettings from "./pages/Settings/SiteSettings";
 import TestTailwind from "./pages/TestTailwind";
 import Categories from "./pages/Categories";
 import PublishersList from "./pages/Publishers/PublishersList";
@@ -103,6 +104,11 @@ import ErrorLogs from "./pages/System/ErrorLogs";
 import Refunds from "./pages/Payments/Refunds";
 import TransactionLog from "./pages/Payments/TransactionLog";
 import WebhookLog from "./pages/Payments/WebhookLog";
+
+// Settings Pages
+import PaymentSettings from "./pages/Settings/PaymentSettings";
+import TaxConfigurations from "./pages/Settings/TaxConfigurations";
+import OrderCharges from "./pages/Settings/OrderCharges";
 
 // Components
 import { ProtectedRoute } from "./components";
@@ -254,10 +260,10 @@ const App: React.FC = () => {
               <Route path="settings/:settingsType" element={<Settings />} />
 
               {/* Legacy Settings Pages */}
-              <Route path="settings/site" element={<Settings key="settings-site" />} />
-              <Route path="settings/payment" element={<Settings key="settings-payment" />} />
-              <Route path="settings/taxes" element={<Settings key="settings-taxes" />} />
-              <Route path="settings/charges" element={<Settings key="settings-charges" />} />
+              <Route path="settings/site" element={<SiteSettings />} />
+              <Route path="settings/payment" element={<PaymentSettings />} />
+              <Route path="settings/taxes" element={<TaxConfigurations />} />
+              <Route path="settings/charges" element={<OrderCharges />} />
               <Route path="settings/messaging-channels" element={<MessagingChannels />} />
               <Route path="settings/whatsapp-templates" element={<WhatsAppTemplates />} />
               <Route path="settings/ai-providers" element={<AiProvidersPage />} />

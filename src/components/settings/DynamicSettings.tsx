@@ -150,37 +150,7 @@ const DynamicSettings: React.FC<DynamicSettingsProps> = ({ group, title, descrip
   );
 
   return (
-    <div className="space-y-6">
-      {/* Header with Save/Reset buttons */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-lg font-semibold text-gray-900">{title || group}</h3>
-          {description && <p className="text-sm text-gray-600 mt-1">{description}</p>}
-        </div>
-
-        {hasChanges && (
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={handleReset}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
-              disabled={saveMutation.isPending}
-            >
-              Reset
-            </button>
-            <button
-              type="button"
-              onClick={handleSave}
-              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 flex items-center gap-2 disabled:opacity-50"
-              disabled={saveMutation.isPending}
-            >
-              <Save className="h-4 w-4" />
-              {saveMutation.isPending ? 'Saving...' : 'Save Changes'}
-            </button>
-          </div>
-        )}
-      </div>
-
+    <div className="space-y-4">
       {/* Settings Fields */}
       <div className="space-y-4">
         {sortedFields.map(([key, field]) => {
@@ -226,6 +196,33 @@ const DynamicSettings: React.FC<DynamicSettingsProps> = ({ group, title, descrip
             </div>
           );
         })}
+      </div>
+
+      {/* Sticky Save/Reset buttons */}
+      <div className="sticky bottom-0 bg-white border-t border-gray-200 pt-4 pb-2 flex items-center justify-between gap-4">
+        <div className="text-sm text-gray-500">
+          {title || group}
+          {hasChanges && <span className="ml-2 text-blue-600 font-medium">• Unsaved changes</span>}
+        </div>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={handleReset}
+            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+            disabled={!hasChanges || saveMutation.isPending}
+          >
+            Reset
+          </button>
+          <button
+            type="button"
+            onClick={handleSave}
+            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={!hasChanges || saveMutation.isPending}
+          >
+            <Save className="h-4 w-4" />
+            {saveMutation.isPending ? 'Saving...' : 'Save Changes'}
+          </button>
+        </div>
       </div>
     </div>
   );
