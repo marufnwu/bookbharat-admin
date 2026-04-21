@@ -30,6 +30,7 @@ interface SiteConfig {
     state: string;
     pincode: string;
     country: string;
+    google_maps_embed: string;
   };
   theme: {
     primary_color: string;
@@ -333,6 +334,17 @@ const SiteSettings: React.FC = () => {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Country</label>
               <input type="text" name="site.country" className={inputClass} defaultValue={siteConfig.site?.country} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Google Maps Embed Code</label>
+              <textarea
+                name="site.google_maps_embed"
+                rows={4}
+                className={inputClass}
+                defaultValue={siteConfig.site?.google_maps_embed}
+                placeholder='<iframe src="https://www.google.com/maps/embed?..." ...></iframe>'
+              />
+              <p className="text-xs text-gray-500 mt-1">Paste your Google Maps embed iframe code here</p>
             </div>
           </div>
         </CardContent>
