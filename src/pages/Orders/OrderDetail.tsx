@@ -6,7 +6,6 @@ import { formatWeight, toKg } from '../../utils/weight';
 import { useAuthStore } from '../../store/authStore';
 import {
   ArrowLeft,
-  Calendar,
   MapPin,
   Package,
   PackageCheck,
@@ -32,7 +31,8 @@ import {
   ClipboardList,
   MoreVertical,
   Copy,
-  Tag
+  Tag,
+  Calendar
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { api } from '../../api/axios';
@@ -990,6 +990,47 @@ const OrderDetail: React.FC = () => {
               </div>
             </CardContent>
           </Card>
+
+          {/* Preorder Information */}
+          {order.is_preorder && (
+            <Card className="border-purple-200 bg-purple-50">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-purple-900">
+                  <Calendar className="h-5 w-5" />
+                  Preorder Information
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm text-purple-700">Release Date</p>
+                    <p className="text-lg font-semibold text-purple-900">
+                      {order.release_date ? new Date(order.release_date).toLocaleDateString('en-IN', {
+                        day: 'numeric',
+                        month: 'long',
+                        year: 'numeric'
+                      }) : 'Not set'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-purple-700">Estimated Shipping</p>
+                    <p className="text-lg font-semibold text-purple-900">
+                      {order.release_date ? new Date(new Date(order.release_date).getTime() + 3 * 24 * 60 * 60 * 1000).toLocaleDateString('en-IN', {
+                        day: 'numeric',
+                        month: 'long',
+                        year: 'numeric'
+                      }) : 'N/A'}
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-4 p-3 bg-purple-100 rounded-lg">
+                  <p className="text-sm text-purple-800">
+                    <span className="font-medium">Note:</span> This is a preorder. Items will ship within 3-5 business days after the release date.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Order Activity */}
           <Card>

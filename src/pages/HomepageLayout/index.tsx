@@ -40,6 +40,10 @@ import {
   MessageSquare,
   Megaphone,
   Badge,
+  Calendar,
+  Tag,
+  TrendingUp,
+  Sparkles,
 } from 'lucide-react';
 
 interface HomepageSection {
@@ -83,12 +87,18 @@ function SortableSection({ section, onEdit, onToggle, onDelete }: any) {
     const icons: Record<string, any> = {
       hero: Star,
       'featured-products': Package,
+      'featured-books': Package,
       categories: Grid3X3,
       'category-products': Layers,
       'promotional-banners': Badge,
       newsletter: Mail,
       testimonials: MessageSquare,
       'cta-banner': Megaphone,
+      'new-arrivals': Sparkles,
+      bestsellers: TrendingUp,
+      deals: Tag,
+      'book-bundles': Package,
+      'upcoming-preorders': Calendar,
     };
     return icons[sectionType] || Layout;
   };

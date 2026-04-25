@@ -3,7 +3,7 @@ import { cn } from '../utils/cn';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 
 // Badge variants
-type BadgeVariant = 'default' | 'primary' | 'secondary' | 'success' | 'warning' | 'error' | 'destructive' | 'info' | 'outline';
+type BadgeVariant = 'default' | 'primary' | 'secondary' | 'success' | 'warning' | 'error' | 'destructive' | 'info' | 'outline' | 'purple';
 type BadgeSize = 'sm' | 'md' | 'lg';
 
 const badgeVariants = {
@@ -16,6 +16,7 @@ const badgeVariants = {
   destructive: 'bg-error-100 text-error-700', // alias for error
   info: 'bg-blue-100 text-blue-700',
   outline: 'bg-transparent border border-gray-300 text-gray-700',
+  purple: 'bg-purple-100 text-purple-700',
 };
 
 const badgeSizes = {

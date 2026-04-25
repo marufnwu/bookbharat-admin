@@ -58,6 +58,7 @@ import AbandonedCarts from "./pages/Marketing/AbandonedCarts";
 import MessagingChannels from "./pages/Settings/MessagingChannels";
 import WhatsAppTemplates from "./pages/Settings/WhatsAppTemplates";
 import AiProvidersPage from "./pages/Settings/AiProvidersPage";
+import PreordersList from "./pages/Preorders";
 
 // Documentation Pages
 import DynamicDocumentationPage from "./pages/Documentation/DynamicDocumentationPage";
@@ -163,6 +164,7 @@ const App: React.FC = () => {
               <Route path="products/:id" element={<ProductDetail />} />
               <Route path="products/:id/edit" element={<ProductEdit />} />
               <Route path="packaging" element={<PackagingList />} />
+              <Route path="preorders" element={<PreordersList />} />
 
               {/* Orders */}
               <Route path="orders" element={<OrderList />} />

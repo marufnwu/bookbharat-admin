@@ -106,6 +106,13 @@ export interface Product {
   rating?: number; // Product rating
   review_count?: number; // Number of reviews
   sales_count?: number; // Number of units sold
+  // Preorder fields
+  is_preorder?: boolean;
+  release_date?: string | null;
+  preorder_quantity_limit?: number | null;
+  preorder_requires_deposit?: boolean;
+  preorder_deposit_amount?: number | null;
+  reserved_quantity?: number;
   // Unified shipping configuration
   shipping_config?: ShippingConfig;
   category?: Category;
@@ -247,6 +254,10 @@ export interface Order {
   referral_discount?: number;
   referral_details?: { code: string; discount_amount: number; discount_type: string };
 
+  // Preorder
+  is_preorder?: boolean;
+  release_date?: string | null;
+
   // Nested objects
   user?: User;
   items?: OrderItem[];
@@ -340,7 +351,7 @@ export interface Customer {
 
 // Table Types
 export interface TableColumn<T = any> {
-  key: keyof T | 'actions' | 'rating' | 'select';
+  key: keyof T | 'actions' | 'rating' | 'select' | 'stock';
   title: React.ReactNode;
   sortable?: boolean;
   render?: (value: any, record: T) => React.ReactNode;

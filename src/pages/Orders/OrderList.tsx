@@ -286,7 +286,7 @@ const PaymentStatusModal: React.FC<PaymentStatusModalProps> = ({
 };
 
 // Special tab keys that map to backend filter params (not real statuses)
-const SPECIAL_TABS = ['unshipped_prepaid', 'unshipped_cod'] as const;
+const SPECIAL_TABS = ['unshipped_prepaid', 'unshipped_cod', 'preorder'] as const;
 type SpecialTab = typeof SPECIAL_TABS[number];
 
 // Default filter values
@@ -328,6 +328,8 @@ const OrderList: React.FC = () => {
     // Special filter flags for backend
     unshipped_prepaid: searchParams.get('tab') === 'unshipped_prepaid' ? '1' : '',
     unshipped_cod: searchParams.get('tab') === 'unshipped_cod' ? '1' : '',
+    is_preorder: searchParams.get('tab') === 'preorder' ? '1' : '',
+    preorder_payment_status: searchParams.get('tab') === 'preorder' ? 'paid,partially_paid' : '',
   };
 
   // Active status for OrderStatusTabs (combines status + special tabs)
@@ -903,6 +905,19 @@ const OrderList: React.FC = () => {
       },
     },
     {
+      key: 'preorder' as const,
+      title: 'Type',
+      render: (_: any, record: Order) => (
+        record.is_preorder ? (
+          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800">
+            Preorder
+          </span>
+        ) : (
+          <span className="text-gray-400 text-xs">Regular</span>
+        )
+      ),
+    },
+    {
       key: 'payment_status' as const,
       title: 'Pay Status',
       sortable: true,
@@ -1139,6 +1154,11 @@ const OrderList: React.FC = () => {
                       >
                         #{order.order_number}
                       </Link>
+                      {order.is_preorder && (
+                        <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800">
+                          Preorder
+                        </span>
+                      )}
                       <p className="text-xs text-gray-500 mt-1">
                         {order.created_at ? format(new Date(order.created_at), 'MMM d, yyyy h:mm a') : '-'}
                       </p>

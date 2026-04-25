@@ -75,6 +75,12 @@ interface ProductForm {
   meta_keywords?: string;
   images: File[];
   existing_images?: string[];
+  // Preorder fields
+  is_preorder: boolean;
+  release_date?: string;
+  preorder_quantity_limit?: number;
+  preorder_requires_deposit: boolean;
+  preorder_deposit_amount?: number;
 }
 
 function normalizeShippingConfig(config: any): { zones: Record<string, { shipping: number | null; cod: number | null }> } {
@@ -223,7 +229,9 @@ const ProductEdit: React.FC = () => {
     length: undefined,
     width: undefined,
     height: undefined,
-    images: []
+    images: [],
+    is_preorder: false,
+    preorder_requires_deposit: false,
   });
 
   const sensors = useSensors(
@@ -291,7 +299,13 @@ const ProductEdit: React.FC = () => {
         meta_title: p.meta_title || '',
         meta_description: p.meta_description || '',
         meta_keywords: p.meta_keywords || '',
-        images: []
+        images: [],
+        // Preorder fields
+        is_preorder: p.is_preorder || false,
+        release_date: p.release_date ? (p.release_date.includes('T') ? p.release_date.split('T')[0] : p.release_date) : '',
+        preorder_quantity_limit: p.preorder_quantity_limit || undefined,
+        preorder_requires_deposit: p.preorder_requires_deposit || false,
+        preorder_deposit_amount: p.preorder_deposit_amount ? parseFloat(String(p.preorder_deposit_amount)) : undefined,
       });
 
       // Parse dimensions string into separate fields
@@ -1192,6 +1206,89 @@ const ProductEdit: React.FC = () => {
                       onChange={handleInputChange}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
                     />
+                  </div>
+
+                  {/* Preorder Settings */}
+                  <div className="col-span-full border-t pt-6 mt-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Preorder Settings</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            name="is_preorder"
+                            checked={formData.is_preorder}
+                            onChange={handleInputChange}
+                            className="w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                          />
+                          <span className="text-sm font-medium text-gray-700">Enable Preorder</span>
+                        </label>
+                        <p className="text-xs text-gray-500 mt-1">Allow customers to preorder this product before release</p>
+                      </div>
+
+                      {formData.is_preorder && (
+                        <>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Release Date
+                            </label>
+                            <input
+                              type="date"
+                              name="release_date"
+                              value={formData.release_date || ''}
+                              onChange={handleInputChange}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Per-Customer Limit
+                            </label>
+                            <input
+                              type="number"
+                              name="preorder_quantity_limit"
+                              value={formData.preorder_quantity_limit || ''}
+                              onChange={handleInputChange}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                              placeholder="No limit"
+                              min="1"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">Maximum quantity per customer (leave blank for no limit)</p>
+                          </div>
+
+                          <div>
+                            <label className="flex items-center gap-2 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                name="preorder_requires_deposit"
+                                checked={formData.preorder_requires_deposit}
+                                onChange={handleInputChange}
+                                className="w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                              />
+                              <span className="text-sm font-medium text-gray-700">Requires Deposit</span>
+                            </label>
+                          </div>
+
+                          {formData.preorder_requires_deposit && (
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Deposit Amount (₹)
+                              </label>
+                              <input
+                                type="number"
+                                name="preorder_deposit_amount"
+                                value={formData.preorder_deposit_amount || ''}
+                                onChange={handleInputChange}
+                                step="0.01"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                                placeholder="Amount to pay upfront"
+                              />
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
                   </div>
 
                   {formData.compare_price && formData.compare_price > formData.price && (

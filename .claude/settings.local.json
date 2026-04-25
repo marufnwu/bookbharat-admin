@@ -1,45 +1,17 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npm start)",
-      "Bash(netstat:*)",
-      "Bash(findstr:*)",
-      "Bash(npm uninstall:*)",
-      "Bash(npm install:*)",
-      "Bash(curl:*)",
-      "Bash(npx kill-port:*)",
-      "Bash(npm ls:*)",
-      "Read(//d/bookbharat-v2/bookbharat-backend/database/seeders/**)",
-      "Bash(php artisan migrate:fresh:*)",
-      "Read(//d/bookbharat-v2/bookbharat-backend/**)",
-      "Bash(php artisan tinker:*)",
-      "Bash(php artisan make:controller:*)",
-      "Bash(python:*)",
-      "Bash(bash:*)",
-      "Bash(npm run build:*)",
+      "Bash(npm:*)",
+      "Bash(npx:*)",
       "Bash(node:*)",
-      "Bash(xargs:*)",
-      "Bash(php artisan:*)",
-      "Bash(PORT=3003 npm start)",
-      "Bash(npm cache clean:*)",
-      "Bash(find:*)",
-      "Read(//d/bookbharat-v2/**)",
-      "Bash(composer show:*)",
-      "mcp__chrome-devtools__new_page",
-      "mcp__chrome-devtools__navigate_page",
-      "mcp__chrome-devtools__take_snapshot",
-      "mcp__chrome-devtools__list_console_messages",
-      "mcp__chrome-devtools__list_network_requests",
-      "mcp__chrome-devtools__wait_for",
-      "mcp__chrome-devtools__fill",
-      "mcp__chrome-devtools__click",
-      "Bash(timeout 30 npm run build:*)",
-      "mcp__chrome-devtools__evaluate_script",
       "Bash(php:*)",
-      "Bash(git checkout:*)",
-      "Bash(app/Http/Controllers/Admin/MigrationController.php)"
+      "Bash(php artisan:*)",
+      "Read(//d/bookbharat-v2/**)",
+      "mcp__chrome-devtools__*"
     ],
     "deny": [],
     "ask": []
-  }
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": ["chrome-devtools"]
 }

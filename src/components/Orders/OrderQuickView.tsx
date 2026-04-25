@@ -13,6 +13,7 @@ import {
   PhoneIcon,
   EnvelopeIcon,
   CurrencyDollarIcon,
+  CalendarIcon,
 } from '@heroicons/react/24/outline';
 import { Drawer } from '../../components/Drawer';
 import { Button, Badge, LoadingSpinner } from '../../components';
@@ -129,6 +130,23 @@ export const OrderQuickView: React.FC<OrderQuickViewProps> = ({
               </Badge>
             </div>
           </div>
+
+          {/* Preorder Indicator */}
+          {order.is_preorder && (
+            <div className="border-t border-purple-100 pt-4">
+              <div className="flex items-center gap-2 p-3 bg-purple-50 rounded-lg border border-purple-200">
+                <CalendarIcon className="w-5 h-5 text-purple-600" />
+                <div>
+                  <p className="text-sm font-semibold text-purple-900">Preorder</p>
+                  {order.release_date && (
+                    <p className="text-xs text-purple-700">
+                      Releases on {format(new Date(order.release_date), 'MMM dd, yyyy')}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Navigation arrows */}
           {(hasPrev || hasNext) && (

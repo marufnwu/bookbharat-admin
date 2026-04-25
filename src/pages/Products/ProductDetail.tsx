@@ -4,9 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowLeftIcon,
   PencilIcon,
-  TrashIcon,
   TagIcon,
-  CurrencyRupeeIcon,
   CubeIcon,
   ChartBarIcon,
   StarIcon,
@@ -19,6 +17,8 @@ import {
   ExclamationTriangleIcon,
   DocumentTextIcon,
   ShoppingBagIcon,
+  CalendarIcon,
+  CurrencyRupeeIcon,
 } from '@heroicons/react/24/outline';
 import { productsApi, bundleVariantsApi } from '../../api';
 import { formatWeight } from '../../utils/weight';
@@ -35,21 +35,18 @@ const ProductDetail: React.FC = () => {
   const { showSuccess, showError } = useNotificationStore();
   const [activeTab, setActiveTab] = useState('details');
 
-  // Fetch product data
   const { data: productResponse, isLoading } = useQuery({
     queryKey: ['product', id],
     queryFn: () => productsApi.getProduct(Number(id)),
     enabled: !!id,
   });
 
-  // Fetch bundle variants
   const { data: bundleVariantsData } = useQuery({
     queryKey: ['bundleVariants', id],
     queryFn: () => bundleVariantsApi.getAll(Number(id)),
     enabled: !!id,
   });
 
-  // Delete mutation
   const deleteMutation = useMutation({
     mutationFn: () => productsApi.deleteProduct(Number(id)),
     onSuccess: () => {
@@ -79,9 +76,7 @@ const ProductDetail: React.FC = () => {
   const analytics = productResponse?.analytics;
   const bundleVariants = bundleVariantsData?.bundle_variants || [];
 
-  const getShippingConfig = (config: any): {
-    zones?: Record<string, { shipping: number | null; cod: number | null }>;
-  } | null => {
+  const getShippingConfig = (config: any): { zones?: Record<string, { shipping: number | null; cod: number | null }> } | null => {
     if (!config || typeof config !== 'object') return null;
     if (config.zones) return config;
     return null;
@@ -94,7 +89,6 @@ const ProductDetail: React.FC = () => {
     return ['A', 'B', 'C', 'D', 'E'].every(z => (zones[z]?.shipping ?? 0) === 0);
   };
 
-  // Zone names for display
   const ZONE_NAMES: Record<string, string> = {
     A: 'Same City',
     B: 'Same State',
@@ -114,702 +108,486 @@ const ProductDetail: React.FC = () => {
     );
   }
 
-  const getStockBadge = () => {
-    if (!product.manage_stock) return <Badge variant="info">Stock Not Managed</Badge>;
-    if (product.stock_quantity === 0) return <Badge variant="error">Out of Stock</Badge>;
-    if (product.stock_quantity < 10) return <Badge variant="warning">Low Stock ({product.stock_quantity})</Badge>;
-    return <Badge variant="success">In Stock ({product.stock_quantity})</Badge>;
-  };
-
-  const getStatusBadge = () => {
-    switch (product.status) {
-      case 'active':
-        return (
-          <div className="flex items-center">
-            <CheckCircleIcon className="h-4 w-4 text-green-500 mr-1" />
-            <span className="text-green-700 font-medium">Active</span>
-          </div>
-        );
-      case 'inactive':
-        return (
-          <div className="flex items-center">
-            <XCircleIcon className="h-4 w-4 text-red-500 mr-1" />
-            <span className="text-red-700 font-medium">Inactive</span>
-          </div>
-        );
-      case 'draft':
-        return (
-          <div className="flex items-center">
-            <DocumentTextIcon className="h-4 w-4 text-gray-500 mr-1" />
-            <span className="text-gray-700 font-medium">Draft</span>
-          </div>
-        );
-      default:
-        return <Badge>{product.status}</Badge>;
-    }
-  };
-
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-    }).format(amount);
+    return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(amount);
   };
 
   const parseDimensions = (product: Product) => {
-    // If dimensions string exists, try to parse it
     if (product.dimensions) {
-      // Handle both 'x' and '×' as delimiters
-      const parts = product.dimensions.includes('×')
-        ? product.dimensions.split('×')
-        : product.dimensions.split('x');
-
+      const parts = product.dimensions.includes('×') ? product.dimensions.split('×') : product.dimensions.split('x');
       if (parts.length === 3) {
-        return {
-          length: parts[0]?.trim(),
-          width: parts[1]?.trim(),
-          height: parts[2]?.trim(),
-          display: product.dimensions
-        };
+        return { length: parts[0]?.trim(), width: parts[1]?.trim(), height: parts[2]?.trim(), display: product.dimensions };
       }
     }
-
     return null;
-  };
-
-  const getRatingDisplay = () => {
-    const rating = Number(product.rating) || 0;
-    const reviews = Number(product.review_count) || 0;
-
-    if (rating === 0 && reviews === 0) {
-      return (
-        <div className="flex items-center text-gray-400">
-          <StarIcon className="h-5 w-5 mr-1" />
-          <span className="text-sm">No reviews yet</span>
-        </div>
-      );
-    }
-
-    return (
-      <div className="flex items-center">
-        <div className="flex items-center text-yellow-400">
-          {[...Array(5)].map((_, i) => (
-            <StarIcon
-              key={i}
-              className={`h-5 w-5 ${i < Math.floor(rating) ? 'fill-current' : ''}`}
-            />
-          ))}
-        </div>
-        <span className="ml-2 text-sm font-medium text-gray-900">{rating.toFixed(1)}</span>
-        <span className="ml-1 text-sm text-gray-500">({reviews} reviews)</span>
-      </div>
-    );
   };
 
   const tabs = [
     { id: 'details', name: 'Details', icon: TagIcon },
     { id: 'inventory', name: 'Inventory', icon: CubeIcon },
-    { id: 'bundle-variants', name: 'Bundle Variants', icon: Squares2X2Icon },
+    { id: 'bundle-variants', name: 'Bundles', icon: Squares2X2Icon },
     { id: 'analytics', name: 'Analytics', icon: ChartBarIcon },
     { id: 'reviews', name: 'Reviews', icon: StarIcon },
     { id: 'images', name: 'Images', icon: PhotoIcon },
   ];
 
-  return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="bg-white shadow-sm border border-gray-200 rounded-xl">
-        <div className="px-6 py-5">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <Link
-                to="/products"
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <ArrowLeftIcon className="h-5 w-5 text-gray-600" />
-              </Link>
-              <div className="flex-1">
-                <div className="flex items-center space-x-3">
-                  <h1 className="text-2xl font-bold text-gray-900">{product.name}</h1>
-                  {product.is_featured && (
-                    <Badge variant="warning" className="text-xs">
-                      <StarIcon className="h-3 w-3 mr-1" />
-                      Featured
-                    </Badge>
-                  )}
-                </div>
-                <div className="flex items-center space-x-4 mt-1">
-                  <p className="text-sm text-gray-500">SKU: {product.sku}</p>
-                  {product.category?.name && (
-                    <span className="text-sm text-gray-400">•</span>
-                  )}
-                  {product.category?.name && (
-                    <p className="text-sm text-gray-500">Category: {product.category.name}</p>
-                  )}
-                </div>
-              </div>
-            </div>
-            <div className="flex items-center space-x-3">
-              <div className="text-right">
-                {getRatingDisplay()}
-              </div>
-              <Link to={`/products/${id}/edit`}>
-                <Button>
-                  <PencilIcon className="h-4 w-4 mr-2" />
-                  Edit Product
-                </Button>
-              </Link>
-            </div>
-          </div>
+  const StatusBadge = ({ status }: { status: string }) => {
+    const config: Record<string, { color: string; icon: React.ElementType; label: string }> = {
+      active: { color: 'text-green-600 bg-green-50', icon: CheckCircleIcon, label: 'Active' },
+      inactive: { color: 'text-red-600 bg-red-50', icon: XCircleIcon, label: 'Inactive' },
+      draft: { color: 'text-gray-600 bg-gray-50', icon: DocumentTextIcon, label: 'Draft' },
+    };
+    const { color, icon: Icon, label } = config[status] || config.draft;
+    return (
+      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-sm font-medium ${color}`}>
+        <Icon className="h-4 w-4" />
+        {label}
+      </span>
+    );
+  };
+
+  const StockBadge = () => {
+    if (!product.manage_stock) return <Badge variant="info" size="sm">Not Managed</Badge>;
+    if (product.stock_quantity === 0) return <Badge variant="error" size="sm">Out of Stock</Badge>;
+    if (product.stock_quantity < 10) return <Badge variant="warning" size="sm">Low Stock ({product.stock_quantity})</Badge>;
+    return <Badge variant="success" size="sm">In Stock ({product.stock_quantity})</Badge>;
+  };
+
+  const Card = ({ title, icon: Icon, children, className = '' }: { title?: string; icon?: React.ElementType; children: React.ReactNode; className?: string }) => (
+    <div className={`bg-white rounded-xl border border-gray-200 overflow-hidden ${className}`}>
+      {title && (
+        <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-2">
+          {Icon && <Icon className="h-5 w-5 text-blue-500" />}
+          <h3 className="font-semibold text-gray-900">{title}</h3>
+        </div>
+      )}
+      <div className="p-5">{children}</div>
+    </div>
+  );
+
+  const StatCard = ({ label, value, subtext, icon: Icon, color }: { label: string; value: React.ReactNode; subtext?: string; icon: React.ElementType; color: string }) => (
+    <div className="bg-white rounded-xl border border-gray-200 p-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm text-gray-500">{label}</p>
+          <p className="text-xl font-bold text-gray-900 mt-0.5">{value}</p>
+          {subtext && <p className="text-xs text-gray-400 mt-0.5">{subtext}</p>}
+        </div>
+        <div className={`p-3 rounded-xl ${color}`}>
+          <Icon className="h-6 w-6" />
         </div>
       </div>
+    </div>
+  );
+
+  return (
+    <div className="space-y-5">
+      {/* Header Card */}
+      <Card>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Link to="/products" className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+              <ArrowLeftIcon className="h-5 w-5 text-gray-500" />
+            </Link>
+            <div>
+              <div className="flex items-center gap-3">
+                <h1 className="text-2xl font-bold text-gray-900">{product.name}</h1>
+                <StatusBadge status={product.status} />
+                {product.is_featured && (
+                  <Badge variant="warning" size="sm" icon={<StarIcon className="h-3 w-3" />}>
+                    Featured
+                  </Badge>
+                )}
+                {product.is_preorder && (
+                  <Badge variant="purple" size="sm" icon={<CalendarIcon className="h-3 w-3" />}>
+                    Preorder
+                  </Badge>
+                )}
+              </div>
+              <div className="flex items-center gap-3 mt-2 text-sm text-gray-500">
+                <span>SKU: {product.sku}</span>
+                {product.category?.name && (
+                  <>
+                    <span className="text-gray-300">•</span>
+                    <span>{product.category.name}</span>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <Link to={`/products/${id}/edit`}>
+              <Button size="sm">
+                <PencilIcon className="h-4 w-4 mr-2" />
+                Edit
+              </Button>
+            </Link>
+            <Button variant="outline" size="sm" onClick={handleDelete}>
+              Delete
+            </Button>
+          </div>
+        </div>
+      </Card>
 
       {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Status</p>
-              <div className="mt-1">{getStatusBadge()}</div>
-            </div>
-            <div className="p-3 bg-blue-50 rounded-lg">
-              <TagIcon className="h-6 w-6 text-blue-600" />
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Stock</p>
-              <div className="mt-1">{getStockBadge()}</div>
-            </div>
-            <div className="p-3 bg-green-50 rounded-lg">
-              <CubeIcon className="h-6 w-6 text-green-600" />
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Price</p>
-              <p className="text-lg font-bold text-gray-900">{formatCurrency(product.price)}</p>
-              {product.compare_price && Number(product.compare_price) > Number(product.price) && (
-                <p className="text-xs text-gray-500 line-through">{formatCurrency(Number(product.compare_price))}</p>
-              )}
-            </div>
-            <div className="p-3 bg-yellow-50 rounded-lg">
-              <CurrencyRupeeIcon className="h-6 w-6 text-yellow-600" />
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Sales</p>
-              <p className="text-lg font-bold text-gray-900">{product.sales_count || 0}</p>
-              <p className="text-xs text-gray-500">units sold</p>
-            </div>
-            <div className="p-3 bg-purple-50 rounded-lg">
-              <ShoppingBagIcon className="h-6 w-6 text-purple-600" />
-            </div>
-          </div>
-        </div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <StatCard label="Price" value={formatCurrency(product.price)} subtext={product.compare_price ? `MRP: ${formatCurrency(Number(product.compare_price))}` : undefined} icon={CurrencyRupeeIcon} color="bg-green-50 text-green-600" />
+        <StatCard label="Stock" value={<StockBadge />} icon={CubeIcon} color="bg-blue-50 text-blue-600" />
+        <StatCard label="Sales" value={product.sales_count || 0} subtext="units sold" icon={ShoppingBagIcon} color="bg-purple-50 text-purple-600" />
+        <StatCard label="Rating" value={product.rating ? `${product.rating}/5` : 'No rating'} subtext={product.review_count ? `${product.review_count} reviews` : undefined} icon={StarIcon} color="bg-yellow-50 text-yellow-600" />
       </div>
 
-      {/* Main Content with Tabs */}
-      <div className="bg-white shadow-sm border border-gray-200 rounded-xl">
-        {/* Tabs */}
+      {/* Tabs + Content in single card */}
+      <Card className="p-0">
+        {/* Tab Headers */}
         <div className="border-b border-gray-200">
-          <nav className="flex space-x-8 px-6" aria-label="Tabs">
+          <div className="flex overflow-x-auto px-2">
             {tabs.map((tab) => {
               const Icon = tab.icon;
               return (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`
-                    flex items-center py-4 px-1 border-b-2 font-medium text-sm transition-colors
-                    ${activeTab === tab.id
+                  className={`flex items-center gap-2 px-4 py-3 border-b-2 font-medium text-sm whitespace-nowrap transition-colors ${
+                    activeTab === tab.id
                       ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                    }
-                  `}
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
                 >
-                  <Icon className="h-5 w-5 mr-2" />
+                  <Icon className="h-4 w-4" />
                   {tab.name}
                 </button>
               );
             })}
-          </nav>
+          </div>
         </div>
-      </div>
 
-      {/* Tab Content */}
-      <div className="bg-white shadow-sm border border-gray-200 rounded-xl">
-        {activeTab === 'details' && (
-          <div className="p-6 space-y-8">
-            {/* Product Overview */}
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-6 flex items-center">
-                <TagIcon className="h-5 w-5 mr-2 text-blue-600" />
-                Product Overview
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="md:col-span-2 space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Product Name</label>
-                      <p className="text-sm font-medium text-gray-900">{product.name}</p>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Status</label>
-                      <div className="mt-1">{getStatusBadge()}</div>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Category</label>
-                      <p className="text-sm font-medium text-gray-900">{product.category?.name || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">SKU</label>
-                      <p className="text-sm font-medium text-gray-900">{product.sku}</p>
-                    </div>
-                  </div>
-
-                  {(product.author || product.publisher || product.isbn || product.supplier) && (
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+        {/* Tab Content */}
+        <div className="p-5">
+          {/* DETAILS TAB */}
+          {activeTab === 'details' && (
+            <div className="space-y-6">
+              {/* Product Info Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                {/* Main Info */}
+                <div className="md:col-span-2 space-y-5">
+                  <Card title="Product Information" icon={TagIcon}>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-xs font-medium text-gray-400 uppercase tracking-wider">Product Name</label>
+                        <p className="text-sm font-medium text-gray-900 mt-1">{product.name}</p>
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-gray-400 uppercase tracking-wider">Status</label>
+                        <div className="mt-1"><StatusBadge status={product.status} /></div>
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-gray-400 uppercase tracking-wider">Category</label>
+                        <p className="text-sm font-medium text-gray-900 mt-1">{product.category?.name || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-gray-400 uppercase tracking-wider">SKU</label>
+                        <p className="text-sm font-medium text-gray-900 mt-1">{product.sku}</p>
+                      </div>
                       {product.author && (
                         <div>
-                          <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Author</label>
-                          <p className="text-sm font-medium text-gray-900">{product.author}</p>
+                          <label className="text-xs font-medium text-gray-400 uppercase tracking-wider">Author</label>
+                          <p className="text-sm font-medium text-gray-900 mt-1">{product.author}</p>
                         </div>
                       )}
                       {product.publisher && (
                         <div>
-                          <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Publisher</label>
-                          <p className="text-sm font-medium text-gray-900">{product.publisher}</p>
+                          <label className="text-xs font-medium text-gray-400 uppercase tracking-wider">Publisher</label>
+                          <p className="text-sm font-medium text-gray-900 mt-1">{product.publisher}</p>
                         </div>
                       )}
                       {product.supplier && (
                         <div>
-                          <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Supplier</label>
-                          <p className="text-sm font-medium text-gray-900">{product.supplier}</p>
+                          <label className="text-xs font-medium text-gray-400 uppercase tracking-wider">Supplier</label>
+                          <p className="text-sm font-medium text-gray-900 mt-1">{product.supplier}</p>
                         </div>
                       )}
                       {product.isbn && (
                         <div>
-                          <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">ISBN</label>
-                          <p className="text-sm font-medium text-gray-900">{product.isbn}</p>
+                          <label className="text-xs font-medium text-gray-400 uppercase tracking-wider">ISBN</label>
+                          <p className="text-sm font-medium text-gray-900 mt-1">{product.isbn}</p>
                         </div>
                       )}
                     </div>
-                  )}
-                </div>
+                  </Card>
 
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-sm font-medium text-gray-700">Quick Stats</span>
-                    <ClockIcon className="h-4 w-4 text-gray-400" />
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Created</span>
-                      <span className="text-gray-900 font-medium">{format(new Date(product.created_at), 'MMM dd, yyyy')}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Updated</span>
-                      <span className="text-gray-900 font-medium">{format(new Date(product.updated_at), 'MMM dd, yyyy')}</span>
-                    </div>
-                    {product.pages && (
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">Pages</span>
-                        <span className="text-gray-900 font-medium">{product.pages}</span>
-                      </div>
-                    )}
-                    {product.format && (
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">Format</span>
-                        <span className="text-gray-900 font-medium">{product.format}</span>
-                      </div>
-                    )}
-                    {product.language && (
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">Language</span>
-                        <span className="text-gray-900 font-medium">{product.language}</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Description */}
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                <DocumentTextIcon className="h-5 w-5 mr-2 text-blue-600" />
-                Description
-              </h3>
-              <div className="bg-gray-50 rounded-lg p-6">
-                <div
-                  className="text-sm text-gray-700 prose prose-sm max-w-none admin-product-description"
-                  dangerouslySetInnerHTML={{
-                    __html: product.description || '<p class="text-gray-500 italic">No description available</p>'
-                  }}
-                />
-              </div>
-
-              {/* YouTube Video */}
-              {product.video_url && (() => {
-                const videoId = product.video_url?.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/)([^&\n?#]+)/)?.[1];
-                return videoId ? (
-                  <div className="mt-6">
-                    <h4 className="text-sm font-semibold text-gray-700 mb-3">Product Video</h4>
-                    <div className="aspect-video w-full max-w-2xl rounded-lg overflow-hidden border border-gray-200">
-                      <iframe
-                        width="100%"
-                        height="100%"
-                        src={`https://www.youtube.com/embed/${videoId}`}
-                        title="Product video"
-                        frameBorder="0"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                        allowFullScreen
-                      />
-                    </div>
-                  </div>
-                ) : null;
-              })()}
-            </div>
-
-            {/* Pricing */}
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-6 flex items-center">
-                <CurrencyRupeeIcon className="h-5 w-5 mr-2 text-blue-600" />
-                Pricing Information
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-
-                {product.compare_price && Number(product.compare_price) > Number(product.price) && (
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium text-blue-700">MRP</span>
-                      <div className="p-1.5 bg-blue-100 rounded">
-                        <TagIcon className="h-4 w-4 text-blue-600" />
-                      </div>
-                    </div>
-                    <p className="text-xl font-semibold text-blue-900 line-through">
-                      {formatCurrency(parseFloat(product.compare_price))}
-                    </p>
-                    <p className="text-xs text-blue-600 mt-1">
-                      {Math.round(((1 - Number(product.price) / Number(product.compare_price)) * 100))}% off
-                    </p>
-                  </div>
-                )}
-                
-                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-green-700">Price</span>
-                    <div className="p-1.5 bg-green-100 rounded">
-                      <CurrencyRupeeIcon className="h-4 w-4 text-green-600" />
-                    </div>
-                  </div>
-                  <p className="text-2xl font-bold text-green-900">
-                    {formatCurrency(parseFloat(product.price))}
-                  </p>
-                </div>
-
-                
-
-                {product.our_price && (
-                  <div className="bg-teal-50 border border-teal-200 rounded-lg p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium text-teal-700">Our Price</span>
-                      <div className="p-1.5 bg-teal-100 rounded">
-                        <CurrencyRupeeIcon className="h-4 w-4 text-teal-600" />
-                      </div>
-                    </div>
-                    <p className="text-xl font-semibold text-teal-900">
-                      {formatCurrency(parseFloat(product.our_price))}
-                    </p>
-                    <p className="text-xs text-teal-600 mt-1">
-                      Internal purchase price
-                    </p>
-                  </div>
-                )}
-
-                {/* {product.cost_price && (
-                  <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium text-orange-700">Cost Price</span>
-                      <div className="p-1.5 bg-orange-100 rounded">
-                        <CubeIcon className="h-4 w-4 text-orange-600" />
-                      </div>
-                    </div>
-                    <p className="text-xl font-semibold text-orange-900">
-                      {formatCurrency(parseFloat(product.cost_price))}
-                    </p>
-                    <p className="text-xs text-orange-600 mt-1">
-                      Margin: {Math.round(((Number(product.price) - Number(product.cost_price)) / Number(product.price)) * 100)}%
-                    </p>
-                  </div>
-                )} */}
-
-                <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-purple-700">Profit</span>
-                    <div className="p-1.5 bg-purple-100 rounded">
-                      <ChartBarIcon className="h-4 w-4 text-purple-600" />
-                    </div>
-                  </div>
-                  {product.cost_price ? (
-                    <>
-                      <p className="text-xl font-bold text-purple-900">
-                        {formatCurrency(Number(product.price) - Number(product.our_price))}
-                      </p>
-                      <p className="text-xs text-purple-600 mt-1">
-                        Per unit
-                      </p>
-                    </>
-                  ) : (
-                    <p className="text-sm text-purple-600">Set cost price to see profit</p>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Features */}
-            <div>
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Features</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <label className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={product.is_featured}
-                    disabled
-                    className="mr-2"
-                  />
-                  <span className="text-sm text-gray-700">Featured Product</span>
-                </label>
-                <label className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={product.is_bestseller}
-                    disabled
-                    className="mr-2"
-                  />
-                  <span className="text-sm text-gray-700">Bestseller</span>
-                </label>
-                <label className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={product.is_digital}
-                    disabled
-                    className="mr-2"
-                  />
-                  <span className="text-sm text-gray-700">Digital Product</span>
-                </label>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'inventory' && (
-          <div className="p-6 bg-white rounded-lg">
-            <div className="space-y-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-medium text-gray-900">Inventory Management</h3>
-                {getStockBadge()}
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Stock Quantity</label>
-                  <p className="mt-1 text-2xl font-bold text-gray-900">{product.stock_quantity}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Min Stock Level</label>
-                  <p className="mt-1 text-2xl font-bold text-gray-900">{product.min_stock_level}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Manage Stock</label>
-                  <p className="mt-1 text-sm text-gray-900">
-                    {product.manage_stock ? 'Yes' : 'No'}
-                  </p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Weight</label>
-                  <p className="mt-1 text-sm text-gray-900">{formatWeight(product.weight)}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Package Dimensions</label>
-                  <p className="mt-1 text-sm text-gray-900">
-                    {(() => {
-                      const dimensions = parseDimensions(product);
-                      return dimensions ? dimensions.display : 'N/A';
+                  <Card title="Description" icon={DocumentTextIcon}>
+                    <div
+                      className="text-sm text-gray-700 prose prose-sm max-w-none"
+                      dangerouslySetInnerHTML={{ __html: product.description || '<p class="text-gray-400 italic">No description</p>' }}
+                    />
+                    {product.video_url && (() => {
+                      const videoId = product.video_url?.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/)([^&\n?#]+)/)?.[1];
+                      return videoId ? (
+                        <div className="mt-4">
+                          <div className="aspect-video w-full max-w-xl rounded-lg overflow-hidden border border-gray-200">
+                            <iframe src={`https://www.youtube.com/embed/${videoId}`} title="Product video" frameBorder="0" allowFullScreen className="w-full h-full" />
+                          </div>
+                        </div>
+                      ) : null;
                     })()}
-                  </p>
-                  {(() => {
-                    const dimensions = parseDimensions(product);
-                    return dimensions ? (
-                      <div className="mt-1 flex items-center space-x-2 text-xs text-gray-500">
-                        <span>L: {dimensions.length}cm</span>
-                        <span>•</span>
-                        <span>W: {dimensions.width}cm</span>
-                        <span>•</span>
-                        <span>H: {dimensions.height}cm</span>
+                  </Card>
+                </div>
+
+                {/* Sidebar Info */}
+                <div className="space-y-5">
+                  <Card title="Pricing" icon={CurrencyRupeeIcon}>
+                    <div className="space-y-4">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-gray-500">Selling Price</span>
+                        <span className="text-xl font-bold text-gray-900">{formatCurrency(product.price)}</span>
                       </div>
-                    ) : null;
-                  })()}
+                      {product.compare_price && Number(product.compare_price) > Number(product.price) && (
+                        <>
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm text-gray-500">MRP</span>
+                            <span className="text-sm text-gray-400 line-through">{formatCurrency(Number(product.compare_price))}</span>
+                          </div>
+                          <Badge variant="success" className="w-full justify-center">
+                            {Math.round(((1 - Number(product.price) / Number(product.compare_price)) * 100))}% off
+                          </Badge>
+                        </>
+                      )}
+                      {product.our_price && (
+                        <div className="pt-3 border-t border-gray-100">
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm text-gray-500">Our Price</span>
+                            <span className="text-sm font-medium text-teal-600">{formatCurrency(product.our_price)}</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </Card>
+
+                  <Card title="Quick Info" icon={ClockIcon}>
+                    <div className="space-y-3">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-500">Created</span>
+                        <span className="text-gray-900 font-medium">{format(new Date(product.created_at), 'MMM dd, yyyy')}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-500">Updated</span>
+                        <span className="text-gray-900 font-medium">{format(new Date(product.updated_at), 'MMM dd, yyyy')}</span>
+                      </div>
+                      {product.pages && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-500">Pages</span>
+                          <span className="text-gray-900 font-medium">{product.pages}</span>
+                        </div>
+                      )}
+                      {product.format && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-500">Format</span>
+                          <span className="text-gray-900 font-medium">{product.format}</span>
+                        </div>
+                      )}
+                      {product.language && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-500">Language</span>
+                          <span className="text-gray-900 font-medium">{product.language}</span>
+                        </div>
+                      )}
+                    </div>
+                  </Card>
+
+                  <Card title="Features" icon={CheckCircleIcon}>
+                    <div className="space-y-2">
+                      {[
+                        { label: 'Featured', value: product.is_featured },
+                        { label: 'Bestseller', value: product.is_bestseller },
+                        { label: 'Digital', value: product.is_digital },
+                      ].map((feature) => (
+                        <div key={feature.label} className="flex items-center justify-between">
+                          <span className="text-sm text-gray-600">{feature.label}</span>
+                          {feature.value ? (
+                            <CheckCircleIcon className="h-5 w-5 text-green-500" />
+                          ) : (
+                            <XCircleIcon className="h-5 w-5 text-gray-300" />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </Card>
                 </div>
               </div>
+            </div>
+          )}
 
-              {/* Shipping Information */}
-              <div>
-                <h4 className="text-md font-medium text-gray-900 mb-3">Shipping Configuration</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Shipping Type</label>
-                    <div className="mt-1">
-                      {shippingConfig ? (
-                        <div className="flex items-center">
-                          <div className={`w-2 h-2 rounded-full mr-2 ${isAllFree(shippingConfig.zones) ? 'bg-green-500' : 'bg-purple-500'
-                            }`}></div>
-                          <span className={`text-sm font-medium ${isAllFree(shippingConfig.zones) ? 'text-green-600' : 'text-purple-600'
-                            }`}>
-                            {isAllFree(shippingConfig.zones) ? 'Free Shipping' : 'Custom Charges'}
-                          </span>
+          {/* INVENTORY TAB */}
+          {activeTab === 'inventory' && (
+            <div className="space-y-6">
+              {/* Stock & Shipping Row */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <Card title="Stock Management" icon={CubeIcon}>
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="bg-gray-50 rounded-lg p-3">
+                        <p className="text-xs text-gray-500 uppercase tracking-wider">In Stock</p>
+                        <p className="text-2xl font-bold text-gray-900">{product.stock_quantity}</p>
+                      </div>
+                      {product.manage_stock ? (
+                        <div className="bg-gray-50 rounded-lg p-3">
+                          <p className="text-xs text-gray-500 uppercase tracking-wider">Available</p>
+                          <p className="text-2xl font-bold text-green-600">{product.stock_quantity - (product.reserved_quantity || 0)}</p>
                         </div>
                       ) : (
-                        <div className="flex items-center">
-                          <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
-                          <span className="text-sm text-green-600 font-medium">Free Shipping (Default)</span>
+                        <div className="bg-gray-50 rounded-lg p-3">
+                          <p className="text-xs text-gray-500 uppercase tracking-wider">Status</p>
+                          <p className="text-sm font-medium text-gray-500 mt-1">Not Managed</p>
                         </div>
                       )}
                     </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Weight</label>
-                    <p className="mt-1 text-sm text-gray-900">{formatWeight(product.weight)}</p>
-                  </div>
-                </div>
-
-                {shippingConfig?.zones && (
-                  <div className="mt-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Shipping & COD Charges
-                      {isAllFree(shippingConfig.zones) && (
-                        <span className="ml-2 text-xs text-green-600">✓ Free shipping to all zones</span>
-                      )}
-                    </label>
-                    <div className={`border rounded-lg p-4 ${isAllFree(shippingConfig.zones) ? 'bg-green-50 border-green-200' : 'bg-purple-50 border-purple-200'
-                      }`}>
-                      <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
-                        {['A', 'B', 'C', 'D', 'E'].map(zone => {
-                          const zoneConfig = shippingConfig.zones?.[zone];
-                          if (!zoneConfig) return null;
-                          return (
-                            <div key={zone} className="bg-white rounded p-2">
-                              <div className="text-xs font-medium text-purple-700 mb-1">
-                                Zone {zone} ({ZONE_NAMES[zone]})
-                              </div>
-                              <div className="space-y-1">
-                                <div className="flex justify-between text-xs">
-                                  <span className="text-gray-600">Shipping:</span>
-                                  <span className={`font-medium ${zoneConfig.shipping === 0 ? 'text-green-600' : 'text-purple-900'}`}>
-                                    {zoneConfig.shipping !== null ? `₹${zoneConfig.shipping}` : '₹0'}
-                                    {zoneConfig.shipping === 0 && ' (Free)'}
-                                  </span>
-                                </div>
-                                <div className="flex justify-between text-xs">
-                                  <span className="text-gray-600">COD:</span>
-                                  <span className="font-medium text-purple-900">
-                                    {zoneConfig.cod !== null && zoneConfig.cod !== undefined ? `₹${zoneConfig.cod}` : '₹0'}
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {!shippingConfig && (
-                  <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
-                    <div className="flex items-center">
-                      <TruckIcon className="h-5 w-5 text-green-600 mr-2" />
-                      <span className="text-sm text-green-800">
-                        Free shipping to all zones (default).
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-500">Manage Stock</span>
+                      <span className={`font-medium ${product.manage_stock ? 'text-green-600' : 'text-gray-400'}`}>
+                        {product.manage_stock ? 'Enabled' : 'Disabled'}
                       </span>
                     </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-500">Min Stock Level</span>
+                      <span className="font-medium text-gray-900">{product.min_stock_level || 0}</span>
+                    </div>
                   </div>
-                )}
+                </Card>
+
+                <Card title="Shipping" icon={TruckIcon}>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-500">Shipping Type</span>
+                      <Badge variant={isAllFree(shippingConfig?.zones) ? 'success' : 'info'} size="sm">
+                        {isAllFree(shippingConfig?.zones) ? 'Free Shipping' : 'Custom Charges'}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-500">Weight</span>
+                      <span className="font-medium text-gray-900">{formatWeight(product.weight)}</span>
+                    </div>
+                    {product.dimensions && (
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-500">Dimensions</span>
+                        <span className="font-medium text-gray-900">{product.dimensions}</span>
+                      </div>
+                    )}
+                  </div>
+                </Card>
               </div>
+
+              {/* Preorder Section */}
+              {product.is_preorder && (
+                <Card title="Preorder Information" icon={CalendarIcon}>
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                      <div className="bg-purple-50 rounded-lg p-4">
+                        <p className="text-xs text-purple-600 uppercase tracking-wider font-medium">Status</p>
+                        <p className="text-sm font-bold text-purple-900 mt-1">Available for Preorder</p>
+                      </div>
+                      {product.release_date && (
+                        <div className="bg-purple-50 rounded-lg p-4">
+                          <p className="text-xs text-purple-600 uppercase tracking-wider font-medium">Release Date</p>
+                          <p className="text-sm font-bold text-purple-900 mt-1">{format(new Date(product.release_date), 'MMM dd, yyyy')}</p>
+                        </div>
+                      )}
+                      {product.preorder_quantity_limit && (
+                        <div className="bg-purple-50 rounded-lg p-4">
+                          <p className="text-xs text-purple-600 uppercase tracking-wider font-medium">Max Preorders</p>
+                          <p className="text-sm font-bold text-purple-900 mt-1">{product.preorder_quantity_limit} units</p>
+                        </div>
+                      )}
+                      {product.reserved_quantity > 0 && (
+                        <div className="bg-purple-50 rounded-lg p-4">
+                          <p className="text-xs text-purple-600 uppercase tracking-wider font-medium">Reserved</p>
+                          <p className="text-sm font-bold text-purple-900 mt-1">{product.reserved_quantity} units</p>
+                        </div>
+                      )}
+                    </div>
+                    {product.preorder_requires_deposit && (
+                      <div className="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-lg p-4">
+                        <div className="flex items-center gap-2">
+                          <ExclamationTriangleIcon className="h-5 w-5 text-amber-600" />
+                          <span className="text-sm font-medium text-amber-800">Requires deposit to confirm preorder</span>
+                        </div>
+                        {product.preorder_deposit_amount && (
+                          <span className="text-sm font-bold text-amber-900">Deposit: {formatCurrency(product.preorder_deposit_amount)}</span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </Card>
+              )}
+
+              {/* Shipping Zones */}
+              {shippingConfig?.zones && (
+                <Card title="Shipping Zones" icon={TruckIcon}>
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                    {['A', 'B', 'C', 'D', 'E'].map((zone) => {
+                      const zoneConfig = shippingConfig.zones?.[zone];
+                      if (!zoneConfig) return null;
+                      return (
+                        <div key={zone} className="bg-gray-50 rounded-lg p-3">
+                          <p className="text-xs font-semibold text-gray-700 mb-2">Zone {zone}</p>
+                          <p className="text-xs text-gray-500 mb-1">{ZONE_NAMES[zone]}</p>
+                          <div className="space-y-1 mt-2">
+                            <div className="flex justify-between text-xs">
+                              <span className="text-gray-500">Shipping</span>
+                              <span className={`font-medium ${zoneConfig.shipping === 0 ? 'text-green-600' : 'text-gray-700'}`}>
+                                {zoneConfig.shipping === 0 ? 'Free' : `₹${zoneConfig.shipping}`}
+                              </span>
+                            </div>
+                            <div className="flex justify-between text-xs">
+                              <span className="text-gray-500">COD</span>
+                              <span className="font-medium text-gray-700">₹{zoneConfig.cod ?? 0}</span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </Card>
+              )}
 
               {/* Variants */}
               {product.variants && product.variants.length > 0 && (
-                <div>
-                  <h4 className="text-md font-medium text-gray-900 mb-3">Product Variants</h4>
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                            Variant
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                            SKU
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                            Price
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                            Stock
-                          </th>
+                <Card title="Product Variants" icon={Squares2X2Icon}>
+                  <table className="w-full">
+                    <thead>
+                      <tr className="text-left text-xs text-gray-500 uppercase tracking-wider border-b border-gray-100">
+                        <th className="pb-3 font-medium">Variant</th>
+                        <th className="pb-3 font-medium">SKU</th>
+                        <th className="pb-3 font-medium">Price</th>
+                        <th className="pb-3 font-medium">Stock</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {product.variants.map((variant: any) => (
+                        <tr key={variant.id} className="border-b border-gray-50 last:border-0">
+                          <td className="py-3 text-sm text-gray-900">{variant.name}</td>
+                          <td className="py-3 text-sm text-gray-500">{variant.sku}</td>
+                          <td className="py-3 text-sm font-medium text-gray-900">{formatCurrency(variant.price)}</td>
+                          <td className="py-3 text-sm text-gray-900">{variant.stock_quantity}</td>
                         </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        {product.variants.map((variant: any) => (
-                          <tr key={variant.id}>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              {variant.name}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {variant.sku}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              {formatCurrency(variant.price)}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              {variant.stock_quantity}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
+                      ))}
+                    </tbody>
+                  </table>
+                </Card>
               )}
             </div>
-          </div>
-        )}
+          )}
 
-        {activeTab === 'bundle-variants' && (
-          <div className="p-6 bg-white rounded-lg">
+          {/* BUNDLE VARIANTS TAB */}
+          {activeTab === 'bundle-variants' && (
             <div className="space-y-6">
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-lg font-medium text-gray-900">Bundle Variants</h3>
-                  <p className="text-sm text-gray-500 mt-1">
-                    Quantity-based bundle options for this product
-                  </p>
+                  <h3 className="text-lg font-semibold text-gray-900">Bundle Variants</h3>
+                  <p className="text-sm text-gray-500 mt-1">Quantity-based pricing bundles</p>
                 </div>
-              </div>
-              <div>
                 <Link to={`/products/${id}/edit`}>
-                  <Button variant="outline">
+                  <Button variant="outline" size="sm">
                     <PencilIcon className="h-4 w-4 mr-2" />
                     Manage Bundles
                   </Button>
@@ -817,34 +595,19 @@ const ProductDetail: React.FC = () => {
               </div>
 
               {bundleVariants.length > 0 ? (
-                <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Bundle
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Quantity
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Pricing
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Price
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Savings
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Stock
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Status
-                        </th>
+                <Card className="p-0" title="">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="text-left text-xs text-gray-500 uppercase tracking-wider bg-gray-50 border-b border-gray-200">
+                        <th className="px-5 py-3 font-medium">Bundle</th>
+                        <th className="px-5 py-3 font-medium">Qty</th>
+                        <th className="px-5 py-3 font-medium">Pricing</th>
+                        <th className="px-5 py-3 font-medium">Price</th>
+                        <th className="px-5 py-3 font-medium">Savings</th>
+                        <th className="px-5 py-3 font-medium">Status</th>
                       </tr>
                     </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
+                    <tbody className="divide-y divide-gray-100">
                       {bundleVariants.map((variant: ProductBundleVariant) => {
                         const originalPrice = parseFloat(product.price) * variant.quantity;
                         const bundlePrice = variant.calculated_price || 0;
@@ -853,44 +616,27 @@ const ProductDetail: React.FC = () => {
 
                         return (
                           <tr key={variant.id} className="hover:bg-gray-50">
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div>
-                                <div className="text-sm font-medium text-gray-900">{variant.name}</div>
-                                <div className="text-xs text-gray-500">{variant.sku}</div>
-                              </div>
+                            <td className="px-5 py-4">
+                              <div className="text-sm font-medium text-gray-900">{variant.name}</div>
+                              <div className="text-xs text-gray-400">{variant.sku}</div>
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              {variant.quantity} items
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-800">
+                            <td className="px-5 py-4 text-sm text-gray-600">{variant.quantity} items</td>
+                            <td className="px-5 py-4">
+                              <Badge variant="info" size="sm">
                                 {variant.pricing_type === 'percentage_discount' && `${variant.discount_percentage}% off`}
-                                {variant.pricing_type === 'fixed_price' && 'Fixed Price'}
+                                {variant.pricing_type === 'fixed_price' && 'Fixed'}
                                 {variant.pricing_type === 'fixed_discount' && `₹${variant.fixed_discount} off`}
-                              </span>
+                              </Badge>
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div>
-                                <div className="text-sm font-semibold text-gray-900">
-                                  {formatCurrency(bundlePrice)}
-                                </div>
-                                <div className="text-xs text-gray-500 line-through">
-                                  {formatCurrency(originalPrice)}
-                                </div>
-                              </div>
+                            <td className="px-5 py-4">
+                              <div className="text-sm font-bold text-gray-900">{formatCurrency(bundlePrice)}</div>
+                              <div className="text-xs text-gray-400 line-through">{formatCurrency(originalPrice)}</div>
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
-                                {savingsPercent}% off
-                              </span>
+                            <td className="px-5 py-4">
+                              <Badge variant="success" size="sm">{savingsPercent}% off</Badge>
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {variant.stock_management_type === 'use_main_product'
-                                ? `Uses main stock`
-                                : `${variant.stock_quantity} bundles`}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <Badge variant={variant.is_active ? 'success' : 'default'}>
+                            <td className="px-5 py-4">
+                              <Badge variant={variant.is_active ? 'success' : 'default'} size="sm">
                                 {variant.is_active ? 'Active' : 'Inactive'}
                               </Badge>
                             </td>
@@ -899,183 +645,113 @@ const ProductDetail: React.FC = () => {
                       })}
                     </tbody>
                   </table>
-                </div>
+                </Card>
               ) : (
-                <div className="text-center py-12 bg-gray-50 rounded-lg">
-                  <Squares2X2Icon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-500 mb-2">No bundle variants created</p>
-                  <p className="text-sm text-gray-400 mb-4">
-                    Create quantity-based bundles to offer special pricing
-                  </p>
-                  <Link to={`/products/${id}/edit`}>
-                    <Button>
-                      <PencilIcon className="h-4 w-4 mr-2" />
-                      Add Bundle Variants
-                    </Button>
-                  </Link>
-                </div>
-              )}
-
-              {/* Info box */}
-              {bundleVariants.length > 0 && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <h4 className="text-sm font-semibold text-blue-900 mb-2">Bundle Variants Summary</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-blue-800">
-                    <div>
-                      <span className="font-medium">Total Bundles:</span>
-                      <span className="ml-2">{bundleVariants.length}</span>
-                    </div>
-                    <div>
-                      <span className="font-medium">Active Bundles:</span>
-                      <span className="ml-2">{bundleVariants.filter((v: ProductBundleVariant) => v.is_active).length}</span>
-                    </div>
-                    <div>
-                      <span className="font-medium">Best Savings:</span>
-                      <span className="ml-2">
-                        {Math.max(...bundleVariants.map((v: ProductBundleVariant) => {
-                          const original = parseFloat(product.price) * v.quantity;
-                          const bundle = v.calculated_price || 0;
-                          return original > 0 ? Math.round(((original - bundle) / original) * 100) : 0;
-                        }), 0)}%
-                      </span>
-                    </div>
-                  </div>
+                <div className="text-center py-16 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
+                  <Squares2X2Icon className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                  <p className="text-gray-500 font-medium">No bundle variants</p>
+                  <p className="text-sm text-gray-400 mt-1">Create quantity-based bundles for special pricing</p>
                 </div>
               )}
             </div>
-          </div>
-        )}
+          )}
 
-        {activeTab === 'analytics' && analytics && (
-          <div className="p-6 bg-white rounded-lg">
+          {/* ANALYTICS TAB */}
+          {activeTab === 'analytics' && analytics && (
             <div className="space-y-6">
-              <h3 className="text-lg font-medium text-gray-900">Performance Analytics</h3>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <div className="flex items-center">
-                    <div className="p-2 bg-blue-100 rounded-lg">
-                      <CurrencyRupeeIcon className="h-6 w-6 text-blue-600" />
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {[
+                  { label: 'Total Revenue', value: formatCurrency(analytics.sales_data?.total_revenue || 0), icon: CurrencyRupeeIcon, color: 'bg-blue-50 text-blue-600' },
+                  { label: 'Units Sold', value: analytics.sales_data?.total_sold || 0, icon: ShoppingBagIcon, color: 'bg-green-50 text-green-600' },
+                  { label: 'Avg Rating', value: analytics.performance_metrics?.average_rating?.toFixed(1) || '0', icon: StarIcon, color: 'bg-yellow-50 text-yellow-600' },
+                ].map((stat) => (
+                  <div key={stat.label} className="bg-gray-50 rounded-xl p-4 flex items-center gap-4">
+                    <div className={`p-3 rounded-xl ${stat.color}`}>
+                      <stat.icon className="h-6 w-6" />
                     </div>
-                    <div className="ml-4">
-                      <p className="text-sm font-medium text-gray-500">Total Revenue</p>
-                      <p className="text-2xl font-bold text-gray-900">
-                        {formatCurrency(analytics.sales_data?.total_revenue || 0)}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <div className="flex items-center">
-                    <div className="p-2 bg-green-100 rounded-lg">
-                      <ChartBarIcon className="h-6 w-6 text-green-600" />
-                    </div>
-                    <div className="ml-4">
-                      <p className="text-sm font-medium text-gray-500">Total Sold</p>
-                      <p className="text-2xl font-bold text-gray-900">
-                        {analytics.sales_data?.total_sold || 0}
-                      </p>
+                    <div>
+                      <p className="text-sm text-gray-500">{stat.label}</p>
+                      <p className="text-xl font-bold text-gray-900">{stat.value}</p>
                     </div>
                   </div>
-                </div>
-
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <div className="flex items-center">
-                    <div className="p-2 bg-yellow-100 rounded-lg">
-                      <StarIcon className="h-6 w-6 text-yellow-600" />
-                    </div>
-                    <div className="ml-4">
-                      <p className="text-sm font-medium text-gray-500">Avg Rating</p>
-                      <p className="text-2xl font-bold text-gray-900">
-                        {analytics.performance_metrics?.average_rating || 0}
-                      </p>
-                    </div>
-                  </div>
-                </div>
+                ))}
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <h4 className="text-md font-medium text-gray-900 mb-3">Performance Metrics</h4>
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-600">View Count</span>
-                      <span className="text-sm font-medium">{analytics.performance_metrics?.view_count || 0}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-600">Conversion Rate</span>
-                      <span className="text-sm font-medium">{analytics.performance_metrics?.conversion_rate || 0}%</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-600">Wishlist Count</span>
-                      <span className="text-sm font-medium">{analytics.performance_metrics?.wishlist_count || 0}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-600">Return Rate</span>
-                      <span className="text-sm font-medium">{analytics.performance_metrics?.return_rate || 0}%</span>
-                    </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <Card title="Performance Metrics" icon={ChartBarIcon}>
+                  <div className="space-y-3">
+                    {[
+                      { label: 'Views', value: analytics.performance_metrics?.view_count || 0 },
+                      { label: 'Conversion', value: `${analytics.performance_metrics?.conversion_rate || 0}%` },
+                      { label: 'Wishlist', value: analytics.performance_metrics?.wishlist_count || 0 },
+                      { label: 'Return Rate', value: `${analytics.performance_metrics?.return_rate || 0}%` },
+                    ].map((metric) => (
+                      <div key={metric.label} className="flex items-center justify-between">
+                        <span className="text-sm text-gray-500">{metric.label}</span>
+                        <span className="text-sm font-semibold text-gray-900">{metric.value}</span>
+                      </div>
+                    ))}
                   </div>
-                </div>
+                </Card>
 
-                <div>
-                  <h4 className="text-md font-medium text-gray-900 mb-3">Inventory Levels</h4>
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-600">Current Stock</span>
-                      <span className="text-sm font-medium">{analytics.inventory_levels?.current_stock || 0}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-600">Reserved Stock</span>
-                      <span className="text-sm font-medium">{analytics.inventory_levels?.reserved_stock || 0}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-600">Available Stock</span>
-                      <span className="text-sm font-medium">{analytics.inventory_levels?.available_stock || 0}</span>
-                    </div>
+                <Card title="Inventory Levels" icon={CubeIcon}>
+                  <div className="space-y-3">
+                    {[
+                      { label: 'Current Stock', value: analytics.inventory_levels?.current_stock || 0 },
+                      { label: 'Reserved', value: analytics.inventory_levels?.reserved_stock || 0 },
+                      { label: 'Available', value: analytics.inventory_levels?.available_stock || 0 },
+                    ].map((item) => (
+                      <div key={item.label} className="flex items-center justify-between">
+                        <span className="text-sm text-gray-500">{item.label}</span>
+                        <span className="text-sm font-semibold text-gray-900">{item.value}</span>
+                      </div>
+                    ))}
                   </div>
-                </div>
+                </Card>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {activeTab === 'reviews' && (
-          <div className="p-6 bg-white rounded-lg">
+          {activeTab === 'analytics' && !analytics && (
+            <div className="text-center py-16 text-gray-500">
+              <ChartBarIcon className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+              <p>No analytics data available</p>
+            </div>
+          )}
+
+          {/* REVIEWS TAB */}
+          {activeTab === 'reviews' && (
             <div className="space-y-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-medium text-gray-900">Customer Reviews</h3>
-                <div className="flex items-center space-x-2">
-                  <StarIcon className="h-5 w-5 text-yellow-400 fill-current" />
-                  <span className="text-lg font-semibold">{product.rating || 0}/5</span>
-                  <span className="text-sm text-gray-500">({product.reviews_count || 0} reviews)</span>
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <div className="flex">
+                    {[...Array(5)].map((_, i) => (
+                      <StarIcon key={i} className={`h-5 w-5 ${i < (product.rating || 0) ? 'text-yellow-400 fill-current' : 'text-gray-300'}`} />
+                    ))}
+                  </div>
+                  <span className="text-lg font-bold text-gray-900">{product.rating || 0}/5</span>
                 </div>
+                <span className="text-gray-500">({product.reviews_count || 0} reviews)</span>
               </div>
 
               {product.reviews && product.reviews.length > 0 ? (
                 <div className="space-y-4">
                   {product.reviews.map((review: any) => (
-                    <div key={review.id} className="border rounded-lg p-4">
+                    <div key={review.id} className="border border-gray-200 rounded-xl p-4">
                       <div className="flex items-start justify-between">
                         <div>
-                          <div className="flex items-center">
+                          <div className="flex items-center gap-3">
                             <span className="font-medium text-gray-900">{review.user?.name || 'Anonymous'}</span>
-                            <div className="ml-4 flex items-center">
+                            <div className="flex">
                               {[...Array(5)].map((_, i) => (
-                                <StarIcon
-                                  key={i}
-                                  className={`h-4 w-4 ${i < review.rating ? 'text-yellow-400 fill-current' : 'text-gray-300'
-                                    }`}
-                                />
+                                <StarIcon key={i} className={`h-4 w-4 ${i < review.rating ? 'text-yellow-400 fill-current' : 'text-gray-300'}`} />
                               ))}
                             </div>
                           </div>
-                          <p className="mt-2 text-sm text-gray-700">{review.comment}</p>
-                          <p className="mt-2 text-xs text-gray-500">
-                            {format(new Date(review.created_at), 'PPP')}
-                          </p>
+                          <p className="text-sm text-gray-600 mt-2">{review.comment}</p>
+                          <p className="text-xs text-gray-400 mt-2">{format(new Date(review.created_at), 'MMM dd, yyyy')}</p>
                         </div>
-                        <Badge variant={review.status === 'approved' ? 'success' : 'warning'}>
+                        <Badge variant={review.status === 'approved' ? 'success' : 'warning'} size="sm">
                           {review.status}
                         </Badge>
                       </div>
@@ -1083,64 +759,56 @@ const ProductDetail: React.FC = () => {
                   ))}
                 </div>
               ) : (
-                <p className="text-center text-gray-500 py-8">No reviews yet</p>
+                <div className="text-center py-12 text-gray-500">
+                  <StarIcon className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                  <p>No reviews yet</p>
+                </div>
               )}
             </div>
-          </div>
-        )}
+          )}
 
-        {activeTab === 'images' && (
-          <div className="p-6 bg-white rounded-lg">
-            <div className="space-y-6">
-              <h3 className="text-lg font-medium text-gray-900">Product Images</h3>
-
-              <div>
-                {product.images && product.images.length > 0 ? (
-                  <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-3">
-                    {product.images.map((image: any, index: number) => (
-                      <div
-                        key={image.id}
-                        className={`relative group bg-white rounded-xl overflow-hidden border-2 transition-all duration-200 hover:shadow-md ${image.is_primary ? 'border-blue-400 ring-2 ring-blue-100' : 'border-gray-200 hover:border-gray-300'
-                          }`}
-                      >
-                        {/* Image Container */}
-                        <div className="relative aspect-[9/16] bg-gray-50 p-2 flex items-center justify-center">
-                          <img
-                            src={getFullImageUrl(image.image_url) || getFullImageUrl(image.url) || '/placeholder-image.png'}
-                            alt={image.alt_text || image.alt || product.name}
-                            className="w-full h-full object-contain rounded-lg"
-                            onError={(e) => {
-                              e.currentTarget.src = '/placeholder-image.png';
-                            }}
-                          />
-
-                          {/* Primary Badge */}
-                          {image.is_primary && (
-                            <div className="absolute top-2 left-2 px-2.5 py-1 bg-blue-500 text-white text-xs font-semibold rounded-md shadow-sm flex items-center gap-1">
-                              <StarIcon className="w-3 h-3" />
-                              Primary
-                            </div>
-                          )}
-
-                          {/* Image Number Badge */}
-                          <div className="absolute top-2 right-2 w-6 h-6 bg-gray-900/70 text-white text-xs font-medium rounded-full flex items-center justify-center">
-                            {index + 1}
-                          </div>
-                        </div>
+          {/* IMAGES TAB */}
+          {activeTab === 'images' && (
+            <div className="space-y-4">
+              {product.images && product.images.length > 0 ? (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                  {product.images.map((image: any, index: number) => (
+                    <div
+                      key={image.id}
+                      className={`relative group rounded-xl overflow-hidden border-2 transition-all ${
+                        image.is_primary ? 'border-blue-400 shadow-md' : 'border-gray-200'
+                      }`}
+                    >
+                      <div className="aspect-square bg-gray-50 p-2">
+                        <img
+                          src={getFullImageUrl(image.image_url) || '/placeholder-image.png'}
+                          alt={image.alt_text || product.name}
+                          className="w-full h-full object-contain rounded-lg"
+                          onError={(e) => { e.currentTarget.src = '/placeholder-image.png'; }}
+                        />
                       </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-12 bg-gray-50 rounded-lg">
-                    <PhotoIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-500">No images uploaded</p>
-                  </div>
-                )}
-              </div>
+                      {image.is_primary && (
+                        <div className="absolute top-2 left-2 px-2 py-0.5 bg-blue-500 text-white text-xs font-medium rounded-md flex items-center gap-1">
+                          <StarIcon className="h-3 w-3" />
+                          Primary
+                        </div>
+                      )}
+                      <div className="absolute top-2 right-2 w-6 h-6 bg-gray-900/70 text-white text-xs font-medium rounded-full flex items-center justify-center">
+                        {index + 1}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-16 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
+                  <PhotoIcon className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                  <p className="text-gray-500">No images uploaded</p>
+                </div>
+              )}
             </div>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      </Card>
     </div>
   );
 };

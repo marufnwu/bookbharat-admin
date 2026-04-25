@@ -41,6 +41,7 @@ import {
   Gift,
   LucideIcon,
   Lock,
+  Calendar,
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 
@@ -75,6 +76,7 @@ const navigation: NavigationItem[] = [
     icon: Tag,
     children: [
       { name: 'Products', href: '/products', icon: ShoppingBag },
+      { name: 'Preorders', href: '/preorders', icon: Calendar },
       { name: 'Categories', href: '/categories', icon: FolderOpen },
       { name: 'Publishers', href: '/publishers', icon: BookOpen },
       { name: 'Reviews', href: '/reviews', icon: Star },

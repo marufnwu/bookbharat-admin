@@ -14,6 +14,7 @@ import {
   CheckCircleIcon,
   XCircleIcon,
   ArrowPathIcon,
+  CalendarIcon,
 } from '@heroicons/react/24/outline';
 import { productsApi, categoriesApi, brandsApi } from '../../api';
 import { Table, Button, Input, Badge, LoadingSpinner, Card, CardContent, StatusBadge } from '../../components';
@@ -193,6 +194,43 @@ const ProductList: React.FC = () => {
     );
   };
 
+  const getPreorderBadge = (product: Product) => {
+    if (!product.is_preorder) return null;
+
+    return (
+      <div className="flex items-center gap-1">
+        <Badge variant="purple" size="sm" icon={<CalendarIcon className="h-3 w-3" />}>
+          Preorder
+        </Badge>
+        {product.release_date && (
+          <span className="text-xs text-purple-600">
+            {new Date(product.release_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+          </span>
+        )}
+      </div>
+    );
+  };
+
+  const getStockDisplay = (product: Product) => {
+    if (!product.manage_stock) {
+      return <span className="text-gray-400 text-xs">Not managed</span>;
+    }
+    const qty = product.stock_quantity || 0;
+    const reserved = product.reserved_quantity || 0;
+    const available = qty - reserved;
+
+    return (
+      <div className="text-right">
+        <span className={`text-sm font-medium ${qty === 0 ? 'text-red-600' : qty < 10 ? 'text-amber-600' : 'text-gray-900'}`}>
+          {qty} in stock
+        </span>
+        {reserved > 0 && (
+          <div className="text-xs text-purple-500">{reserved} reserved</div>
+        )}
+      </div>
+    );
+  };
+
   const getRatingStars = (rating: number) => {
     const numericRating = Number(rating) || 0;
 
@@ -259,6 +297,7 @@ const ProductList: React.FC = () => {
               {record.is_featured && (
                 <Badge variant="warning" size="sm">Featured</Badge>
               )}
+              {getPreorderBadge(record)}
             </div>
             <div className="text-sm text-gray-500 truncate max-w-[200px] sm:max-w-[300px]">SKU: {record.sku}</div>
             <div className="flex items-center flex-wrap gap-1 mt-1">
@@ -301,6 +340,11 @@ const ProductList: React.FC = () => {
       title: 'Status',
       sortable: true,
       render: (value) => getStatusBadge(value),
+    },
+    {
+      key: 'stock',
+      title: 'Stock',
+      render: (_, record) => getStockDisplay(record),
     },
     {
       key: 'actions',
@@ -562,6 +606,7 @@ const ProductList: React.FC = () => {
                           {product.is_featured && (
                             <Badge variant="warning" size="sm">Featured</Badge>
                           )}
+                          {getPreorderBadge(product)}
                         </div>
                         <p className="text-xs text-gray-500 mt-0.5">SKU: {product.sku}</p>
                       </div>
@@ -582,6 +627,13 @@ const ProductList: React.FC = () => {
                       </div>
                       {getStockBadge(product.stock_quantity || 0, product.manage_stock || false)}
                     </div>
+
+                    {/* Preorder Info for Mobile */}
+                    {product.is_preorder && (
+                      <div className="mt-2 flex items-center gap-2">
+                        {getPreorderBadge(product)}
+                      </div>
+                    )}
 
                     {/* Category & Free Shipping */}
                     <div className="mt-2 flex items-center flex-wrap gap-1">
