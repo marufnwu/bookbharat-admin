@@ -176,7 +176,10 @@ const OrderDetail: React.FC = () => {
   // Generate label mutation
   const generateLabelMutation = useMutation({
     mutationFn: async () => {
-      const response = await api.post(`/shipping/multi-carrier/shipments/${shipment?.id}/generate-label`);
+      if (!shipment?.id) {
+        throw new Error('No shipment found. Please create a shipment first.');
+      }
+      const response = await api.post(`/shipping/multi-carrier/shipments/${shipment.id}/generate-label`);
       return response.data;
     },
     onSuccess: (data: any) => {
@@ -328,6 +331,41 @@ const OrderDetail: React.FC = () => {
     } catch (error) {
       console.error('Download error:', error);
       toast.error('Failed to download packing slip');
+    }
+  };
+
+  const handleDownloadShippingLabel = async () => {
+    try {
+      if (!shipment?.label_url) {
+        toast.error('No label available to download');
+        return;
+      }
+
+      const loadingToast = toast.loading('Preparing shipping label...');
+      const token = useAuthStore.getState().token;
+
+      const response = await fetch(shipment.label_url, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to download shipping label');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `shipping-label-${shipment.tracking_number || id}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      toast.success('Shipping label downloaded successfully!', { id: loadingToast });
+    } catch (error) {
+      console.error('Download error:', error);
+      toast.error('Failed to download shipping label');
     }
   };
 
@@ -814,7 +852,7 @@ const OrderDetail: React.FC = () => {
                         <Button
                           variant="primary"
                           size="sm"
-                          onClick={() => window.open(shipment.label_url, '_blank')}
+                          onClick={handleDownloadShippingLabel}
                         >
                           <Download className="h-4 w-4 mr-2" />
                           Download Shipping Label

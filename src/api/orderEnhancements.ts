@@ -64,14 +64,10 @@ export const orderEnhancementsApi = {
 
   // PDF Generation
   getInvoicePdfUrl: (orderId: number) => {
-    const token = useAuthStore.getState().token; // Use auth store instead of localStorage
-    const baseUrl = `${api.defaults.baseURL}${ORDER_ENHANCEMENTS_BASE}/${orderId}/invoice/pdf`;
-    return token ? `${baseUrl}?token=${token}` : baseUrl;
+    return `${api.defaults.baseURL}${ORDER_ENHANCEMENTS_BASE}/${orderId}/invoice/pdf`;
   },
 
   getPackingSlipPdfUrl: (orderId: number) => {
-    const token = useAuthStore.getState().token; // Use auth store instead of localStorage
-    const baseUrl = `${api.defaults.baseURL}${ORDER_ENHANCEMENTS_BASE}/${orderId}/packing-slip/pdf`;
-    return token ? `${baseUrl}?token=${token}` : baseUrl;
+    return `${api.defaults.baseURL}${ORDER_ENHANCEMENTS_BASE}/${orderId}/packing-slip/pdf`;
   },
 };
