@@ -271,8 +271,10 @@ const OrderDetail: React.FC = () => {
   };
 
   const handleDownloadInvoice = async () => {
+    let loadingToast: string | number | undefined;
+
     try {
-      const loadingToast = toast.loading('Preparing invoice download...');
+      loadingToast = toast.loading('Preparing invoice download...');
       
       const token = useAuthStore.getState().token;
       const baseUrl = orderEnhancementsApi.getInvoicePdfUrl(Number(id));
@@ -298,7 +300,7 @@ const OrderDetail: React.FC = () => {
       toast.success('Invoice downloaded successfully!', { id: loadingToast });
     } catch (error) {
       console.error('Download error:', error);
-      toast.error('Failed to download invoice');
+      toast.error('Failed to download invoice', { id: loadingToast as string | undefined });
     }
   };
 
