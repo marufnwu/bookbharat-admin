@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { RefreshCw, Eye, Send, CheckCircle, Clock, AlertTriangle, Pause, AlertCircle, Loader2, Trash2, RotateCcw } from 'lucide-react';
+import { RefreshCw, Eye, Send, CheckCircle, Clock, AlertTriangle, Pause, AlertCircle, Loader2, Trash2, RotateCcw, MessageSquare, ExternalLink, ChevronDown, Search } from 'lucide-react';
 import { api } from '../../api/axios';
 import { toast } from 'react-hot-toast';
 
@@ -35,6 +35,11 @@ const WhatsAppTemplates: React.FC = () => {
   const [selectedTemplate, setSelectedTemplate] = useState<WhatsAppTemplate | null>(null);
   const [testPhone, setTestPhone] = useState('');
   const [testData, setTestData] = useState('');
+  const [orders, setOrders] = useState<any[]>([]);
+  const [selectedOrder, setSelectedOrder] = useState<any>(null);
+  const [loadingOrders, setLoadingOrders] = useState(false);
+  const [orderSearch, setOrderSearch] = useState('');
+  const [showOrderDropdown, setShowOrderDropdown] = useState(false);
 
   useEffect(() => {
     loadTemplates();
@@ -60,6 +65,47 @@ const WhatsAppTemplates: React.FC = () => {
       setStats(response.data.statistics);
     } catch (error) {
       console.error('Failed to load stats:', error);
+    }
+  };
+
+  const loadOrders = async (search: string = '') => {
+    setLoadingOrders(true);
+    try {
+      const response = await api.get('/orders', {
+        params: {
+          search: search,
+          per_page: 20,
+        }
+      });
+      // Handle the nested response structure from the existing orders API
+      const ordersData = response.data?.data || response.data?.orders || response.data || [];
+      setOrders(Array.isArray(ordersData) ? ordersData.slice(0, 20) : []);
+    } catch (error) {
+      console.error('Failed to load orders:', error);
+      setOrders([]);
+    } finally {
+      setLoadingOrders(false);
+    }
+  };
+
+  const handleOrderSelect = (order: any) => {
+    setSelectedOrder(order);
+    setTestPhone(order.customer_phone || order.user?.phone || '');
+    setShowOrderDropdown(false);
+    setOrderSearch('');
+
+    // Auto-fill test data based on order and event type
+    if (selectedTemplate) {
+      const eventType = selectedTemplate.event_type;
+      const sampleData: Record<string, any> = {
+        login_otp: { name: order.customer_name || order.user?.name || 'Test User', otp: '123456', order_id: order.order_number },
+        cart_recovery: { name: order.customer_name || order.user?.name || 'Test User', items_count: '3', cart_value: order.total_amount, recovery_url: `https://bookbharat.com/cart/recover?token=${order.id}` },
+        order_placed: { customer_name: order.customer_name || order.user?.name || 'Customer', order_number: order.order_number, amount: order.total_amount, order_id: order.order_number },
+        order_shipped: { customer_name: order.customer_name || order.user?.name || 'Customer', order_number: order.order_number, carrier: order.courier_partner || 'BlueDart', tracking_number: order.tracking_number || 'TRK123456', delivery_date: 'Monday', order_id: order.order_number },
+        order_delivered: { order_number: order.order_number, order_id: order.order_number },
+        payment_failed: { customer_name: order.customer_name || order.user?.name || 'Customer', order_number: order.order_number, amount: order.total_amount, payment_method: order.payment_method || 'Card' },
+      };
+      setTestData(JSON.stringify(sampleData[eventType] || {}, null, 2));
     }
   };
 
@@ -103,6 +149,32 @@ const WhatsAppTemplates: React.FC = () => {
   };
 
   const testTemplate = async (template: WhatsAppTemplate) => {
+    // If order is selected, use the sendForOrder endpoint
+    if (selectedOrder) {
+      try {
+        const orderId = selectedOrder.id || selectedOrder.order_id;
+        const response = await api.post(
+          `/settings/messaging/whatsapp/orders/${orderId}/send`,
+          {
+            event_type: template.event_type,
+            phone: testPhone || selectedOrder.customer_phone || (selectedOrder.user as any)?.phone,
+          }
+        );
+
+        if (response.data.success) {
+          toast.success('Message sent successfully!');
+          setSelectedTemplate(null);
+          setSelectedOrder(null);
+        } else {
+          toast.error(response.data.message);
+        }
+      } catch (error: any) {
+        toast.error(error.response?.data?.message || 'Failed to send message');
+      }
+      return;
+    }
+
+    // Fallback to manual test send
     if (!testPhone.trim()) {
       toast.error('Please enter a phone number');
       return;
@@ -129,6 +201,10 @@ const WhatsAppTemplates: React.FC = () => {
     }
   };
 
+  const isOrderTemplate = (eventType: string) => {
+    return ['order_placed', 'order_shipped', 'order_delivered', 'order_cancelled'].includes(eventType);
+  };
+
   const getStatusBadge = (status: string) => {
     const configs: Record<string, { bg: string, text: string, icon: React.ReactNode }> = {
       APPROVED: { bg: 'bg-green-100', text: 'text-green-800', icon: <CheckCircle className="w-3 h-3 mr-1" /> },
@@ -153,39 +229,39 @@ const WhatsAppTemplates: React.FC = () => {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-900">WhatsApp Templates</h1>
         <div className="flex gap-2">
-            <button
-                onClick={async () => {
-                    if (!window.confirm('This will create all missing templates in your Meta account. Continue?')) return;
-                    setSyncing(true); // Re-use loading state
-                    try {
-                        const response = await api.post('/settings/messaging/whatsapp/bulk-create');
-                        if (response.data.success) {
-                             toast.success(response.data.message);
-                             loadTemplates();
-                             loadStats();
-                        } else {
-                            toast.error(response.data.message);
-                        }
-                    } catch (error: any) {
-                        toast.error(error.response?.data?.message || 'Bulk create failed');
-                    } finally {
-                        setSyncing(false);
-                    }
-                }}
-                disabled={syncing}
-                className="inline-flex items-center px-4 py-2 border border-blue-600 text-sm font-medium rounded-md shadow-sm text-blue-600 bg-white hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-            >
-                {syncing ? <Loader2 className="animate-spin -ml-1 mr-2 h-4 w-4" /> : <Send className="-ml-1 mr-2 h-4 w-4" />}
-                Create All Missing
-            </button>
-            <button
+          <button
+            onClick={async () => {
+              if (!window.confirm('This will create all missing templates in your Meta account. Continue?')) return;
+              setSyncing(true); // Re-use loading state
+              try {
+                const response = await api.post('/settings/messaging/whatsapp/bulk-create');
+                if (response.data.success) {
+                  toast.success(response.data.message);
+                  loadTemplates();
+                  loadStats();
+                } else {
+                  toast.error(response.data.message);
+                }
+              } catch (error: any) {
+                toast.error(error.response?.data?.message || 'Bulk create failed');
+              } finally {
+                setSyncing(false);
+              }
+            }}
+            disabled={syncing}
+            className="inline-flex items-center px-4 py-2 border border-blue-600 text-sm font-medium rounded-md shadow-sm text-blue-600 bg-white hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+          >
+            {syncing ? <Loader2 className="animate-spin -ml-1 mr-2 h-4 w-4" /> : <Send className="-ml-1 mr-2 h-4 w-4" />}
+            Create All Missing
+          </button>
+          <button
             onClick={syncTemplates}
             disabled={syncing}
             className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-            >
+          >
             {syncing ? <Loader2 className="animate-spin -ml-1 mr-2 h-4 w-4" /> : <RefreshCw className="-ml-1 mr-2 h-4 w-4" />}
             {syncing ? 'Syncing...' : 'Sync Status from Meta'}
-            </button>
+          </button>
         </div>
       </div>
 
@@ -289,12 +365,12 @@ const WhatsAppTemplates: React.FC = () => {
                             onClick={() => {
                               setSelectedTemplate(template);
                               const sampleData: Record<string, any> = {
-                                login_otp: { name: 'Test User', otp: '123456' },
-                                cart_recovery: { name: 'Test User', items_count: '3', cart_value: '599' },
-                                order_placed: { customer_name: 'Test User', order_number: 'ORD-123', total_amount: '999' },
-                                order_shipped: { customer_name: 'Test User', order_number: 'ORD-123', courier_name: 'BlueDart', tracking_number: 'TRK123456', estimated_delivery: 'Monday' },
-                                order_delivered: { customer_name: 'Test User', order_number: 'ORD-123' },
-                                payment_failed: { customer_name: 'Test User', order_number: 'ORD-123', amount: '999', failure_reason: 'Bank declined' },
+                                login_otp: { name: 'Test User', otp: '123456', order_id: 'ORD-123' },
+                                cart_recovery: { name: 'Test User', items_count: '3', cart_value: '599', recovery_url: 'https://bookbharat.com/cart/recover?token=abc123' },
+                                order_placed: { customer_name: 'Test User', order_number: 'ORD-123', amount: '999', order_id: 'ORD-123' },
+                                order_shipped: { customer_name: 'Test User', order_number: 'ORD-123', carrier: 'BlueDart', tracking_number: 'TRK123456', delivery_date: 'Monday', order_id: 'ORD-123' },
+                                order_delivered: { order_number: 'ORD-123', order_id: 'ORD-123' },
+                                payment_failed: { customer_name: 'Test User', order_number: 'ORD-123', amount: '999', payment_method: 'Card' },
                               };
                               setTestData(JSON.stringify(sampleData[template.event_type] || {}, null, 2));
                             }}
@@ -374,7 +450,7 @@ const WhatsAppTemplates: React.FC = () => {
                     <h3 className="text-lg leading-6 font-bold text-gray-900 mb-4" id="modal-title">
                       {selectedTemplate.template_name}
                     </h3>
-                    
+
                     <div className="space-y-4">
                       <div>
                         <label className="text-xs font-semibold text-gray-500 uppercase">Status</label>
@@ -388,33 +464,187 @@ const WhatsAppTemplates: React.FC = () => {
                         </div>
                       </div>
 
+                      {/* WhatsApp Message Preview */}
+                      <div>
+                        <label className="text-xs font-semibold text-gray-500 uppercase mb-2 block">Preview</label>
+                        <div className="bg-[#ECE5DD] rounded-lg p-3 max-w-[280px]">
+                          {/* WhatsApp Header */}
+                          {selectedTemplate.components?.find((c: any) => c.type === 'HEADER') && (
+                            <div className="bg-[#00A884] text-white text-xs p-2 rounded-t-lg font-medium">
+                              {selectedTemplate.components.find((c: any) => c.type === 'HEADER')?.text || 'BookBharat'}
+                            </div>
+                          )}
+
+                          {/* Message Bubble */}
+                          <div className="bg-white rounded-lg p-3 shadow-sm">
+                            {/* Header */}
+                            {selectedTemplate.components?.find((c: any) => c.type === 'HEADER')?.format === 'TEXT' && (
+                              <h4 className="font-semibold text-gray-800 mb-1 text-sm">
+                                {selectedTemplate.components.find((c: any) => c.type === 'HEADER')?.text}
+                              </h4>
+                            )}
+
+                            {/* Body */}
+                            <p className="text-sm text-gray-800 whitespace-pre-wrap">
+                              {selectedTemplate.components?.find((c: any) => c.type === 'BODY')?.text?.replace(/\{\{(\d+)\}\}/g, '{{$1}}')}
+                            </p>
+
+                            {/* Footer */}
+                            {selectedTemplate.components?.find((c: any) => c.type === 'FOOTER') && (
+                              <p className="text-xs text-gray-400 mt-2">
+                                {selectedTemplate.components.find((c: any) => c.type === 'FOOTER')?.text}
+                              </p>
+                            )}
+
+                            {/* Buttons */}
+                            {selectedTemplate.components?.find((c: any) => c.type === 'BUTTONS')?.buttons && (
+                              <div className="mt-3 space-y-2">
+                                {selectedTemplate.components.find((c: any) => c.type === 'BUTTONS').buttons.map((button: any, idx: number) => (
+                                  button.type === 'URL' ? (
+                                    <a
+                                      key={idx}
+                                      href={button.url?.replace(/\{\{(\d+)\}\}/g, '{{$1}}')}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="flex items-center justify-center gap-2 bg-[#00A884] text-white text-xs font-medium py-2 px-3 rounded cursor-pointer hover:bg-[#008069] transition-colors"
+                                    >
+                                      {button.text}
+                                      <ExternalLink className="w-3 h-3" />
+                                    </a>
+                                  ) : button.type === 'COPY_CODE' ? (
+                                    <button
+                                      key={idx}
+                                      className="flex items-center justify-center gap-2 bg-[#00A884] text-white text-xs font-medium py-2 px-3 rounded w-full cursor-pointer hover:bg-[#008069] transition-colors"
+                                      onClick={() => toast.success('OTP copied to clipboard!')}
+                                    >
+                                      <span className="flex-1">{button.text}</span>
+                                      <span className="text-[10px] opacity-75">[TAP TO COPY]</span>
+                                    </button>
+                                  ) : (
+                                    <div
+                                      key={idx}
+                                      className="flex items-center justify-center gap-2 bg-[#00A884] text-white text-xs font-medium py-2 px-3 rounded"
+                                    >
+                                      {button.text}
+                                    </div>
+                                  )
+                                ))}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Sample Data Note */}
+                          <div className="text-[10px] text-gray-500 mt-2 text-center">
+                            <span>{'{{'}customer_name{'}}'} = Test User</span>
+                            <br />
+                            <span>{'{{'}order_number{'}}'} = ORD-123</span>
+                          </div>
+                        </div>
+                      </div>
+
                       {selectedTemplate.status === 'APPROVED' && (
                         <div className="border-t border-gray-200 pt-4 mt-4">
                           <h4 className="font-medium text-gray-900 mb-2">Test Send</h4>
                           <div className="space-y-3">
-                             <div>
-                               <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
-                               <input 
-                                 type="text" 
-                                 className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"
-                                 placeholder="+919876543210"
-                                 value={testPhone}
-                                 onChange={(e) => setTestPhone(e.target.value)}
-                               />
-                               <p className="mt-1 text-xs text-gray-500">Include country code</p>
-                             </div>
-                             <div>
-                               <label className="block text-sm font-medium text-gray-700 mb-1">Variables (JSON)</label>
-                               <textarea
-                                 rows={4}
-                                 className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm font-mono focus:ring-blue-500 focus:border-blue-500"
-                                 value={testData}
-                                 onChange={(e) => setTestData(e.target.value)}
-                               />
-                               <p className="mt-1 text-xs text-gray-500">
-                                 Required params: {Object.values(selectedTemplate.required_parameters?.body?.mapping || {}).join(', ')}
-                               </p>
-                             </div>
+                            {/* Order Selection Dropdown - Only for order templates */}
+                            {isOrderTemplate(selectedTemplate.event_type) && (
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                  Select Order (optional)
+                                </label>
+                                <div className="relative">
+                                  <input
+                                    type="text"
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"
+                                    placeholder="Search orders..."
+                                    value={orderSearch}
+                                    onChange={(e) => {
+                                      setOrderSearch(e.target.value);
+                                      setShowOrderDropdown(true);
+                                      loadOrders(e.target.value);
+                                    }}
+                                    onFocus={() => {
+                                      setShowOrderDropdown(true);
+                                      loadOrders();
+                                    }}
+                                  />
+                                  {selectedOrder && (
+                                    <div className="mt-1 p-2 bg-green-50 border border-green-200 rounded text-sm">
+                                      <span className="font-medium">{selectedOrder.order_number}</span>
+                                      <span className="text-gray-500 ml-2">- {selectedOrder.customer_name}</span>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setSelectedOrder(null);
+                                          setOrderSearch('');
+                                        }}
+                                        className="ml-2 text-red-500 hover:text-red-700"
+                                      >
+                                        Clear
+                                      </button>
+                                    </div>
+                                  )}
+                                  {showOrderDropdown && (
+                                    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                                      {loadingOrders ? (
+                                        <div className="p-2 text-sm text-gray-500 flex items-center">
+                                          <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                                          Loading orders...
+                                        </div>
+                                      ) : orders.length === 0 ? (
+                                        <div className="p-2 text-sm text-gray-500">No orders found</div>
+                                      ) : (
+                                        orders.map((order) => (
+                                          <div
+                                            key={order.id}
+                                            className="px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+                                            onClick={() => handleOrderSelect(order)}
+                                          >
+                                            <div className="font-medium text-sm">{order.order_number}</div>
+                                            <div className="text-xs text-gray-500">
+                                              {order.customer_name} - ₹{order.total_amount}
+                                              <span className={`ml-2 px-1 py-0.5 rounded text-xs ${order.status === 'delivered' ? 'bg-green-100 text-green-800' :
+                                                order.status === 'shipped' ? 'bg-blue-100 text-blue-800' :
+                                                  'bg-gray-100 text-gray-800'
+                                                }`}>
+                                                {order.status}
+                                              </span>
+                                            </div>
+                                          </div>
+                                        ))
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                                <p className="mt-1 text-xs text-gray-500">Selecting an order will auto-fill the message data</p>
+                              </div>
+                            )}
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
+                              <input
+                                type="text"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"
+                                placeholder="+919876543210"
+                                value={testPhone}
+                                onChange={(e) => setTestPhone(e.target.value)}
+                              />
+                              <p className="mt-1 text-xs text-gray-500">Include country code</p>
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">Variables (JSON)</label>
+                              <textarea
+                                rows={4}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm font-mono focus:ring-blue-500 focus:border-blue-500"
+                                value={testData}
+                                onChange={(e) => setTestData(e.target.value)}
+                              />
+                              <p className="mt-1 text-xs text-gray-500">
+                                Required params: {Object.values(selectedTemplate.required_parameters?.body?.mapping || {}).join(', ')}
+                                {(selectedTemplate.required_parameters?.buttons?.count > 0) && (
+                                  <span className="block">Button URL params: {Object.keys(selectedTemplate.required_parameters?.buttons?.mapping || {}).join(', ')}</span>
+                                )}
+                              </p>
+                            </div>
                           </div>
                         </div>
                       )}

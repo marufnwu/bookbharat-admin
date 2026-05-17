@@ -17,6 +17,7 @@ import {
   XCircleIcon,
   ArrowPathIcon,
   PaperAirplaneIcon,
+  PaperAirplaneIcon as WhatsAppIcon,
 } from '@heroicons/react/24/outline';
 import { ordersApi } from '../../api';
 import { Table, Button, Badge, LoadingSpinner, Card, CardContent, StatusBadge, Modal } from '../../components';
@@ -30,6 +31,136 @@ import { MobileActionBar } from '../../components/Orders/MobileActionBar';
 import { OrderSearchWithSuggestions } from '../../components/Orders/OrderSearchWithSuggestions';
 import { KeyboardShortcutsHelp } from '../../components/Orders/KeyboardShortcutsHelp';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
+import { api } from '../../api/axios';
+import { toast } from 'react-hot-toast';
+
+// WhatsApp notification types
+type WhatsAppNotificationType = 'order_placed' | 'order_shipped' | 'order_delivered';
+
+const WHATSAPP_NOTIFICATIONS: { type: WhatsAppNotificationType; label: string; description: string; icon: string }[] = [
+  { type: 'order_placed', label: 'Order Confirmation', description: 'Send order placed notification', icon: '📦' },
+  { type: 'order_shipped', label: 'Shipping Update', description: 'Send shipment notification with tracking', icon: '🚚' },
+  { type: 'order_delivered', label: 'Delivery Confirmation', description: 'Send delivery confirmation', icon: '✅' },
+];
+
+// WhatsApp Send Modal Component
+interface WhatsAppSendModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  order: Order | null;
+  onSuccess: () => void;
+}
+
+const WhatsAppSendModal: React.FC<WhatsAppSendModalProps> = ({ isOpen, onClose, order, onSuccess }) => {
+  const [selectedNotification, setSelectedNotification] = useState<WhatsAppNotificationType | null>(null);
+  const [sending, setSending] = useState(false);
+
+  const handleSend = async () => {
+    if (!selectedNotification || !order) return;
+
+    setSending(true);
+    try {
+      const phone = (order.user as any)?.phone || (order as any).shipping_address?.phone || (order as any).shipping_address?.mobile;
+
+      if (!phone) {
+        toast.error('No phone number available for this order');
+        setSending(false);
+        return;
+      }
+
+      const response = await api.post(`/settings/messaging/whatsapp/orders/${order.id}/send`, {
+        event_type: selectedNotification,
+        phone: phone,
+      });
+
+      if (response.data.success) {
+        toast.success('WhatsApp message sent successfully!');
+        onSuccess();
+        onClose();
+      } else {
+        toast.error(response.data.message || 'Failed to send WhatsApp message');
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to send WhatsApp message');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  if (!isOpen || !order) return null;
+
+  const customerPhone = (order.user as any)?.phone || (order as any).shipping_address?.phone || (order as any).shipping_address?.mobile;
+  const customerName = (order.user as any)?.name || 'Customer';
+
+  return (
+    <Modal open={isOpen} onClose={onClose} title="Send WhatsApp Notification" size="md">
+      <div className="space-y-4">
+        <div className="bg-gray-50 rounded-lg p-3">
+          <p className="text-sm text-gray-600">Order: <span className="font-semibold">#{order.order_number}</span></p>
+          <p className="text-sm text-gray-600">Customer: <span className="font-semibold">{customerName}</span></p>
+          <p className="text-sm text-gray-600">Phone: <span className="font-semibold">{customerPhone || 'Not available'}</span></p>
+        </div>
+
+        {!customerPhone && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+            <p className="text-sm text-red-800">⚠️ No phone number available for this order. Cannot send WhatsApp message.</p>
+          </div>
+        )}
+
+        {customerPhone && (
+          <>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Select Notification Type
+              </label>
+              <div className="space-y-2">
+                {WHATSAPP_NOTIFICATIONS.map((notification) => (
+                  <button
+                    key={notification.type}
+                    onClick={() => setSelectedNotification(notification.type)}
+                    className={`w-full flex items-center gap-3 p-3 rounded-lg border-2 transition-colors ${selectedNotification === notification.type
+                      ? 'border-green-500 bg-green-50'
+                      : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                      }`}
+                  >
+                    <span className="text-2xl">{notification.icon}</span>
+                    <div className="text-left flex-1">
+                      <div className="font-medium text-gray-900">{notification.label}</div>
+                      <div className="text-sm text-gray-500">{notification.description}</div>
+                    </div>
+                    {selectedNotification === notification.type && (
+                      <CheckIcon className="h-5 w-5 text-green-600" />
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={onClose}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                className="flex-1 bg-green-600 hover:bg-green-700"
+                onClick={handleSend}
+                loading={sending}
+                disabled={!selectedNotification}
+              >
+                <PaperAirplaneIcon className="h-4 w-4 mr-2" />
+                Send Message
+              </Button>
+            </div>
+          </>
+        )}
+      </div>
+    </Modal>
+  );
+};
 
 // Order Stats Widget Component
 interface OrderStatsWidgetProps {
@@ -61,47 +192,47 @@ const OrderStatsWidget: React.FC<OrderStatsWidgetProps> = ({ stats, isLoading })
   }
 
   const statCards = [
-    { 
-      label: 'Total Orders', 
-      value: stats?.total_orders || 0, 
-      icon: Square3Stack3DIcon, 
-      color: 'text-blue-600 bg-blue-50' 
+    {
+      label: 'Total Orders',
+      value: stats?.total_orders || 0,
+      icon: Square3Stack3DIcon,
+      color: 'text-blue-600 bg-blue-50'
     },
-    { 
-      label: 'Pending', 
-      value: stats?.pending_orders || 0, 
-      icon: ClockIcon, 
-      color: 'text-yellow-600 bg-yellow-50' 
+    {
+      label: 'Pending',
+      value: stats?.pending_orders || 0,
+      icon: ClockIcon,
+      color: 'text-yellow-600 bg-yellow-50'
     },
-    { 
-      label: 'Processing', 
-      value: stats?.processing_orders || 0, 
-      icon: ArrowPathIcon, 
-      color: 'text-indigo-600 bg-indigo-50' 
+    {
+      label: 'Processing',
+      value: stats?.processing_orders || 0,
+      icon: ArrowPathIcon,
+      color: 'text-indigo-600 bg-indigo-50'
     },
-    { 
-      label: 'Shipped', 
-      value: stats?.shipped_orders || 0, 
-      icon: TruckIcon, 
-      color: 'text-purple-600 bg-purple-50' 
+    {
+      label: 'Shipped',
+      value: stats?.shipped_orders || 0,
+      icon: TruckIcon,
+      color: 'text-purple-600 bg-purple-50'
     },
-    { 
-      label: 'Delivered', 
-      value: stats?.delivered_orders || 0, 
-      icon: CheckCircleIcon, 
-      color: 'text-green-600 bg-green-50' 
+    {
+      label: 'Delivered',
+      value: stats?.delivered_orders || 0,
+      icon: CheckCircleIcon,
+      color: 'text-green-600 bg-green-50'
     },
-    { 
-      label: 'Cancelled', 
-      value: stats?.cancelled_orders || 0, 
-      icon: XCircleIcon, 
-      color: 'text-red-600 bg-red-50' 
+    {
+      label: 'Cancelled',
+      value: stats?.cancelled_orders || 0,
+      icon: XCircleIcon,
+      color: 'text-red-600 bg-red-50'
     },
-    { 
-      label: 'Revenue', 
-      value: `₹${((stats?.total_revenue || 0) / 1000).toFixed(1)}K`, 
-      icon: CurrencyDollarIcon, 
-      color: 'text-emerald-600 bg-emerald-50' 
+    {
+      label: 'Revenue',
+      value: `₹${((stats?.total_revenue || 0) / 1000).toFixed(1)}K`,
+      icon: CurrencyDollarIcon,
+      color: 'text-emerald-600 bg-emerald-50'
     },
   ];
 
@@ -150,7 +281,7 @@ const BulkActionToolbar: React.FC<BulkActionToolbarProps> = ({
         <ClipboardDocumentCheckIcon className="h-5 w-5 inline mr-2" />
         {selectedCount} order{selectedCount > 1 ? 's' : ''} selected
       </span>
-      
+
       <div className="relative">
         <button
           onClick={() => setShowStatusDropdown(!showStatusDropdown)}
@@ -161,7 +292,7 @@ const BulkActionToolbar: React.FC<BulkActionToolbarProps> = ({
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
           </svg>
         </button>
-        
+
         {showStatusDropdown && (
           <div className="absolute bottom-full mb-2 left-0 bg-white text-gray-900 rounded-lg shadow-lg border min-w-[160px]">
             {[
@@ -245,7 +376,7 @@ const PaymentStatusModal: React.FC<PaymentStatusModalProps> = ({
         <p className="text-sm text-gray-600">
           Current status: <span className="font-medium capitalize">{currentStatus}</span>
         </p>
-        
+
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
             New Payment Status
@@ -395,7 +526,7 @@ const OrderList: React.FC = () => {
     orderId: number | null;
     currentStatus: string;
   }>({ isOpen: false, orderId: null, currentStatus: '' });
-  
+
   // Status update modal state
   const [statusModal, setStatusModal] = useState<{
     isOpen: boolean;
@@ -411,6 +542,15 @@ const OrderList: React.FC = () => {
     selectedStatus: '',
     note: '',
     overrideWorkflow: false
+  });
+
+  // WhatsApp send modal state
+  const [whatsappSendModal, setWhatsappSendModal] = useState<{
+    isOpen: boolean;
+    order: Order | null;
+  }>({
+    isOpen: false,
+    order: null
   });
 
   const queryClient = useQueryClient();
@@ -587,9 +727,9 @@ const OrderList: React.FC = () => {
       refunded: <Badge variant="default" className="cursor-pointer hover:opacity-80">Refunded</Badge>,
       partially_refunded: <Badge variant="warning" className="cursor-pointer hover:opacity-80">Partial Refund</Badge>,
     };
-    
+
     const badge = badges[status as keyof typeof badges] || <Badge>{status}</Badge>;
-    
+
     if (onClick) {
       return (
         <button onClick={onClick} className="focus:outline-none" title="Click to update">
@@ -756,31 +896,41 @@ const OrderList: React.FC = () => {
   useKeyboardShortcuts([
     { key: 'j', handler: () => setHighlightedRowIndex(prev => Math.min(prev + 1, currentOrders.length - 1)), description: 'Next row' },
     { key: 'k', handler: () => setHighlightedRowIndex(prev => Math.max(prev - 1, 0)), description: 'Prev row' },
-    { key: 'Enter', handler: () => {
-      if (highlightedRowIndex >= 0 && highlightedRowIndex < currentOrders.length) {
-        setQuickViewOrderId(currentOrders[highlightedRowIndex].id);
-      }
-    }, description: 'Open quick view' },
-    { key: 'p', handler: () => {
-      if (highlightedRowIndex >= 0 && currentOrders[highlightedRowIndex]?.status === 'pending') {
-        handleStatusUpdate(currentOrders[highlightedRowIndex].id, 'processing');
-      }
-    }, description: 'Process order' },
-    { key: 's', handler: () => {
-      if (highlightedRowIndex >= 0 && currentOrders[highlightedRowIndex]?.status === 'processing') {
-        handleStatusUpdate(currentOrders[highlightedRowIndex].id, 'shipped');
-      }
-    }, description: 'Ship order' },
-    { key: 'd', handler: () => {
-      if (highlightedRowIndex >= 0 && currentOrders[highlightedRowIndex]?.status === 'shipped') {
-        handleStatusUpdate(currentOrders[highlightedRowIndex].id, 'delivered');
-      }
-    }, description: 'Mark delivered' },
-    { key: 'x', handler: () => {
-      if (highlightedRowIndex >= 0 && ['pending', 'processing'].includes(currentOrders[highlightedRowIndex]?.status)) {
-        handleStatusUpdate(currentOrders[highlightedRowIndex].id, 'cancelled');
-      }
-    }, description: 'Cancel order' },
+    {
+      key: 'Enter', handler: () => {
+        if (highlightedRowIndex >= 0 && highlightedRowIndex < currentOrders.length) {
+          setQuickViewOrderId(currentOrders[highlightedRowIndex].id);
+        }
+      }, description: 'Open quick view'
+    },
+    {
+      key: 'p', handler: () => {
+        if (highlightedRowIndex >= 0 && currentOrders[highlightedRowIndex]?.status === 'pending') {
+          handleStatusUpdate(currentOrders[highlightedRowIndex].id, 'processing');
+        }
+      }, description: 'Process order'
+    },
+    {
+      key: 's', handler: () => {
+        if (highlightedRowIndex >= 0 && currentOrders[highlightedRowIndex]?.status === 'processing') {
+          handleStatusUpdate(currentOrders[highlightedRowIndex].id, 'shipped');
+        }
+      }, description: 'Ship order'
+    },
+    {
+      key: 'd', handler: () => {
+        if (highlightedRowIndex >= 0 && currentOrders[highlightedRowIndex]?.status === 'shipped') {
+          handleStatusUpdate(currentOrders[highlightedRowIndex].id, 'delivered');
+        }
+      }, description: 'Mark delivered'
+    },
+    {
+      key: 'x', handler: () => {
+        if (highlightedRowIndex >= 0 && ['pending', 'processing'].includes(currentOrders[highlightedRowIndex]?.status)) {
+          handleStatusUpdate(currentOrders[highlightedRowIndex].id, 'cancelled');
+        }
+      }, description: 'Cancel order'
+    },
     { key: '1', handler: () => handleFilterChange('status', ''), description: 'Tab: All' },
     { key: '2', handler: () => handleFilterChange('status', 'pending'), description: 'Tab: Pending' },
     { key: '3', handler: () => handleFilterChange('status', 'processing'), description: 'Tab: Processing' },
@@ -790,10 +940,12 @@ const OrderList: React.FC = () => {
     { key: '7', handler: () => handleFilterChange('status', 'delivered'), description: 'Tab: Delivered' },
     { key: '8', handler: () => handleFilterChange('status', 'cancelled'), description: 'Tab: Cancelled' },
     { key: 'e', handler: handleExport, description: 'Export' },
-    { key: '/', handler: () => {
-      const input = document.querySelector('input[placeholder*="Search"]') as HTMLInputElement;
-      input?.focus();
-    }, description: 'Focus search' },
+    {
+      key: '/', handler: () => {
+        const input = document.querySelector('input[placeholder*="Search"]') as HTMLInputElement;
+        input?.focus();
+      }, description: 'Focus search'
+    },
     { key: '?', handler: () => setShowShortcutsHelp(true), description: 'Show help' },
   ]);
 
@@ -918,6 +1070,49 @@ const OrderList: React.FC = () => {
       ),
     },
     {
+      key: 'order_source' as any,
+      title: 'Source',
+      render: (_: any, record: Order) => {
+        const source = record.order_source || 'direct';
+        const recoveredFrom = (record as any).recovered_from;
+
+        // Determine source display
+        let label = 'Direct';
+        let variant = 'default';
+
+        if (recoveredFrom) {
+          if (recoveredFrom.includes('whatsapp')) {
+            label = 'WhatsApp Recovery';
+            variant = 'success';
+          } else if (recoveredFrom.includes('email')) {
+            label = 'Email Recovery';
+            variant = 'info';
+          } else {
+            label = 'Recovery';
+            variant = 'warning';
+          }
+        } else if (source === 'utm' || (record as any).utm_source) {
+          label = 'UTM';
+          variant = 'info';
+        } else if (source === 'organic') {
+          label = 'Organic';
+          variant = 'success';
+        } else if (source === 'referral') {
+          label = 'Referral';
+          variant = 'warning';
+        } else if (source === 'direct') {
+          label = 'Direct';
+          variant = 'default';
+        }
+
+        return (
+          <Badge variant={variant as any} className="text-xs">
+            {label}
+          </Badge>
+        );
+      },
+    },
+    {
       key: 'payment_status' as const,
       title: 'Pay Status',
       sortable: true,
@@ -945,18 +1140,38 @@ const OrderList: React.FC = () => {
     {
       key: 'actions' as const,
       title: 'Actions',
-      render: (_: any, record: Order) => (
-        <div className="flex space-x-2">
-          <Link to={`/orders/${record.id}`}>
-            <Button variant="ghost" size="sm">
-              <EyeIcon className="h-4 w-4" />
-            </Button>
-          </Link>
-          <div className="flex space-x-1">
-            {getStatusActions(record)}
+      render: (_: any, record: Order) => {
+        // Check if order has a phone number for WhatsApp
+        const hasPhone = (record.user as any)?.phone || (record as any).shipping_address?.phone || (record as any).shipping_address?.mobile;
+
+        return (
+          <div className="flex space-x-2">
+            <Link to={`/orders/${record.id}`}>
+              <Button variant="ghost" size="sm">
+                <EyeIcon className="h-4 w-4" />
+              </Button>
+            </Link>
+            {hasPhone && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setWhatsappSendModal({ isOpen: true, order: record });
+                }}
+                className="text-green-600 hover:text-green-800 hover:bg-green-50"
+                title="Send WhatsApp"
+              >
+                <PaperAirplaneIcon className="h-4 w-4" />
+              </Button>
+            )}
+            <div className="flex space-x-1">
+              {getStatusActions(record)}
+            </div>
           </div>
-        </div>
-      ),
+        );
+      },
     },
   ], [selectedOrders, ordersResponse]);
 
@@ -1134,104 +1349,104 @@ const OrderList: React.FC = () => {
             const isHighValue = (order.total_amount || 0) > 5000 && !isFailedPayment;
             const borderClass = isFailedPayment ? 'border-l-4 border-l-red-400' :
               isCOD ? 'border-l-4 border-l-orange-400' :
-              isHighValue ? 'border-l-4 border-l-yellow-500' : '';
+                isHighValue ? 'border-l-4 border-l-yellow-500' : '';
 
             return (
-            <Card key={order.id} className={`overflow-hidden ${isPendingOld ? 'bg-yellow-50' : ''} ${borderClass}`}>
-              <CardContent className="p-4" onClick={() => setSelectedMobileOrder(order)}>
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={selectedOrders.has(order.id)}
-                      onChange={() => handleSelectOrder(order.id)}
-                      className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              <Card key={order.id} className={`overflow-hidden ${isPendingOld ? 'bg-yellow-50' : ''} ${borderClass}`}>
+                <CardContent className="p-4" onClick={() => setSelectedMobileOrder(order)}>
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={selectedOrders.has(order.id)}
+                        onChange={() => handleSelectOrder(order.id)}
+                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <div>
+                        <Link
+                          to={`/orders/${order.id}`}
+                          className="text-sm font-medium text-primary-600 hover:text-primary-700"
+                        >
+                          #{order.order_number}
+                        </Link>
+                        {order.is_preorder && (
+                          <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800">
+                            Preorder
+                          </span>
+                        )}
+                        <p className="text-xs text-gray-500 mt-1">
+                          {order.created_at ? format(new Date(order.created_at), 'MMM d, yyyy h:mm a') : '-'}
+                        </p>
+                      </div>
+                    </div>
+                    <InlineStatusDropdown
+                      currentStatus={order.status}
+                      onStatusChange={(newStatus) => handleStatusUpdate(order.id, newStatus)}
                     />
-                    <div>
-                      <Link
-                        to={`/orders/${order.id}`}
-                        className="text-sm font-medium text-primary-600 hover:text-primary-700"
+                  </div>
+
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Customer</span>
+                      <span className="font-medium text-gray-900">
+                        {order.user?.name || order.billing_address?.first_name ? `${order.billing_address.first_name} ${order.billing_address.last_name || ''}`.trim() : order.billing_address?.name || 'N/A'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Items</span>
+                      <span className="font-medium text-gray-900">
+                        {order.order_items_count || order.items_count || order.items?.length || 0}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Total</span>
+                      <span className="font-medium text-gray-900">₹{Number(order.total_amount || order.total || 0).toLocaleString('en-IN')}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Paid</span>
+                      <span className={`font-medium ${(order.paid_amount || 0) >= (order.total_amount || 0) && (order.total_amount || 0) > 0 ? 'text-green-600' : (order.paid_amount || 0) > 0 ? 'text-blue-600' : 'text-gray-400'}`}>
+                        ₹{Number(order.paid_amount || 0).toLocaleString('en-IN')}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-500">Payment</span>
+                      <div>
+                        {order.is_cod || order.payment_method === 'cod' ? (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-800">
+                            COD
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                            Prepaid
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-500">Pay Status</span>
+                      <button
+                        onClick={() => setPaymentStatusModal({
+                          isOpen: true,
+                          orderId: order.id,
+                          currentStatus: order.payment_status,
+                        })}
                       >
-                        #{order.order_number}
-                      </Link>
-                      {order.is_preorder && (
-                        <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800">
-                          Preorder
-                        </span>
-                      )}
-                      <p className="text-xs text-gray-500 mt-1">
-                        {order.created_at ? format(new Date(order.created_at), 'MMM d, yyyy h:mm a') : '-'}
-                      </p>
+                        <StatusBadge status={order.payment_status as any} size="sm" />
+                      </button>
                     </div>
                   </div>
-                  <InlineStatusDropdown
-                    currentStatus={order.status}
-                    onStatusChange={(newStatus) => handleStatusUpdate(order.id, newStatus)}
-                  />
-                </div>
 
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Customer</span>
-                    <span className="font-medium text-gray-900">
-                      {order.user?.name || order.billing_address?.first_name ? `${order.billing_address.first_name} ${order.billing_address.last_name || ''}`.trim() : order.billing_address?.name || 'N/A'}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Items</span>
-                    <span className="font-medium text-gray-900">
-                      {order.order_items_count || order.items_count || order.items?.length || 0}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Total</span>
-                    <span className="font-medium text-gray-900">₹{Number(order.total_amount || order.total || 0).toLocaleString('en-IN')}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Paid</span>
-                    <span className={`font-medium ${(order.paid_amount || 0) >= (order.total_amount || 0) && (order.total_amount || 0) > 0 ? 'text-green-600' : (order.paid_amount || 0) > 0 ? 'text-blue-600' : 'text-gray-400'}`}>
-                      ₹{Number(order.paid_amount || 0).toLocaleString('en-IN')}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-500">Payment</span>
-                    <div>
-                      {order.is_cod || order.payment_method === 'cod' ? (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-800">
-                          COD
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
-                          Prepaid
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-500">Pay Status</span>
-                    <button
-                      onClick={() => setPaymentStatusModal({
-                        isOpen: true,
-                        orderId: order.id,
-                        currentStatus: order.payment_status,
-                      })}
+                  <div className="mt-4 pt-3 border-t border-gray-100">
+                    <Link
+                      to={`/orders/${order.id}`}
+                      className="w-full inline-flex items-center justify-center px-3 py-2 text-sm font-medium text-primary-600 bg-primary-50 rounded-md hover:bg-primary-100 transition-colors"
                     >
-                      <StatusBadge status={order.payment_status as any} size="sm" />
-                    </button>
+                      <EyeIcon className="h-4 w-4 mr-1" />
+                      View Details
+                    </Link>
                   </div>
-                </div>
-
-                <div className="mt-4 pt-3 border-t border-gray-100">
-                  <Link
-                    to={`/orders/${order.id}`}
-                    className="w-full inline-flex items-center justify-center px-3 py-2 text-sm font-medium text-primary-600 bg-primary-50 rounded-md hover:bg-primary-100 transition-colors"
-                  >
-                    <EyeIcon className="h-4 w-4 mr-1" />
-                    View Details
-                  </Link>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
             );
           })
         )}
@@ -1330,25 +1545,25 @@ const OrderList: React.FC = () => {
 
           {/* Warning for unusual transitions */}
           {statusModal.selectedStatus && statusModal.currentStatus &&
-           statusModal.selectedStatus !== statusModal.currentStatus && (
-            <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
-              <div className="flex items-start gap-2">
-                <svg className="h-5 w-5 text-orange-500 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
-                <div>
-                  <p className="text-sm font-medium text-orange-800">
-                    Status Transition Warning
-                  </p>
-                  <p className="text-xs text-orange-700 mt-1">
-                    Changing from <span className="font-semibold capitalize">{statusModal.currentStatus}</span> to{' '}
-                    <span className="font-semibold capitalize">{statusModal.selectedStatus}</span> is not in the normal workflow.
-                    {!statusModal.overrideWorkflow && ' Check "Override Workflow Rules" to proceed.'}
-                  </p>
+            statusModal.selectedStatus !== statusModal.currentStatus && (
+              <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
+                <div className="flex items-start gap-2">
+                  <svg className="h-5 w-5 text-orange-500 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  <div>
+                    <p className="text-sm font-medium text-orange-800">
+                      Status Transition Warning
+                    </p>
+                    <p className="text-xs text-orange-700 mt-1">
+                      Changing from <span className="font-semibold capitalize">{statusModal.currentStatus}</span> to{' '}
+                      <span className="font-semibold capitalize">{statusModal.selectedStatus}</span> is not in the normal workflow.
+                      {!statusModal.overrideWorkflow && ' Check "Override Workflow Rules" to proceed.'}
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
 
           <div className="flex gap-3 mt-6">
             <Button
@@ -1373,9 +1588,9 @@ const OrderList: React.FC = () => {
               disabled={
                 statusModal.selectedStatus === statusModal.currentStatus ||
                 (!statusModal.overrideWorkflow &&
-                 statusModal.selectedStatus !== '' &&
-                 statusModal.currentStatus !== '' &&
-                 !getValidTransitions(statusModal.currentStatus).includes(statusModal.selectedStatus))
+                  statusModal.selectedStatus !== '' &&
+                  statusModal.currentStatus !== '' &&
+                  !getValidTransitions(statusModal.currentStatus).includes(statusModal.selectedStatus))
               }
             >
               Update Status
@@ -1412,6 +1627,16 @@ const OrderList: React.FC = () => {
           const idx = orders.findIndex((o: Order) => o.id === quickViewOrderId);
           return idx >= 0 && idx < orders.length - 1;
         })()}
+      />
+
+      {/* WhatsApp Send Modal */}
+      <WhatsAppSendModal
+        isOpen={whatsappSendModal.isOpen}
+        onClose={() => setWhatsappSendModal({ isOpen: false, order: null })}
+        order={whatsappSendModal.order}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ['orders'] });
+        }}
       />
 
       {/* Mobile Action Bar */}

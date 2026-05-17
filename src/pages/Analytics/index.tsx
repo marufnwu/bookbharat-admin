@@ -1,4 +1,5 @@
 import React from 'react';
+import { Routes, Route } from 'react-router-dom';
 import { useNavigate } from 'react-router-dom';
 import {
   CreditCard,
@@ -7,8 +8,22 @@ import {
   Sparkles,
   TrendingUp,
   Activity,
-  ArrowRight
+  ArrowRight,
+  MessageSquare,
+  BarChart3,
+  PieChart,
+  Target,
+  DollarSign
 } from 'lucide-react';
+
+// Analytics pages
+import PaymentAnalytics from './PaymentAnalytics';
+import MessageLogs from './MessageLogs';
+import RecoveryCampaigns from './RecoveryCampaigns';
+import OrderSources from './OrderSources';
+import ConversionFunnel from './ConversionFunnel';
+import RevenueAttribution from './RevenueAttribution';
+import UtmPerformance from './UtmPerformance';
 
 const AnalyticsHub: React.FC = () => {
   const navigate = useNavigate();
@@ -50,6 +65,41 @@ const AnalyticsHub: React.FC = () => {
       color: 'bg-red-100 text-red-600',
     },
     {
+      title: 'Recovery Campaigns',
+      description: 'Track order recovery campaign performance and ROI.',
+      icon: MessageSquare,
+      path: '/analytics/recovery-campaigns',
+      color: 'bg-cyan-100 text-cyan-600',
+    },
+    {
+      title: 'Order Sources',
+      description: 'Analyze where orders come from - direct, recovery, organic, UTM.',
+      icon: PieChart,
+      path: '/analytics/order-sources',
+      color: 'bg-indigo-100 text-indigo-600',
+    },
+    {
+      title: 'Conversion Funnel',
+      description: 'Visualize recovery funnel: sent → clicked → checkout → payment.',
+      icon: Target,
+      path: '/analytics/conversion-funnel',
+      color: 'bg-rose-100 text-rose-600',
+    },
+    {
+      title: 'Revenue Attribution',
+      description: 'Revenue breakdown by source and UTM campaign with ROI.',
+      icon: DollarSign,
+      path: '/analytics/revenue',
+      color: 'bg-emerald-100 text-emerald-600',
+    },
+    {
+      title: 'UTM Performance',
+      description: 'Track UTM source and campaign performance metrics.',
+      icon: BarChart3,
+      path: '/analytics/utm-performance',
+      color: 'bg-violet-100 text-violet-600',
+    },
+    {
       title: 'Traffic & Behavior',
       description: 'Understanding user flow and site activity (Coming Soon).',
       icon: Activity,
@@ -60,48 +110,58 @@ const AnalyticsHub: React.FC = () => {
   ];
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-semibold text-gray-900">Analytics Hub</h1>
-          <p className="mt-1 text-sm text-gray-600">
-            Centralized dashboard for all business insights and performance metrics.
-          </p>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {analyticsModules.map((module) => (
-          <div
-            key={module.title}
-            onClick={() => !module.disabled && navigate(module.path)}
-            className={`bg-white rounded-lg shadow p-6 border border-gray-100 transition-all duration-200 ${
-              module.disabled
-                ? 'opacity-60 cursor-not-allowed'
-                : 'hover:shadow-md hover:border-blue-200 cursor-pointer group'
-            }`}
-          >
-            <div className="flex items-start justify-between">
-              <div className={`p-3 rounded-lg ${module.color}`}>
-                <module.icon className="h-6 w-6" />
-              </div>
-              {!module.disabled && (
-                <ArrowRight className="h-5 w-5 text-gray-300 group-hover:text-blue-500 transition-colors" />
-              )}
-            </div>
-            
-            <div className="mt-4">
-              <h3 className="text-lg font-medium text-gray-900 group-hover:text-blue-600 transition-colors">
-                {module.title}
-              </h3>
-              <p className="mt-2 text-sm text-gray-500">
-                {module.description}
+    <Routes>
+      <Route index element={
+        <div className="space-y-6">
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-2xl font-semibold text-gray-900">Analytics Hub</h1>
+              <p className="mt-1 text-sm text-gray-600">
+                Centralized dashboard for all business insights and performance metrics.
               </p>
             </div>
           </div>
-        ))}
-      </div>
-    </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {analyticsModules.map((module) => (
+              <div
+                key={module.title}
+                onClick={() => !module.disabled && navigate(module.path)}
+                className={`bg-white rounded-lg shadow p-6 border border-gray-100 transition-all duration-200 ${module.disabled
+                    ? 'opacity-60 cursor-not-allowed'
+                    : 'hover:shadow-md hover:border-blue-200 cursor-pointer group'
+                  }`}
+              >
+                <div className="flex items-start justify-between">
+                  <div className={`p-3 rounded-lg ${module.color}`}>
+                    <module.icon className="h-6 w-6" />
+                  </div>
+                  {!module.disabled && (
+                    <ArrowRight className="h-5 w-5 text-gray-300 group-hover:text-blue-500 transition-colors" />
+                  )}
+                </div>
+
+                <div className="mt-4">
+                  <h3 className="text-lg font-medium text-gray-900 group-hover:text-blue-600 transition-colors">
+                    {module.title}
+                  </h3>
+                  <p className="mt-2 text-sm text-gray-500">
+                    {module.description}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      } />
+      <Route path="payments" element={<PaymentAnalytics />} />
+      <Route path="message-logs" element={<MessageLogs />} />
+      <Route path="recovery-campaigns" element={<RecoveryCampaigns />} />
+      <Route path="order-sources" element={<OrderSources />} />
+      <Route path="conversion-funnel" element={<ConversionFunnel />} />
+      <Route path="revenue" element={<RevenueAttribution />} />
+      <Route path="utm-performance" element={<UtmPerformance />} />
+    </Routes>
   );
 };
 

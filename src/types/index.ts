@@ -258,6 +258,18 @@ export interface Order {
   is_preorder?: boolean;
   release_date?: string | null;
 
+  // Source tracking
+  order_source?: string;
+  utm_source?: string;
+  utm_medium?: string;
+  utm_campaign?: string;
+  utm_content?: string;
+  utm_term?: string;
+  gclid?: string;
+  fbclid?: string;
+  recovered_from?: string;
+  recovered_at?: string;
+
   // Nested objects
   user?: User;
   items?: OrderItem[];

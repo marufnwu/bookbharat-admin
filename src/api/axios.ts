@@ -36,9 +36,9 @@ api.interceptors.response.use(
   },
   async (error) => {
     const originalRequest = error.config;
+    const status = error.response?.status;
 
     // Handle 401 Unauthorized or 419 CSRF Token Expired
-    const status = error.response?.status;
     if ((status === 401 || status === 419) && !originalRequest._retry) {
       originalRequest._retry = true;
 
@@ -51,27 +51,37 @@ api.interceptors.response.use(
     }
 
     // Handle 403 Forbidden
-    if (error.response?.status === 403) {
+    if (status === 403) {
       toast.error('You do not have permission to perform this action.');
+      return Promise.reject(error);
     }
 
-    // Handle 500 Server Error
-    if (error.response?.status >= 500) {
+    // Handle 500+ Server Errors - show error toast but do NOT log out
+    // Use optional chaining defensively in case response is malformed
+    if (status && status >= 500) {
       toast.error('A server error occurred. Please try again later.');
       console.error('Server Error:', error.response?.data?.message || error.message);
+      return Promise.reject(error);
     }
 
-    // Handle Network Errors (includes CORS-blocked responses)
+    // Handle 400-499 Client Errors - show error toast, do NOT log out
+    if (status && status >= 400 && status < 500) {
+      const message = error.response?.data?.message || 'An error occurred.';
+      toast.error(message);
+      return Promise.reject(error);
+    }
+
+    // Handle Network Errors (no response received) - show error toast but do NOT log out
+    // We intentionally do NOT log out on network errors since they don't indicate auth failures
     if (!error.response && error.request) {
-      // If authenticated, session likely expired and server returned error without CORS headers
-      const isAuthenticated = useAuthStore.getState().isAuthenticated;
-      if (isAuthenticated) {
-        useAuthStore.getState().logout();
-        window.location.href = '/login';
-        toast.error('Session expired. Please login again.');
-      } else {
-        toast.error('Network error. Please check your connection.');
-      }
+      toast.error('Network error. Please check your connection.');
+      return Promise.reject(error);
+    }
+
+    // Handle any other errors (fallback)
+    if (!error.response) {
+      toast.error('An unexpected error occurred. Please try again.');
+      return Promise.reject(error);
     }
 
     return Promise.reject(error);

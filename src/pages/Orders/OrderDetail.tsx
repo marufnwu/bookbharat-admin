@@ -32,7 +32,8 @@ import {
   MoreVertical,
   Copy,
   Tag,
-  Calendar
+  Calendar,
+  MessageSquare,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { api } from '../../api/axios';
@@ -85,11 +86,16 @@ const OrderDetail: React.FC = () => {
   const [statusNote, setStatusNote] = useState('');
   const [overrideWorkflow, setOverrideWorkflow] = useState(false);
   const [showActionsMenu, setShowActionsMenu] = useState(false);
-  
+
   // Phase 1 Enhancement States
   const [editAddressModal, setEditAddressModal] = useState<{ type: 'shipping' | 'billing'; address: any } | null>(null);
   const [showPartialRefundModal, setShowPartialRefundModal] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+
+  // WhatsApp Send Modal State
+  const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
+  const [selectedWhatsAppType, setSelectedWhatsAppType] = useState<string | null>(null);
+  const [sendingWhatsApp, setSendingWhatsApp] = useState(false);
 
   const [trackingNumber, setTrackingNumber] = useState('');
   const [carrierId, setCarrierId] = useState('');
@@ -163,7 +169,7 @@ const OrderDetail: React.FC = () => {
       } else {
         toast.success('Shipment cancelled successfully');
       }
-      
+
       setShowCancelConfirm(false);
       refetch();
       refetchShipment();
@@ -234,7 +240,7 @@ const OrderDetail: React.FC = () => {
       });
       return;
     }
-    
+
     const validTransitions: Record<string, string[]> = {
       pending: ['confirmed', 'processing', 'cancelled'],
       confirmed: ['processing', 'shipped', 'cancelled'],
@@ -244,22 +250,22 @@ const OrderDetail: React.FC = () => {
       cancelled: [],
       refunded: [],
     };
-    
+
     const currentStatus = order?.status || '';
     const isValidTransition = validTransitions[currentStatus]?.includes(selectedStatus);
-    
+
     if (!isValidTransition && !overrideWorkflow) {
       toast.error('This status transition is not allowed. Check "Override Workflow Rules" to proceed.');
       return;
     }
-    
+
     updateStatusMutation.mutate({ status: selectedStatus, note: statusNote, overrideWorkflow });
   };
 
   const handlePrintInvoice = () => {
     const pdfUrl = orderEnhancementsApi.getInvoicePdfUrl(Number(id));
     const printWindow = window.open(pdfUrl, '_blank');
-    
+
     if (printWindow) {
       printWindow.onload = () => {
         printWindow.print();
@@ -275,18 +281,18 @@ const OrderDetail: React.FC = () => {
 
     try {
       loadingToast = toast.loading('Preparing invoice download...');
-      
+
       const token = useAuthStore.getState().token;
       const baseUrl = orderEnhancementsApi.getInvoicePdfUrl(Number(id));
-      
+
       const response = await fetch(baseUrl, {
         headers: token ? { 'Authorization': `Bearer ${token}` } : {},
       });
-      
+
       if (!response.ok) {
         throw new Error('Failed to download invoice');
       }
-      
+
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -296,7 +302,7 @@ const OrderDetail: React.FC = () => {
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
-      
+
       toast.success('Invoice downloaded successfully!', { id: loadingToast });
     } catch (error) {
       console.error('Download error:', error);
@@ -307,18 +313,18 @@ const OrderDetail: React.FC = () => {
   const handleDownloadPackingSlip = async () => {
     try {
       const loadingToast = toast.loading('Preparing packing slip...');
-      
+
       const token = useAuthStore.getState().token;
       const baseUrl = orderEnhancementsApi.getPackingSlipPdfUrl(Number(id));
-      
+
       const response = await fetch(baseUrl, {
         headers: token ? { 'Authorization': `Bearer ${token}` } : {},
       });
-      
+
       if (!response.ok) {
         throw new Error('Failed to download packing slip');
       }
-      
+
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -328,7 +334,7 @@ const OrderDetail: React.FC = () => {
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
-      
+
       toast.success('Packing slip downloaded successfully!', { id: loadingToast });
     } catch (error) {
       console.error('Download error:', error);
@@ -377,6 +383,39 @@ const OrderDetail: React.FC = () => {
 
   const handleCancelShipment = () => {
     setShowCancelConfirm(true);
+  };
+
+  // WhatsApp send handlers
+  const handleSendWhatsApp = async () => {
+    if (!selectedWhatsAppType || !order) return;
+
+    setSendingWhatsApp(true);
+    try {
+      const phone = order.user?.phone || order.shipping_address?.phone || order.shipping_address?.mobile;
+
+      if (!phone) {
+        toast.error('No phone number available for this order');
+        setSendingWhatsApp(false);
+        return;
+      }
+
+      const response = await api.post(`/settings/messaging/whatsapp/orders/${order.id}/send`, {
+        event_type: selectedWhatsAppType,
+        phone: phone,
+      });
+
+      if (response.data.success) {
+        toast.success('WhatsApp message sent successfully!');
+        setShowWhatsAppModal(false);
+        setSelectedWhatsAppType(null);
+      } else {
+        toast.error(response.data.message || 'Failed to send WhatsApp message');
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to send WhatsApp message');
+    } finally {
+      setSendingWhatsApp(false);
+    }
   };
 
   const getShipmentStatusColor = (status: string) => {
@@ -464,7 +503,7 @@ const OrderDetail: React.FC = () => {
             </p>
           </div>
         </div>
-        
+
         {/* Desktop Actions */}
         <div className="hidden lg:flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={handlePrintInvoice}>
@@ -504,6 +543,18 @@ const OrderDetail: React.FC = () => {
             }}>
               <Edit className="h-4 w-4 mr-2" />
               Update Status
+            </Button>
+          )}
+          {/* WhatsApp Send Button */}
+          {(order.user?.phone || order.shipping_address?.phone || order.shipping_address?.mobile) && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowWhatsAppModal(true)}
+              className="text-green-600 border-green-200 hover:bg-green-50"
+            >
+              <MessageSquare className="h-4 w-4 mr-2" />
+              Send WhatsApp
             </Button>
           )}
         </div>
@@ -588,7 +639,7 @@ const OrderDetail: React.FC = () => {
               <StatusBadge status={order.status as any} />
             </div>
           </div>
-          
+
           {/* Desktop Timeline */}
           <div className="hidden sm:block overflow-x-auto">
             <div className="flex items-center justify-between min-w-[500px]">
@@ -672,11 +723,10 @@ const OrderDetail: React.FC = () => {
                       } : null;
                     } catch { return null; }
                   })() : null);
-                  
+
                   return (
-                    <div key={item.id} className={`flex flex-col sm:flex-row sm:items-center gap-4 p-4 rounded-lg transition-colors ${
-                      isBundle ? 'bg-blue-50 border-2 border-blue-200 hover:bg-blue-100' : 'bg-gray-50 hover:bg-gray-100'
-                    }`}>
+                    <div key={item.id} className={`flex flex-col sm:flex-row sm:items-center gap-4 p-4 rounded-lg transition-colors ${isBundle ? 'bg-blue-50 border-2 border-blue-200 hover:bg-blue-100' : 'bg-gray-50 hover:bg-gray-100'
+                      }`}>
                       {item.product?.image_url && (
                         <img
                           src={item.product.image_url}
@@ -706,7 +756,7 @@ const OrderDetail: React.FC = () => {
                             </span>
                           )}
                         </p>
-                        
+
                         {/* Bundle Details */}
                         {bundleDetails && (
                           <div className="mt-2 p-2 bg-white rounded border border-blue-200 text-sm">
@@ -756,20 +806,18 @@ const OrderDetail: React.FC = () => {
               {shipment ? (
                 <div className="space-y-4">
                   {/* Shipment Status Banner */}
-                  <div className={`p-4 rounded-lg border-2 ${
-                    getShipmentStatusColor(shipment.status) === 'success' ? 'bg-green-50 border-green-200' :
+                  <div className={`p-4 rounded-lg border-2 ${getShipmentStatusColor(shipment.status) === 'success' ? 'bg-green-50 border-green-200' :
                     getShipmentStatusColor(shipment.status) === 'error' ? 'bg-red-50 border-red-200' :
-                    getShipmentStatusColor(shipment.status) === 'warning' ? 'bg-yellow-50 border-yellow-200' :
-                    'bg-blue-50 border-blue-200'
-                  }`}>
+                      getShipmentStatusColor(shipment.status) === 'warning' ? 'bg-yellow-50 border-yellow-200' :
+                        'bg-blue-50 border-blue-200'
+                    }`}>
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                       <div className="flex items-center gap-3">
-                        <Package className={`h-8 w-8 ${
-                          getShipmentStatusColor(shipment.status) === 'success' ? 'text-green-600' :
+                        <Package className={`h-8 w-8 ${getShipmentStatusColor(shipment.status) === 'success' ? 'text-green-600' :
                           getShipmentStatusColor(shipment.status) === 'error' ? 'text-red-600' :
-                          getShipmentStatusColor(shipment.status) === 'warning' ? 'text-yellow-600' :
-                          'text-blue-600'
-                        }`} />
+                            getShipmentStatusColor(shipment.status) === 'warning' ? 'text-yellow-600' :
+                              'text-blue-600'
+                          }`} />
                         <div>
                           <p className="font-semibold text-lg capitalize">{shipment.status.replace('_', ' ')}</p>
                           <p className="text-sm text-gray-600">Shipment ID: #{shipment.id}</p>
@@ -887,7 +935,7 @@ const OrderDetail: React.FC = () => {
                           <RefreshCw className="h-4 w-4" />
                         </Button>
                       </div>
-                      
+
                       {shipment.tracking.status_description && (
                         <div className="mb-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
                           <p className="text-sm font-medium text-blue-900">{shipment.tracking.status_description}</p>
@@ -1086,14 +1134,13 @@ const OrderDetail: React.FC = () => {
                   order.activities.map((activity: any, index: number) => (
                     <div key={activity.id || index} className="flex items-start gap-3">
                       <div className="flex flex-col items-center">
-                        <div className={`w-3 h-3 rounded-full ${
-                          activity.type === 'status_change' ? 'bg-blue-500' :
+                        <div className={`w-3 h-3 rounded-full ${activity.type === 'status_change' ? 'bg-blue-500' :
                           activity.type === 'shipment_created' ? 'bg-green-500' :
-                          activity.type === 'shipment_cancelled' ? 'bg-red-500' :
-                          activity.type === 'order_created' ? 'bg-purple-500' :
-                          activity.type === 'payment_update' ? 'bg-yellow-500' :
-                          'bg-gray-400'
-                        }`}></div>
+                            activity.type === 'shipment_cancelled' ? 'bg-red-500' :
+                              activity.type === 'order_created' ? 'bg-purple-500' :
+                                activity.type === 'payment_update' ? 'bg-yellow-500' :
+                                  'bg-gray-400'
+                          }`}></div>
                         {index !== order.activities.length - 1 && (
                           <div className="w-0.5 flex-1 bg-gray-200 mt-1 min-h-[20px]"></div>
                         )}
@@ -1208,7 +1255,7 @@ const OrderDetail: React.FC = () => {
                   <StatusBadge
                     status={
                       order.payment_status === 'paid' ? 'success' :
-                      order.payment_status === 'pending' ? 'warning' : 'error'
+                        order.payment_status === 'pending' ? 'warning' : 'error'
                     }
                   >
                     {order.payment_status || 'Pending'}
@@ -1250,7 +1297,7 @@ const OrderDetail: React.FC = () => {
                       {order.is_cod_advance ? 'COD with Advance' : 'Full COD'}
                     </span>
                   </div>
-                  
+
                   {order.is_cod_advance && order.advance_amount && (
                     <div className="space-y-2">
                       <div className="flex justify-between text-sm">
@@ -1265,14 +1312,14 @@ const OrderDetail: React.FC = () => {
                       )}
                     </div>
                   )}
-                  
+
                   {!order.is_cod_advance && (
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-500">Amount to Collect</span>
                       <span className="font-bold text-orange-600">{formatCurrency(order.total_amount)}</span>
                     </div>
                   )}
-                  
+
                   <div className="text-xs text-gray-500 bg-yellow-50 p-2 rounded border border-yellow-200">
                     ⚠️ Cash on Delivery - Verify payment upon delivery
                   </div>
@@ -1300,21 +1347,21 @@ const OrderDetail: React.FC = () => {
                     )}
                   </div>
                 )}
-                
+
                 {order.pickup_pincode && (
                   <div>
                     <p className="text-sm text-gray-500 mb-1">Pickup Pincode</p>
                     <p className="font-medium font-mono">{order.pickup_pincode}</p>
                   </div>
                 )}
-                
+
                 {order.delivery_pincode && (
                   <div>
                     <p className="text-sm text-gray-500 mb-1">Delivery Pincode</p>
                     <p className="font-medium font-mono">{order.delivery_pincode}</p>
                   </div>
                 )}
-                
+
                 {order.estimated_delivery_date && (
                   <div>
                     <p className="text-sm text-gray-500 mb-1">Estimated Delivery</p>
@@ -1328,14 +1375,14 @@ const OrderDetail: React.FC = () => {
                     </p>
                   </div>
                 )}
-                
+
                 {order.shipping_zone && (
                   <div>
                     <p className="text-sm text-gray-500 mb-1">Shipping Zone</p>
                     <Badge variant="outline">{order.shipping_zone}</Badge>
                   </div>
                 )}
-                
+
                 {!order.delivery_option && !order.pickup_pincode && !order.delivery_pincode && !order.estimated_delivery_date && (
                   <p className="text-sm text-gray-500">No delivery details available</p>
                 )}
@@ -1363,14 +1410,14 @@ const OrderDetail: React.FC = () => {
                       )}
                     </div>
                   )}
-                  
+
                   {order.packaging_amount > 0 && (
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-500">Packaging Cost</span>
                       <span className="font-medium">{formatCurrency(order.packaging_amount)}</span>
                     </div>
                   )}
-                  
+
                   {order.insurance_amount > 0 && (
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-500">Insurance</span>
@@ -1397,17 +1444,127 @@ const OrderDetail: React.FC = () => {
                     <span className="text-sm font-medium text-purple-800">Referral Code</span>
                     <span className="text-sm font-bold font-mono text-purple-900">{order.referral_details.code}</span>
                   </div>
-                  
+
                   {order.referral_details.discount_amount > 0 && (
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-500">Discount Applied</span>
                       <span className="font-medium text-green-600">-{formatCurrency(order.referral_details.discount_amount)}</span>
                     </div>
                   )}
-                  
+
                   {order.referral_details.discount_type && (
                     <div className="text-xs text-gray-500">
                       Discount Type: {order.referral_details.discount_type}
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Order Source Card */}
+          {(order.order_source || order.utm_source || order.recovered_from) && (
+            <Card className="border-blue-200 bg-blue-50">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-blue-900">
+                  <Info className="h-5 w-5" />
+                  Order Source
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {/* Source Badge */}
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-blue-700">Source</span>
+                    <Badge variant={
+                      order.recovered_from ? 'success' :
+                        order.order_source === 'utm' ? 'info' :
+                          order.order_source === 'organic' ? 'success' :
+                            order.order_source === 'referral' ? 'warning' :
+                              'default'
+                    }>
+                      {order.recovered_from ? 'Recovery' :
+                        order.order_source === 'utm' ? 'UTM' :
+                          order.order_source === 'organic' ? 'Organic' :
+                            order.order_source === 'referral' ? 'Referral' :
+                              'Direct'}
+                    </Badge>
+                  </div>
+
+                  {/* UTM Details */}
+                  {(order.utm_source || order.utm_medium || order.utm_campaign) && (
+                    <div className="pt-3 border-t border-blue-200">
+                      <p className="text-xs text-blue-800 font-medium mb-2">UTM Attribution</p>
+                      <div className="space-y-2 text-sm">
+                        {order.utm_source && (
+                          <div className="flex justify-between">
+                            <span className="text-blue-600">Source</span>
+                            <span className="font-medium text-blue-900">{order.utm_source}</span>
+                          </div>
+                        )}
+                        {order.utm_medium && (
+                          <div className="flex justify-between">
+                            <span className="text-blue-600">Medium</span>
+                            <span className="font-medium text-blue-900">{order.utm_medium}</span>
+                          </div>
+                        )}
+                        {order.utm_campaign && (
+                          <div className="flex justify-between">
+                            <span className="text-blue-600">Campaign</span>
+                            <span className="font-medium text-blue-900">{order.utm_campaign}</span>
+                          </div>
+                        )}
+                        {order.utm_content && (
+                          <div className="flex justify-between">
+                            <span className="text-blue-600">Content</span>
+                            <span className="font-medium text-blue-900">{order.utm_content}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Recovery Info */}
+                  {order.recovered_from && (
+                    <div className="pt-3 border-t border-blue-200">
+                      <p className="text-xs text-blue-800 font-medium mb-2">Recovery Attribution</p>
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-blue-600">Recovered From</span>
+                          <span className="font-medium text-blue-900">
+                            {order.recovered_from.includes('whatsapp') ? 'WhatsApp' :
+                              order.recovered_from.includes('email') ? 'Email' : 'Campaign'}
+                          </span>
+                        </div>
+                        {order.recovered_at && (
+                          <div className="flex justify-between">
+                            <span className="text-blue-600">Recovered At</span>
+                            <span className="font-medium text-blue-900">
+                              {new Date(order.recovered_at).toLocaleDateString('en-IN', {
+                                day: 'numeric',
+                                month: 'short',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Ad IDs */}
+                  {(order.gclid || order.fbclid) && (
+                    <div className="pt-3 border-t border-blue-200">
+                      <p className="text-xs text-blue-800 font-medium mb-2">Ad Tracking</p>
+                      <div className="space-y-1 text-xs font-mono">
+                        {order.gclid && (
+                          <p className="text-blue-700">GCLID: <span className="text-blue-900">{order.gclid}</span></p>
+                        )}
+                        {order.fbclid && (
+                          <p className="text-blue-700">FBCLID: <span className="text-blue-900">{order.fbclid}</span></p>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -1433,7 +1590,7 @@ const OrderDetail: React.FC = () => {
                         <StatusBadge
                           status={
                             refund.status === 'completed' ? 'success' :
-                            refund.status === 'pending' ? 'warning' : 'error'
+                              refund.status === 'pending' ? 'warning' : 'error'
                           }
                         >
                           {refund.status}
@@ -1767,6 +1924,86 @@ const OrderDetail: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* WhatsApp Send Modal */}
+      <Modal
+        open={showWhatsAppModal}
+        onClose={() => {
+          setShowWhatsAppModal(false);
+          setSelectedWhatsAppType(null);
+        }}
+        title="Send WhatsApp Notification"
+        size="md"
+      >
+        <div className="space-y-4">
+          <div className="bg-gray-50 rounded-lg p-3">
+            <p className="text-sm text-gray-600">Order: <span className="font-semibold">#{order?.order_number}</span></p>
+            <p className="text-sm text-gray-600">Customer: <span className="font-semibold">{order?.user?.name || 'Customer'}</span></p>
+            <p className="text-sm text-gray-600">Phone: <span className="font-semibold">{order?.user?.phone || order?.shipping_address?.phone || order?.shipping_address?.mobile || 'Not available'}</span></p>
+          </div>
+
+          {!(order?.user?.phone || order?.shipping_address?.phone || order?.shipping_address?.mobile) && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+              <p className="text-sm text-red-800">⚠️ No phone number available for this order. Cannot send WhatsApp message.</p>
+            </div>
+          )}
+
+          {(order?.user?.phone || order?.shipping_address?.phone || order?.shipping_address?.mobile) && (
+            <>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Select Notification Type
+                </label>
+                <div className="space-y-2">
+                  {[
+                    { type: 'order_placed', label: 'Order Confirmation', description: 'Send order placed notification', icon: '📦' },
+                    { type: 'order_shipped', label: 'Shipping Update', description: 'Send shipment notification with tracking', icon: '🚚' },
+                    { type: 'order_delivered', label: 'Delivery Confirmation', description: 'Send delivery confirmation', icon: '✅' },
+                  ].map((notification) => (
+                    <button
+                      key={notification.type}
+                      onClick={() => setSelectedWhatsAppType(notification.type)}
+                      className={`w-full flex items-center gap-3 p-3 rounded-lg border-2 transition-colors ${selectedWhatsAppType === notification.type
+                        ? 'border-green-500 bg-green-50'
+                        : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                        }`}
+                    >
+                      <span className="text-2xl">{notification.icon}</span>
+                      <div className="text-left flex-1">
+                        <div className="font-medium text-gray-900">{notification.label}</div>
+                        <div className="text-sm text-gray-500">{notification.description}</div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex gap-3 mt-6">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => {
+                    setShowWhatsAppModal(false);
+                    setSelectedWhatsAppType(null);
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="primary"
+                  className="flex-1 bg-green-600 hover:bg-green-700"
+                  onClick={handleSendWhatsApp}
+                  loading={sendingWhatsApp}
+                  disabled={!selectedWhatsAppType}
+                >
+                  <MessageSquare className="h-4 w-4 mr-2" />
+                  Send Message
+                </Button>
+              </div>
+            </>
+          )}
+        </div>
+      </Modal>
     </div>
   );
 };

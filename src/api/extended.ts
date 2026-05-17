@@ -172,8 +172,13 @@ export const ordersApiExtended = {
   // Extended methods
   getAll: (params?: any) => api.get('/orders', { params }).then(res => res.data),
   getById: (id: number) => api.get(`/orders/${id}`).then(res => res.data),
-  updateStatus: (id: number, status: string, note?: string, overrideWorkflow?: boolean) =>
-    api.put(`/orders/${id}/status`, { status, note, override_workflow: overrideWorkflow }).then(res => res.data),
+  updateStatus: (id: number, status: string, note?: string, overrideWorkflow?: boolean) => {
+    // Only send override_workflow when explicitly true - normal status updates should NOT skip workflow
+    const payload: { status: string; note?: string; override_workflow?: boolean } = { status };
+    if (note) payload.note = note;
+    if (overrideWorkflow === true) payload.override_workflow = true;
+    return api.put(`/orders/${id}/status`, payload).then(res => res.data);
+  },
 };
 
 // Extended Customers API
