@@ -76,7 +76,7 @@ const getSourceIcon = (source: string): React.ElementType => {
         case 'organic':
             return Search;
         case 'utm':
-            return Utm;
+            return Tag;
         default:
             return ShoppingCart;
     }
@@ -182,7 +182,7 @@ const SourcePieChart: React.FC<PieChartProps> = ({ data, isLoading }) => {
                         outerRadius={100}
                         paddingAngle={2}
                         dataKey="value"
-                        label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
+                        label={({ name, percent, ...props }: any) => `${name} (${((percent || 0) * 100).toFixed(0)}%)`}
                         labelLine={false}
                     >
                         {chartData.map((_, index) => (

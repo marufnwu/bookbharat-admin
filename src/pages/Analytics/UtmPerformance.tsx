@@ -403,7 +403,7 @@ const UtmPerformance: React.FC = () => {
     // Get unique sources for filter dropdown
     const uniqueSources = useMemo(() => {
         if (!data?.data) return [];
-        return [...new Set(data.data.map(row => row.utm_source).filter(Boolean))];
+        return Array.from(new Set(data.data.map(row => row.utm_source).filter(Boolean)));
     }, [data]);
 
     // Filter and sort data

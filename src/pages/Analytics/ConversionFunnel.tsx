@@ -390,7 +390,7 @@ const ConversionChart: React.FC<ConversionChartProps> = ({ stages, isLoading }) 
                         fill="#10b981"
                         radius={[4, 4, 0, 0]}
                     >
-                        <LabelList dataKey="conversionRate" formatter={(val: number) => `${val.toFixed(0)}%`} position="top" />
+                        <LabelList dataKey="conversionRate" formatter={(val) => `${Number(val).toFixed(0)}%`} position="top" />
                     </Bar>
                 </BarChart>
             </ResponsiveContainer>

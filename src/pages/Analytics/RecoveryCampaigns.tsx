@@ -162,7 +162,7 @@ const CampaignTable: React.FC<CampaignTableProps> = ({ campaigns, isLoading }) =
                                 <div className="text-xs text-gray-500">{campaign.type}</div>
                             </td>
                             <td className="px-4 py-3">
-                                <Badge variant={campaign.channel === 'whatsapp' ? 'green' : 'blue'}>
+                                <Badge variant={campaign.channel === 'whatsapp' ? 'default' : 'secondary'}>
                                     {campaign.channel}
                                 </Badge>
                             </td>
