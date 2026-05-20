@@ -34,7 +34,8 @@ import {
   Warehouse,
   Plus,
   Trash2,
-  Download
+  Download,
+  Copy
 } from 'lucide-react';
 
 interface CarrierConfig {
@@ -316,6 +317,15 @@ const CarrierConfiguration: React.FC = () => {
       case 'inactive': return 'text-gray-600 bg-gray-100';
       case 'testing': return 'text-yellow-600 bg-yellow-100';
       default: return 'text-gray-600 bg-gray-100';
+    }
+  };
+
+  const copyToClipboard = async (text: string, label: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success(`${label} copied to clipboard`);
+    } catch (err) {
+      toast.error('Failed to copy');
     }
   };
 
@@ -605,20 +615,39 @@ const CarrierConfiguration: React.FC = () => {
                     {/* API Configuration */}
                     <div>
                       <h4 className="text-sm font-medium text-gray-700 mb-2">API Configuration</h4>
-                      <dl className="space-y-1 text-sm">
+                      <dl className="space-y-2 text-sm">
                         <div className="flex justify-between">
                           <dt className="text-gray-500">Mode:</dt>
                           <dd className="text-gray-700 capitalize">{carrier.api_mode}</dd>
                         </div>
-                        <div className="flex justify-between">
-                          <dt className="text-gray-500">Webhook:</dt>
-                          <dd className="text-gray-700 text-xs font-mono bg-gray-100 px-2 py-1 rounded truncate" title={carrier.webhook_url || 'Not configured'}>
-                            {carrier.webhook_url || 'Not configured'}
-                          </dd>
-                        </div>
-                        <div className="text-xs text-gray-500 mt-2 italic">
-                          Webhook URLs are developer-configured and cannot be edited here.
-                        </div>
+                        {carrier.webhook_url && (
+                          <div>
+                            <dt className="text-gray-500 mb-1">Webhook URL (for carrier dashboard):</dt>
+                            <dd className="flex items-center space-x-2">
+                              <input
+                                type="text"
+                                readOnly
+                                value={carrier.webhook_url}
+                                className="flex-1 text-xs font-mono bg-green-50 border border-green-200 px-2 py-1.5 rounded text-gray-800 truncate"
+                                title={carrier.webhook_url}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => copyToClipboard(carrier.webhook_url!, 'Webhook URL')}
+                                className="flex-shrink-0 p-1.5 bg-blue-100 hover:bg-blue-200 text-blue-600 rounded transition-colors"
+                                title="Copy webhook URL"
+                              >
+                                <Copy className="h-4 w-4" />
+                              </button>
+                            </dd>
+                          </div>
+                        )}
+                        {!carrier.webhook_url && (
+                          <div className="flex justify-between">
+                            <dt className="text-gray-500">Webhook:</dt>
+                            <dd className="text-gray-400 text-xs italic">Not configured</dd>
+                          </div>
+                        )}
                       </dl>
                     </div>
                   </div>
