@@ -79,6 +79,19 @@ interface CarrierRate {
   recommendation_reason?: string;
 }
 
+const parseProductDimensions = (dimensions: string | null | undefined): { length: number; width: number; height: number } | null => {
+  if (!dimensions) return null;
+  const parts = dimensions.includes('×') ? dimensions.split('×') : dimensions.split('x');
+  if (parts.length === 3) {
+    return {
+      length: parseFloat(parts[0]?.trim()) || 0,
+      width: parseFloat(parts[1]?.trim()) || 0,
+      height: parseFloat(parts[2]?.trim()) || 0,
+    };
+  }
+  return null;
+};
+
 const CreateShipment: React.FC = () => {
   const queryClient = useQueryClient();
   const { orderId } = useParams();
@@ -191,6 +204,7 @@ const CreateShipment: React.FC = () => {
           weight: parseFloat(item.product?.weight || "0"),
           quantity: item.quantity,
           value: parseFloat(item.unit_price),
+          dimensions: parseProductDimensions(item.product?.dimensions),
         })),
       });
       return response.data?.data || response.data;
@@ -922,7 +936,7 @@ const CreateShipment: React.FC = () => {
                 <label className="block text-xs font-medium text-gray-600 mb-1">Length (cm)</label>
                 <input
                   type="number"
-                  value={overrideLength || 30}
+                  value={overrideLength || ratesData?.shipment_details?.dimensions?.length || 20}
                   onChange={(e) => setOverrideLength(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
                   disabled={!showOverridePackage}
@@ -934,7 +948,7 @@ const CreateShipment: React.FC = () => {
                 <label className="block text-xs font-medium text-gray-600 mb-1">Width (cm)</label>
                 <input
                   type="number"
-                  value={overrideWidth || 20}
+                  value={overrideWidth || ratesData?.shipment_details?.dimensions?.width || 15}
                   onChange={(e) => setOverrideWidth(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
                   disabled={!showOverridePackage}
@@ -946,7 +960,7 @@ const CreateShipment: React.FC = () => {
                 <label className="block text-xs font-medium text-gray-600 mb-1">Height (cm)</label>
                 <input
                   type="number"
-                  value={overrideHeight || 10}
+                  value={overrideHeight || ratesData?.shipment_details?.dimensions?.height || 5}
                   onChange={(e) => setOverrideHeight(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
                   disabled={!showOverridePackage}
