@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { categoriesApi } from '../../api';
+import { categoriesApiExtended } from '../../api/extended';
 import {
   Plus,
   Edit,
@@ -9,6 +10,7 @@ import {
   Filter,
   ChevronRight,
   ChevronDown,
+  ChevronUp,
   Folder,
   FolderOpen,
   Image,
@@ -17,6 +19,7 @@ import {
   Upload
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { cn } from '../../utils/cn';
 
 interface Category {
   id: number;
@@ -31,6 +34,7 @@ interface Category {
   level?: number;
   created_at: string;
   updated_at: string;
+  sort_order?: number;
 }
 
 interface CategoryForm {
@@ -50,6 +54,9 @@ const Categories: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [pendingOrder, setPendingOrder] = useState<number[]>([]); // Track pending order changes
+  const [isSavingOrder, setIsSavingOrder] = useState(false);
+  const [animatingId, setAnimatingId] = useState<number | null>(null); // Track which item is animating
 
   const [formData, setFormData] = useState<CategoryForm>({
     name: '',
@@ -67,6 +74,10 @@ const Categories: React.FC = () => {
   });
 
   const categories = categoriesResponse?.data?.data || categoriesResponse?.categories || [];
+  const flatCategories = [...categories];
+
+  // Create a map for quick lookup
+  const categoryMap = new Map(flatCategories.map((c: Category) => [c.id, c]));
 
   // Create/Update mutation
   const saveMutation = useMutation({
@@ -226,15 +237,86 @@ const Categories: React.FC = () => {
     );
   };
 
-  // Build category tree
+  // Move category up in the pending order
+  const handleMoveUp = (categoryId: number) => {
+    if (pendingOrder.length === 0) {
+      // Initialize pendingOrder with current root category order
+      const rootCategories = categories.filter((c: Category) => c.parent_id == null).sort((a: Category, b: Category) => (a.sort_order || 0) - (b.sort_order || 0));
+      setPendingOrder(rootCategories.map((c: Category) => c.id));
+      return;
+    }
+
+    const idx = pendingOrder.indexOf(categoryId);
+    if (idx <= 0) return; // Already at top
+
+    // Trigger animation on the item being moved
+    setAnimatingId(categoryId);
+
+    const newOrder = [...pendingOrder];
+    [newOrder[idx - 1], newOrder[idx]] = [newOrder[idx], newOrder[idx - 1]];
+    setPendingOrder(newOrder);
+
+    // Clear animation after transition
+    setTimeout(() => setAnimatingId(null), 300);
+  };
+
+  // Move category down in the pending order
+  const handleMoveDown = (categoryId: number) => {
+    if (pendingOrder.length === 0) {
+      // Initialize pendingOrder with current root category order
+      const rootCategories = categories.filter((c: Category) => c.parent_id == null).sort((a: Category, b: Category) => (a.sort_order || 0) - (b.sort_order || 0));
+      setPendingOrder(rootCategories.map((c: Category) => c.id));
+      return;
+    }
+
+    const idx = pendingOrder.indexOf(categoryId);
+    if (idx < 0 || idx >= pendingOrder.length - 1) return; // Already at bottom
+
+    // Trigger animation on the item being moved
+    setAnimatingId(categoryId);
+
+    const newOrder = [...pendingOrder];
+    [newOrder[idx], newOrder[idx + 1]] = [newOrder[idx + 1], newOrder[idx]];
+    setPendingOrder(newOrder);
+
+    // Clear animation after transition
+    setTimeout(() => setAnimatingId(null), 300);
+  };
+
+  // Save the pending order to the server
+  const handleSaveOrder = async () => {
+    if (pendingOrder.length === 0) return;
+
+    setIsSavingOrder(true);
+
+    try {
+      // Single API call to reorder all categories at once
+      await categoriesApiExtended.reorderCategories(pendingOrder);
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
+      setPendingOrder([]);
+      toast.success('Category order saved');
+    } catch (error: any) {
+      console.error('Save order error:', error);
+      toast.error(error.response?.data?.message || 'Failed to save order');
+    } finally {
+      setIsSavingOrder(false);
+    }
+  };
+
+  // Build category tree - sorted by sort_order within each level, or by pendingOrder if set
   const buildCategoryTree = (categories: Category[], parentId: number | null = null, level = 0): Category[] => {
-    return categories
-      .filter(cat => cat.parent_id === parentId)
-      .map(cat => ({
-        ...cat,
-        level,
-        children: buildCategoryTree(categories, cat.id, level + 1),
-      }));
+    const filtered = categories.filter(cat => cat.parent_id === parentId);
+
+    // Sort by pendingOrder if set, otherwise by sort_order
+    const sorted = pendingOrder.length > 0 && parentId === null
+      ? filtered.sort((a, b) => pendingOrder.indexOf(a.id) - pendingOrder.indexOf(b.id))
+      : filtered.sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+
+    return sorted.map(cat => ({
+      ...cat,
+      level,
+      children: buildCategoryTree(categories, cat.id, level + 1),
+    }));
   };
 
   const categoryTree = buildCategoryTree(categories);
@@ -265,24 +347,71 @@ const Categories: React.FC = () => {
   const renderCategory = (category: Category) => {
     const isExpanded = expandedCategories.includes(category.id);
     const hasChildren = category.children && category.children.length > 0;
+    const isRoot = category.level === 0;
+    const rootCategories = pendingOrder.length > 0
+      ? pendingOrder
+      : categories.filter((c: Category) => c.parent_id == null).sort((a: Category, b: Category) => (a.sort_order || 0) - (b.sort_order || 0)).map((c: Category) => c.id);
+    const currentIdx = rootCategories.indexOf(category.id);
+    const canMoveUp = isRoot && currentIdx > 0;
+    const canMoveDown = isRoot && currentIdx < rootCategories.length - 1;
 
     return (
-      <div key={category.id}>
+      <div
+        key={category.id}
+        className={cn(
+          "flex items-center transition-all duration-300",
+          animatingId === category.id && category.level === 0 && "bg-blue-50 scale-[1.02] shadow-md rounded-lg z-10"
+        )}
+      >
+        {/* Order buttons column - fixed width to align content properly */}
+        <div className="w-20 flex-shrink-0 flex items-center justify-center gap-1">
+          {isRoot && (
+            <>
+              <button
+                onClick={() => handleMoveUp(category.id)}
+                disabled={!canMoveUp}
+                className={cn(
+                  "w-7 h-7 flex items-center justify-center rounded border transition-all duration-150",
+                  canMoveUp
+                    ? "border-gray-300 bg-white text-gray-500 hover:bg-blue-500 hover:text-white hover:border-blue-500 shadow-sm"
+                    : "border-gray-100 bg-gray-50 text-gray-300 cursor-not-allowed"
+                )}
+                title="Move up"
+              >
+                <ChevronUp className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => handleMoveDown(category.id)}
+                disabled={!canMoveDown}
+                className={cn(
+                  "w-7 h-7 flex items-center justify-center rounded border transition-all duration-150",
+                  canMoveDown
+                    ? "border-gray-300 bg-white text-gray-500 hover:bg-blue-500 hover:text-white hover:border-blue-500 shadow-sm"
+                    : "border-gray-100 bg-gray-50 text-gray-300 cursor-not-allowed"
+                )}
+                title="Move down"
+              >
+                <ChevronDown className="h-4 w-4" />
+              </button>
+            </>
+          )}
+        </div>
+
         <div
-          className="flex items-center justify-between p-4 hover:bg-gray-50 border-b"
-          style={{ paddingLeft: `${(category.level || 0) * 2 + 1}rem` }}
+          className="flex-1 flex items-center justify-between p-3 border-b bg-white hover:bg-gray-50 transition-colors"
+          style={{ paddingLeft: `${(category.level || 0) * 2 + 0.5}rem` }}
         >
           <div className="flex items-center gap-3 flex-1">
             <button
               onClick={() => hasChildren && toggleExpand(category.id)}
-              className="p-1 hover:bg-gray-200 rounded"
+              className="p-1 hover:bg-gray-100 rounded transition-colors"
               disabled={!hasChildren}
             >
               {hasChildren ? (
                 isExpanded ? (
-                  <ChevronDown className="h-4 w-4" />
+                  <ChevronDown className="h-4 w-4 text-gray-500" />
                 ) : (
-                  <ChevronRight className="h-4 w-4" />
+                  <ChevronRight className="h-4 w-4 text-gray-500" />
                 )
               ) : (
                 <div className="w-4 h-4" />
@@ -293,10 +422,10 @@ const Categories: React.FC = () => {
               <img
                 src={category.image_url}
                 alt={category.name}
-                className="w-10 h-10 object-cover rounded"
+                className="w-10 h-10 object-cover rounded-lg shadow-sm"
               />
             ) : (
-              <div className="w-10 h-10 bg-gray-200 rounded flex items-center justify-center">
+              <div className="w-10 h-10 bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg flex items-center justify-center shadow-sm">
                 {isExpanded ? (
                   <FolderOpen className="h-5 w-5 text-gray-500" />
                 ) : (
@@ -356,13 +485,25 @@ const Categories: React.FC = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Categories</h1>
-        <button
-          onClick={() => setShowModal(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-        >
-          <Plus className="h-4 w-4" />
-          Add Category
-        </button>
+        <div className="flex items-center gap-2">
+          {pendingOrder.length > 0 && (
+            <button
+              onClick={handleSaveOrder}
+              disabled={isSavingOrder}
+              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+            >
+              <Save className="h-4 w-4" />
+              {isSavingOrder ? 'Saving...' : 'Save Order'}
+            </button>
+          )}
+          <button
+            onClick={() => setShowModal(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            <Plus className="h-4 w-4" />
+            Add Category
+          </button>
+        </div>
       </div>
 
       {/* Search and Filter */}

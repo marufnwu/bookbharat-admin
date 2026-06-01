@@ -112,6 +112,8 @@ export const categoriesApiExtended = {
   getAllCategories: () => api.get('/categories?per_page=100').then(res => res.data),
   moveCategory: (id: number, parentId: number | null, sortOrder?: number) =>
     api.put(`/categories/${id}/move`, { parent_id: parentId, sort_order: sortOrder }).then(res => res.data),
+  reorderCategories: (order: number[]) =>
+    api.put('/categories/reorder', { order }).then(res => res.data),
   uploadImage: (id: number, file: File) => {
     const formData = new FormData();
     formData.append('image', file);
