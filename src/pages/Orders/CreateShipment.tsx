@@ -24,6 +24,8 @@ import {
   ArrowLeft,
   MoreVertical,
   X,
+  Ruler,
+  Weight,
 } from "lucide-react";
 import {
   Card,
@@ -97,19 +99,19 @@ const CreateShipment: React.FC = () => {
   const { orderId } = useParams();
   const navigate = useNavigate();
 
+  const [step, setStep] = useState<"package" | "couriers">("package");
   const [selectedCarrier, setSelectedCarrier] = useState<CarrierRate | null>(null);
   const [selectedWarehouse, setSelectedWarehouse] = useState<string | null>(null);
   const [showShipmentModal, setShowShipmentModal] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
-  const [sortBy, setSortBy] = useState<"price" | "time" | "rating" | "recommended">("recommended");
+  const [sortBy, setSortBy] = useState<"price" | "time" | "rating" | "recommended">("price");
   const [filterPreset, setFilterPreset] = useState<"all" | "budget" | "fast" | "premium">("all");
 
-  // Override package details
-  const [showOverridePackage, setShowOverridePackage] = useState(false);
-  const [overrideWeight, setOverrideWeight] = useState('');
-  const [overrideLength, setOverrideLength] = useState('');
-  const [overrideWidth, setOverrideWidth] = useState('');
-  const [overrideHeight, setOverrideHeight] = useState('');
+  // Package details (Step 1)
+  const [packageWeight, setPackageWeight] = useState('');
+  const [packageLength, setPackageLength] = useState('');
+  const [packageWidth, setPackageWidth] = useState('');
+  const [packageHeight, setPackageHeight] = useState('');
 
   // Fetch order details
   const { data: orderResponse, isLoading: orderLoading } = useQuery({
@@ -168,13 +170,13 @@ const CreateShipment: React.FC = () => {
     }
   }, [selectedCarrier, carrierWarehouses, selectedWarehouse]);
 
-  // Fetch shipping rates
+  // Fetch shipping rates (only when in couriers step)
   const {
     data: ratesData,
     isLoading: ratesLoading,
     refetch: refetchRates,
   } = useQuery({
-    queryKey: ["shipping-rates", orderId],
+    queryKey: ["shipping-rates", orderId, step, packageWeight, packageLength, packageWidth, packageHeight],
     queryFn: async () => {
       if (!order) return null;
       const deliveryPincode = order.shipping_address?.pincode || order.shipping_address?.postal_code || order.delivery_pincode;
@@ -190,11 +192,16 @@ const CreateShipment: React.FC = () => {
         ? order.balance_amount
         : (isCOD ? parseFloat(orderValue) : 0);
 
+      const weightInGrams = packageWeight ? toGrams(parseFloat(packageWeight)) : calculateOrderWeight();
+      const length = packageLength ? parseFloat(packageLength) : 30;
+      const width = packageWidth ? parseFloat(packageWidth) : 20;
+      const height = packageHeight ? parseFloat(packageHeight) : 10;
+
       const response = await api.post("/shipping/multi-carrier/rates/compare", {
         order_id: orderId,
         pickup_pincode: pickupLocation?.pincode || "110001",
         delivery_pincode: deliveryPincode,
-        weight: calculateOrderWeight(),
+        weight: weightInGrams,
         order_value: parseFloat(orderValue),
         payment_mode: isCOD ? "cod" : "prepaid",
         cod_amount: codAmount,
@@ -209,8 +216,8 @@ const CreateShipment: React.FC = () => {
       });
       return response.data?.data || response.data;
     },
-    enabled: !!order && !!pickupLocation,
-    refetchOnMount: false,
+    enabled: step === "couriers" && !!order && !!pickupLocation,
+    refetchOnMount: true,
     staleTime: 5 * 60 * 1000,
   });
 
@@ -240,6 +247,70 @@ const CreateShipment: React.FC = () => {
     }, 0);
     return result;
   };
+
+  const computeCombinedVolumetricDimensions = (items: any[]): { length: number; width: number; height: number } | null => {
+    if (!items || items.length === 0) return null;
+
+    let totalVolume = 0;
+    let maxLength = 0;
+    let maxWidth = 0;
+    let maxHeight = 0;
+
+    for (const item of items) {
+      const quantity = item.quantity || 1;
+      const dims = parseProductDimensions(item.product?.dimensions);
+
+      if (dims && dims.length > 0 && dims.width > 0 && dims.height > 0) {
+        const volume = dims.length * dims.width * dims.height;
+        totalVolume += volume * quantity;
+        maxLength = Math.max(maxLength, dims.length);
+        maxWidth = Math.max(maxWidth, dims.width);
+        maxHeight = Math.max(maxHeight, dims.height);
+      } else {
+        const defaultLength = 30;
+        const defaultWidth = 20;
+        const defaultHeight = 10;
+        const volume = defaultLength * defaultWidth * defaultHeight;
+        totalVolume += volume * quantity;
+        maxLength = Math.max(maxLength, defaultLength);
+        maxWidth = Math.max(maxWidth, defaultWidth);
+        maxHeight = Math.max(maxHeight, defaultHeight);
+      }
+    }
+
+    if (totalVolume <= 0 || maxLength <= 0 || maxWidth <= 0 || maxHeight <= 0) {
+      return null;
+    }
+
+    const baseArea = maxLength * maxWidth;
+    const combinedHeight = baseArea > 0 ? Math.round(totalVolume / baseArea * 100) / 100 : maxHeight;
+
+    return {
+      length: maxLength,
+      width: maxWidth,
+      height: combinedHeight,
+    };
+  };
+
+  // Initialize package dimensions when order loads
+  useEffect(() => {
+    if (order?.order_items && step === "package") {
+      const dims = computeCombinedVolumetricDimensions(order.order_items);
+      if (dims) {
+        setPackageLength(String(dims.length));
+        setPackageWidth(String(dims.width));
+        setPackageHeight(String(dims.height));
+      } else {
+        setPackageLength("30");
+        setPackageWidth("20");
+        setPackageHeight("10");
+      }
+      const weight = calculateOrderWeight();
+      if (weight > 0) {
+        setPackageWeight(toKg(weight).toFixed(2));
+      }
+    }
+  }, [order, step]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-IN", {
@@ -296,10 +367,10 @@ const CreateShipment: React.FC = () => {
       return;
     }
 
-    const currentWeight = overrideWeight ? toGrams(parseFloat(overrideWeight)) : (ratesData?.shipment_details?.billable_weight || calculateOrderWeight());
-    const currentLength = overrideLength ? parseFloat(overrideLength) : 30;
-    const currentWidth = overrideWidth ? parseFloat(overrideWidth) : 20;
-    const currentHeight = overrideHeight ? parseFloat(overrideHeight) : 10;
+    const currentWeight = packageWeight ? toGrams(parseFloat(packageWeight)) : calculateOrderWeight();
+    const currentLength = packageLength ? parseFloat(packageLength) : 30;
+    const currentWidth = packageWidth ? parseFloat(packageWidth) : 20;
+    const currentHeight = packageHeight ? parseFloat(packageHeight) : 10;
 
     const payload = {
       order_id: orderId,
@@ -307,7 +378,10 @@ const CreateShipment: React.FC = () => {
       service_code: selectedCarrier.service_code,
       warehouse_id: selectedWarehouse,
       shipping_cost: selectedCarrier.total_charge,
-      ...(showOverridePackage && { weight: currentWeight, length: currentLength, width: currentWidth, height: currentHeight }),
+      weight: currentWeight,
+      length: currentLength,
+      width: currentWidth,
+      height: currentHeight,
     };
     console.log('Shipment payload:', JSON.stringify(payload, null, 2));
     createShipmentMutation.mutate(payload);
@@ -631,8 +705,121 @@ const CreateShipment: React.FC = () => {
           </Card>
         </div>
 
-        {/* Carrier Options */}
+        {/* Step 1: Package Details */}
+        {step === "package" && (
+          <div className="lg:col-span-2 space-y-3">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Package className="h-5 w-5" />
+                  Package Details
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-sm text-gray-500">
+                  Enter the package weight and dimensions. These will be used to calculate shipping rates.
+                </p>
+
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <Weight className="h-4 w-4 inline mr-1" />
+                      Weight (kg)
+                    </label>
+                    <input
+                      type="number"
+                      value={packageWeight}
+                      onChange={(e) => setPackageWeight(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      min="0.01"
+                      step="0.01"
+                      placeholder="e.g., 0.5"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <Ruler className="h-4 w-4 inline mr-1" />
+                      Length (cm)
+                    </label>
+                    <input
+                      type="number"
+                      value={packageLength}
+                      onChange={(e) => setPackageLength(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      min="1"
+                      step="1"
+                      placeholder="e.g., 30"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <Ruler className="h-4 w-4 inline mr-1" />
+                      Width (cm)
+                    </label>
+                    <input
+                      type="number"
+                      value={packageWidth}
+                      onChange={(e) => setPackageWidth(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      min="1"
+                      step="1"
+                      placeholder="e.g., 20"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <Ruler className="h-4 w-4 inline mr-1" />
+                      Height (cm)
+                    </label>
+                    <input
+                      type="number"
+                      value={packageHeight}
+                      onChange={(e) => setPackageHeight(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      min="1"
+                      step="1"
+                      placeholder="e.g., 10"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-end pt-2">
+                  <Button
+                    variant="primary"
+                    size="lg"
+                    onClick={() => setStep("couriers")}
+                    disabled={!packageWeight || !packageLength || !packageWidth || !packageHeight}
+                  >
+                    Continue to Courier Options
+                    <ChevronDown className="h-4 w-4 ml-2" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Step 2: Courier Options */}
+        {step === "couriers" && (
         <div className="lg:col-span-2 space-y-3">
+          {/* Back button and header */}
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setStep("package")}
+            >
+              <ChevronUp className="h-4 w-4 mr-1" />
+              Back to Package Details
+            </Button>
+            <div className="flex-1">
+              <h2 className="text-lg font-semibold text-gray-900">Select Courier</h2>
+              <p className="text-xs text-gray-500">
+                Package: {packageWeight}kg • {packageLength}×{packageWidth}×{packageHeight}cm
+              </p>
+            </div>
+          </div>
+
           {/* Quick Filters - Mobile Friendly */}
           <div className="bg-white rounded-lg shadow-sm border p-2 md:p-4">
             <div className="flex flex-col gap-2">
@@ -828,6 +1015,8 @@ const CreateShipment: React.FC = () => {
             ))}
           </div>
         </div>
+      )}
+      </div>
       </div>
 
       {/* Shipment Confirmation Modal */}
@@ -904,73 +1093,6 @@ const CreateShipment: React.FC = () => {
             </div>
           )}
 
-          {/* Override Package Details */}
-          <div className="border border-gray-200 rounded-lg p-4">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <Package className="h-4 w-4 text-gray-500" />
-                <span className="text-sm font-medium text-gray-700">Override Package Weight & Dimensions</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowOverridePackage(!showOverridePackage)}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${showOverridePackage ? 'bg-blue-600' : 'bg-gray-300'}`}
-              >
-                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${showOverridePackage ? 'translate-x-6' : 'translate-x-1'}`} />
-              </button>
-            </div>
-            <div className={`grid grid-cols-2 gap-3 transition-opacity ${showOverridePackage ? 'opacity-100' : 'opacity-40 pointer-events-none'}`}>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Weight (kg)</label>
-                <input
-                  type="number"
-                  value={overrideWeight || toKg(ratesData?.shipment_details?.billable_weight || calculateOrderWeight())}
-                  onChange={(e) => setOverrideWeight(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
-                  disabled={!showOverridePackage}
-                  min="0.01"
-                  step="0.01"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Length (cm)</label>
-                <input
-                  type="number"
-                  value={overrideLength || ratesData?.shipment_details?.dimensions?.length || 20}
-                  onChange={(e) => setOverrideLength(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
-                  disabled={!showOverridePackage}
-                  min="1"
-                  step="1"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Width (cm)</label>
-                <input
-                  type="number"
-                  value={overrideWidth || ratesData?.shipment_details?.dimensions?.width || 15}
-                  onChange={(e) => setOverrideWidth(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
-                  disabled={!showOverridePackage}
-                  min="1"
-                  step="1"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Height (cm)</label>
-                <input
-                  type="number"
-                  value={overrideHeight || ratesData?.shipment_details?.dimensions?.height || 5}
-                  onChange={(e) => setOverrideHeight(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
-                  disabled={!showOverridePackage}
-                  min="1"
-                  step="1"
-                />
-              </div>
-            </div>
-          </div>
-
           {/* Shipment Summary */}
           <div className="bg-gray-50 rounded-lg p-4 space-y-2 text-sm">
             <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Shipment Details</p>
@@ -984,7 +1106,11 @@ const CreateShipment: React.FC = () => {
             </div>
             <div className="flex justify-between">
               <span className="text-gray-500">Weight</span>
-              <span className="font-medium">{formatWeight(ratesData?.shipment_details?.billable_weight || calculateOrderWeight())}</span>
+              <span className="font-medium">{packageWeight ? `${packageWeight} kg` : formatWeight(calculateOrderWeight())}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-500">Dimensions</span>
+              <span className="font-medium">{packageLength}×{packageWidth}×{packageHeight} cm</span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-500">Payment</span>
@@ -1007,11 +1133,6 @@ const CreateShipment: React.FC = () => {
               fullWidth
               onClick={() => {
                 setShowShipmentModal(false);
-                setShowOverridePackage(false);
-                setOverrideWeight('');
-                setOverrideLength('');
-                setOverrideWidth('');
-                setOverrideHeight('');
               }}
             >
               Cancel
@@ -1031,7 +1152,6 @@ const CreateShipment: React.FC = () => {
           </div>
         </div>
       </Modal>
-      </div>
     </div>
   );
 };

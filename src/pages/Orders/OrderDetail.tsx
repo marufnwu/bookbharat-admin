@@ -344,27 +344,34 @@ const OrderDetail: React.FC = () => {
 
   const handleDownloadShippingLabel = async () => {
     try {
-      if (!shipment?.label_url) {
-        toast.error('No label available to download');
+      if (!shipment?.id) {
+        toast.error('No shipment found. Please create a shipment first.');
         return;
       }
 
       const loadingToast = toast.loading('Preparing shipping label...');
-      const token = useAuthStore.getState().token;
 
-      const response = await fetch(shipment.label_url, {
-        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
-      });
+      // Get the label content from the API
+      const labelResponse = await api.get(`/shipping/multi-carrier/shipments/${shipment.id}/label`);
+      const labelData = labelResponse.data;
 
-      if (!response.ok) {
-        throw new Error('Failed to download shipping label');
+      if (!labelData?.success || !labelData?.data?.label_base64) {
+        toast.error(labelData?.message || 'Label not available');
+        toast.dismiss(loadingToast);
+        return;
       }
 
-      const blob = await response.blob();
+      // Convert base64 to blob and download
+      const binaryString = atob(labelData.data.label_base64);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      const blob = new Blob([bytes], { type: 'application/pdf' });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `shipping-label-${shipment.tracking_number || id}.pdf`;
+      a.download = labelData.data.filename || `shipping-label-${shipment.tracking_number || id}.pdf`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
