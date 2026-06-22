@@ -135,9 +135,6 @@ const ProductAssociations: React.FC = () => {
 
   const createMutation = useMutation({
     mutationFn: productAssociationsApi.createAssociation,
-    onError: (error: any) => {
-      showError('Failed to create association', error.response?.data?.message);
-    },
   });
 
   const updateMutation = useMutation({

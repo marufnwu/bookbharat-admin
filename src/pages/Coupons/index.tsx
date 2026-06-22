@@ -6,7 +6,7 @@ import {
   Clock, DollarSign, Percent, Copy, Edit, Trash2, 
   Save, X 
 } from 'lucide-react';
-import { toast } from 'react-hot-toast';
+import { toast } from '../../utils/toast';
 import { couponsApi, categoriesApi } from '../../api';
 import CategoryPicker from '../../components/CategoryPicker';
 import ProductPicker from '../../components/ProductPicker';

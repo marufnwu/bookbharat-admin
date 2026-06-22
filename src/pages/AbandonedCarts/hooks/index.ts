@@ -4,7 +4,7 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import toast from 'react-hot-toast';
+import { toast } from '../../../utils/toast';
 import type { CartFilters, SendRecoveryForm, GenerateDiscountForm, AddNoteForm } from '../types';
 import * as api from '../api';
 

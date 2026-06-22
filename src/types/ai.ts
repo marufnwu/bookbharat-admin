@@ -56,10 +56,50 @@ export interface ProductFieldGenerationInput {
 export interface ProductFieldGenerationOutput {
   description: string;
   short_description: string;
+  focus_keyword: string;
   meta_title: string;
   meta_description: string;
   meta_keywords: string;
   tags: string[];
+}
+
+export interface SeoOptimizationInput {
+  name: string;
+  description: string;
+  short_description: string;
+  meta_title: string;
+  meta_description: string;
+  meta_keywords: string;
+  focus_keyword: string;
+  slug: string;
+  author?: string;
+  category?: string;
+  language?: string;
+  format?: string;
+  isbn?: string;
+  mode?: 'single' | 'variants';
+  requested_field?: string;
+  provider_id?: number;
+}
+
+export interface SeoOptimizationOutput {
+  current_score: number;
+  improved_meta_title: string;
+  improved_meta_description: string;
+  improved_focus_keyword: string;
+  improved_slug: string;
+  improved_short_description: string;
+  improved_description: string;
+  keyword_suggestions: string[];
+  improvement_tips: string[];
+  content_suggestions: string;
+  focus_keyword_variants?: string[];
+  meta_title_variants?: string[];
+  meta_description_variants?: string[];
+  slug_variants?: string[];
+  meta_keywords_variants?: string[][];
+  short_description_variants?: string[];
+  description_variants?: string[];
 }
 
 export interface AiTaskExecutionResponse {
@@ -81,6 +121,7 @@ export interface AiProviderFormData {
   configuration?: {
     temperature?: number;
     max_tokens?: number;
+    [key: string]: any;
   };
   priority?: number;
   is_enabled?: boolean;

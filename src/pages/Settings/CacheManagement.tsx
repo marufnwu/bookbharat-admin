@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../../api/axios';
-import { toast } from 'react-hot-toast';
+import { toast } from '../../utils/toast';
 
 interface CacheTag {
   tag: string;

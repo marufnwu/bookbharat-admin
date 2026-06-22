@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { X, Loader2, Sparkles, Check, RotateCcw } from 'lucide-react';
 import { aiTasksApi } from '../api/aiTasks';
-import toast from 'react-hot-toast';
+import { toast } from '../utils/toast';
 import type { ProductFieldGenerationInput, ProductFieldGenerationOutput } from '../types/ai';
 
 interface AiFieldGeneratorProps {
@@ -254,6 +254,14 @@ const AiFieldGenerator: React.FC<AiFieldGeneratorProps> = ({
                 isEdited={editedFields.has('short_description')}
                 multiline
                 rows={3}
+              />
+
+              {/* Focus Keyword */}
+              <FieldCard
+                title="Focus Keyword"
+                value={(generatedFields as any).focus_keyword || ''}
+                onChange={(v) => handleFieldEdit('focus_keyword' as any, v)}
+                isEdited={editedFields.has('focus_keyword' as any)}
               />
 
               {/* Meta Title */}

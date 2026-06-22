@@ -35,7 +35,7 @@ import {
   Calendar,
   MessageSquare,
 } from 'lucide-react';
-import { toast } from 'react-hot-toast';
+import { toast } from '../../utils/toast';
 import { api } from '../../api/axios';
 import CommunicationPanel from '../../components/Orders/CommunicationPanel';
 import InternalNotesSection from '../../components/Orders/InternalNotesSection';

@@ -18,7 +18,7 @@ import {
   Save,
   Upload
 } from 'lucide-react';
-import { toast } from 'react-hot-toast';
+import { toast } from '../../utils/toast';
 import { cn } from '../../utils/cn';
 
 interface Category {

@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Upload, X, Image as ImageIcon, Loader2, RefreshCw } from 'lucide-react';
 import { api } from '../api/axios';
-import toast from 'react-hot-toast';
+import { toast } from '../utils/toast';
 import { getFullImageUrl, getBackendUrl } from '../utils/imageUrl';
 
 interface ImageUploaderProps {

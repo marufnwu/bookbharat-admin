@@ -14,7 +14,7 @@ import {
   Phone,
   Mail
 } from 'lucide-react';
-import { toast } from 'react-hot-toast';
+import { toast } from '../../utils/toast';
 import { Button, Card, CardContent, StatusBadge, Modal, PageSkeleton } from '../../components';
 
 interface Warehouse {

@@ -18,7 +18,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { api } from '../../api/axios';
-import toast from 'react-hot-toast';
+import { toast } from '../../utils/toast';
 import {
   Layout,
   Plus,

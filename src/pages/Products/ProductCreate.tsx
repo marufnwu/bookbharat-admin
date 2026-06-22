@@ -2,12 +2,20 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { productsApi, categoriesApi, publishersApi, authorsApi } from '../../api';
-import { Upload, X, Plus, Save, ArrowLeft, Sparkles, Loader2, Truck, Star, ChevronLeft, ChevronRight, Trash2, Check, Search } from 'lucide-react';
-import { toast } from 'react-hot-toast';
+import { Upload, X, Plus, Save, ArrowLeft, Sparkles, Loader2, Truck, Star, ChevronLeft, ChevronRight, Trash2, Check, Search, Wand2 } from 'lucide-react';
+import { toast } from '../../utils/toast';
 import RichTextEditor from '../../components/RichTextEditor';
 import BundleVariantManager from '../../components/BundleVariantManager';
 import AiFieldGenerator from '../../components/AiFieldGenerator';
 import { ShippingConfigInput } from '../../components/products/ShippingConfigInput';
+import SeoScoreBar from '../../components/products/SeoScoreBar';
+import SeoScoreAnalyzer from '../../components/products/SeoScoreAnalyzer';
+import SeoChecklist from '../../components/products/SeoChecklist';
+import SeoPreviewPanel from '../../components/products/SeoPreviewPanel';
+import SeoFieldHelp from '../../components/products/SeoFieldHelp';
+import KeywordChips from '../../components/products/KeywordChips';
+import AiSeoSidebar from '../../components/products/AiSeoSidebar';
+import { useSeoAutoFill } from '../../hooks/useSeoAutoFill';
 import { toKg, toGrams } from '../../utils/weight';
 import {
   Card,
@@ -56,6 +64,9 @@ interface ProductForm {
   meta_title?: string;
   meta_description?: string;
   meta_keywords?: string;
+  focus_keyword?: string;
+  canonical_url?: string;
+  og_image?: string;
   images: File[];
   // Preorder fields
   is_preorder: boolean;
@@ -74,11 +85,13 @@ const ProductCreate: React.FC = () => {
   const [publisherSearch, setPublisherSearch] = useState('');
   const [showPublisherDropdown, setShowPublisherDropdown] = useState(false);
   const [aiGeneratedFields, setAiGeneratedFields] = useState<Set<string>>(new Set());
+  const [showSeoSidebar, setShowSeoSidebar] = useState(false);
+  const { autoFillSeo } = useSeoAutoFill();
 
   // Read initial tab from URL hash
   useEffect(() => {
     const hash = window.location.hash.replace('#', '');
-    const validTabs = ['basic', 'details', 'pricing', 'images', 'seo'];
+    const validTabs = ['basic', 'details', 'pricing', 'shipping', 'images', 'seo'];
     if (hash && validTabs.includes(hash)) {
       setActiveTab(hash);
     }
@@ -126,6 +139,9 @@ const ProductCreate: React.FC = () => {
     width: undefined,
     height: undefined,
     images: [],
+    focus_keyword: '',
+    canonical_url: '',
+    og_image: '',
     // Preorder defaults
     is_preorder: false,
     release_date: undefined,
@@ -183,6 +199,12 @@ const ProductCreate: React.FC = () => {
       setFormData(prev => ({ ...prev, slug }));
     }
   };
+
+  const handleAiSuggestion = (field: string, value: any) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const categoryName = (categoryTree as any)?.categories?.find((c: any) => c.id === formData.category_id)?.name || '';
 
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -367,6 +389,15 @@ const ProductCreate: React.FC = () => {
             Back
           </Button>
           <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowSeoSidebar(true)}
+            className="flex items-center gap-1.5"
+          >
+            <Sparkles className="h-4 w-4 text-purple-600" />
+            <span className="hidden sm:inline">AI SEO</span>
+          </Button>
+          <Button
             variant="primary"
             size="sm"
             onClick={handleSubmit}
@@ -380,6 +411,16 @@ const ProductCreate: React.FC = () => {
       </div>
 
       <Card>
+        {/* Persistent SEO Score Bar */}
+        <div className="px-6 pt-4">
+          <SeoScoreBar
+            formData={formData}
+            images={images}
+            imageAltTexts={imageAltTexts}
+            onViewSeo={() => handleTabChange('seo')}
+          />
+        </div>
+
         <div className="border-b border-gray-200 overflow-x-auto">
           <nav className="flex -mb-px min-w-max">
             {tabs.map(tab => (
@@ -457,6 +498,60 @@ const ProductCreate: React.FC = () => {
                 </select>
               </div>
 
+              {/* Focus Keyword field */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Focus Keyword <SeoFieldHelp field="focus_keyword" />
+                </label>
+                <input
+                  type="text"
+                  name="focus_keyword"
+                  value={formData.focus_keyword || ''}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="e.g., bangla novel, science fiction book"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  The #1 search term this book should rank for on Google
+                </p>
+              </div>
+
+              {/* SEO Auto-fill Banner */}
+              {formData.name && formData.category_id > 0 && !formData.focus_keyword && (
+                <div className="md:col-span-2">
+                  <div className="flex items-center justify-between p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <p className="text-sm text-blue-800">
+                      <Wand2 className="h-4 w-4 inline mr-1" />
+                      SEO fields can be auto-filled from your product info.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const seo = autoFillSeo({
+                          name: formData.name,
+                          author: formData.author,
+                          category: (categoryTree as any)?.categories?.find((c: any) => c.id === formData.category_id)?.name || '',
+                          language: formData.language,
+                          format: formData.format,
+                          short_description: formData.short_description,
+                        });
+                        setFormData(prev => ({
+                          ...prev,
+                          focus_keyword: prev.focus_keyword || seo.focus_keyword,
+                          meta_title: prev.meta_title || seo.meta_title,
+                          meta_description: prev.meta_description || seo.meta_description,
+                          meta_keywords: prev.meta_keywords || seo.meta_keywords,
+                        }));
+                        toast.success('SEO fields auto-filled! Review them on the SEO tab.');
+                      }}
+                      className="px-3 py-1.5 text-sm font-medium text-blue-700 bg-blue-100 rounded-lg hover:bg-blue-200 transition-colors whitespace-nowrap"
+                    >
+                      Auto-fill now
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* AI Assistant Button - Enhanced */}
               <div className="md:col-span-2">
                 <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border-2 border-indigo-200 rounded-lg p-4">
@@ -513,6 +608,14 @@ const ProductCreate: React.FC = () => {
                   onChange={(value) => setFormData(prev => ({ ...prev, description: value }))}
                   placeholder="Enter detailed product description..."
                 />
+                {formData.description && (() => {
+                  const words = formData.description.replace(/<[^>]*>/g, '').split(/\s+/).filter((w: string) => w.length > 0).length;
+                  return (
+                    <p className={`text-xs mt-1 ${words >= 200 ? 'text-green-600' : words >= 100 ? 'text-yellow-600' : 'text-red-500'}`}>
+                      {words} words — {words >= 300 ? 'Excellent length for SEO!' : words >= 150 ? `Aim for 300+ for maximum SEO impact (${300 - words} more needed)` : `Only ${words} words — aim for 300+ for better Google ranking`}
+                    </p>
+                  );
+                })()}
               </div>
 
               <div>
@@ -889,6 +992,24 @@ const ProductCreate: React.FC = () => {
                   </label>
                 </div>
               </div>
+
+              {/* Format-specific SEO tip */}
+              {formData.format && (
+                <div className="md:col-span-2 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800">
+                  <span className="font-medium">SEO tip:</span>{' '}
+                  {formData.format === 'Paperback' && 'Mention page count and binding type in your description. Include "paperback edition" naturally.'}
+                  {formData.format === 'Hardcover' && 'Emphasize "hardcover edition" and premium quality in your description.'}
+                  {formData.format === 'Ebook' && 'Mention "digital edition", "PDF", "Kindle" in your description. Include file format details.'}
+                  {formData.format === 'Audiobook' && 'Mention "audiobook", "narrated by", and duration in your description for audio search.'}
+                </div>
+              )}
+
+              {/* Language SEO tip */}
+              {formData.language && (
+                <div className="md:col-span-2 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-800">
+                  <span className="font-medium">SEO tip:</span> Write your meta title and description in {formData.language} for the best local SEO results.
+                </div>
+              )}
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -1376,66 +1497,115 @@ const ProductCreate: React.FC = () => {
           {
             activeTab === 'seo' && (
               <div className="space-y-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Meta Title
-                  </label>
-                  <input
-                    type="text"
-                    name="meta_title"
-                    value={formData.meta_title || ''}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    {formData.meta_title?.length || 0}/60 characters
-                  </p>
-                </div>
+                {/* Score Gauge */}
+                <SeoScoreAnalyzer
+                  formData={formData}
+                  images={images}
+                  imageAltTexts={imageAltTexts}
+                />
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Meta Description
-                  </label>
-                  <textarea
-                    name="meta_description"
-                    value={formData.meta_description || ''}
-                    onChange={handleInputChange}
-                    rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    {formData.meta_description?.length || 0}/160 characters
-                  </p>
-                </div>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Left: SEO Fields */}
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Focus Keyword <SeoFieldHelp field="focus_keyword" />
+                      </label>
+                      <input
+                        type="text"
+                        name="focus_keyword"
+                        value={formData.focus_keyword || ''}
+                        onChange={handleInputChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="e.g., bangla novel, science fiction book"
+                      />
+                    </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Meta Keywords
-                  </label>
-                  <input
-                    type="text"
-                    name="meta_keywords"
-                    value={formData.meta_keywords || ''}
-                    onChange={handleInputChange}
-                    placeholder="Separate keywords with commas"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Meta Title <SeoFieldHelp field="meta_title" />
+                      </label>
+                      <input
+                        type="text"
+                        name="meta_title"
+                        value={formData.meta_title || ''}
+                        onChange={handleInputChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        {formData.meta_title?.length || 0}/60 characters
+                      </p>
+                    </div>
 
-                <div className="p-4 bg-blue-50 rounded-lg">
-                  <h4 className="text-sm font-medium text-blue-900 mb-2">SEO Preview</h4>
-                  <div className="space-y-1">
-                    <p className="text-blue-800 font-medium">
-                      {formData.meta_title || formData.name || 'Product Title'}
-                    </p>
-                    <p className="text-green-700 text-xs">
-                      www.bookbharat.com/products/{formData.slug || 'product-slug'}
-                    </p>
-                    <p className="text-gray-600 text-sm">
-                      {formData.meta_description || formData.description?.substring(0, 160) || 'Product description will appear here...'}
-                    </p>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Meta Description <SeoFieldHelp field="meta_description" />
+                      </label>
+                      <textarea
+                        name="meta_description"
+                        value={formData.meta_description || ''}
+                        onChange={handleInputChange}
+                        rows={3}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        {formData.meta_description?.length || 0}/160 characters
+                      </p>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Meta Keywords <SeoFieldHelp field="meta_keywords" />
+                      </label>
+                      <KeywordChips
+                        value={formData.meta_keywords || ''}
+                        onChange={(value) => setFormData(prev => ({ ...prev, meta_keywords: value }))}
+                        placeholder="Type keyword and press Enter"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        URL Slug <SeoFieldHelp field="slug" />
+                      </label>
+                      <input
+                        type="text"
+                        name="slug"
+                        value={formData.slug || ''}
+                        onChange={handleInputChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="auto-generated-from-name"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Canonical URL <SeoFieldHelp field="canonical_url" />
+                      </label>
+                      <input
+                        type="url"
+                        name="canonical_url"
+                        value={formData.canonical_url || ''}
+                        onChange={handleInputChange}
+                        placeholder="Leave blank for most products"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Right: Checklist */}
+                  <div className="space-y-4">
+                    <SeoChecklist
+                      formData={formData}
+                      images={images}
+                      imageAltTexts={imageAltTexts}
+                      format={formData.format}
+                    />
                   </div>
                 </div>
+
+                {/* Previews */}
+                <SeoPreviewPanel formData={formData} />
               </div>
             )
           }
@@ -1462,6 +1632,7 @@ const ProductCreate: React.FC = () => {
                 ...formData,
                 description: fields.description,
                 short_description: fields.short_description,
+                focus_keyword: (fields as any).focus_keyword || formData.focus_keyword,
                 meta_title: fields.meta_title,
                 meta_description: fields.meta_description,
                 meta_keywords: fields.meta_keywords,
@@ -1471,16 +1642,14 @@ const ProductCreate: React.FC = () => {
               setAiGeneratedFields(new Set([
                 'description',
                 'short_description',
+                'focus_keyword',
                 'meta_title',
                 'meta_description',
                 'meta_keywords',
               ]));
 
               toast.success(
-                <div>
-                  <strong>AI content applied!</strong>
-                  <div className="text-sm mt-1">Review and edit the generated fields as needed.</div>
-                </div>,
+                'AI content applied! Review and edit the generated fields as needed.',
                 { duration: 4000 }
               );
             }}
@@ -1488,6 +1657,27 @@ const ProductCreate: React.FC = () => {
           />
         )
       }
+
+      {/* AI SEO Sidebar */}
+      <AiSeoSidebar
+        isOpen={showSeoSidebar}
+        onClose={() => setShowSeoSidebar(false)}
+        formData={formData}
+        categoryName={categoryName}
+        onApplyField={handleAiSuggestion}
+        onApplyAll={(suggestions) => {
+          setFormData(prev => ({
+            ...prev,
+            focus_keyword: suggestions.focus_keyword || prev.focus_keyword,
+            meta_title: suggestions.meta_title || prev.meta_title,
+            meta_description: suggestions.meta_description || prev.meta_description,
+            slug: suggestions.slug || prev.slug,
+            meta_keywords: suggestions.meta_keywords || prev.meta_keywords,
+            short_description: suggestions.short_description || prev.short_description,
+            description: suggestions.description || prev.description,
+          }));
+        }}
+      />
     </div >
   );
 };

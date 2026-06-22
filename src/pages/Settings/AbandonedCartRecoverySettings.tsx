@@ -15,7 +15,7 @@ import {
   Sliders,
 } from 'lucide-react';
 import { api } from '../../api/axios';
-import toast from 'react-hot-toast';
+import { toast } from '../../utils/toast';
 
 // Detection Criteria Section Component
 const DetectionCriteriaSection: React.FC = () => {

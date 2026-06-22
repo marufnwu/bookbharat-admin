@@ -11,7 +11,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { api } from '../../api/axios';
-import toast from 'react-hot-toast';
+import { toast } from '../../utils/toast';
 import RichTextEditor from '../../components/RichTextEditor';
 
 const EmailTemplates: React.FC = () => {

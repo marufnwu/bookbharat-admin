@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { RefreshCw, Eye, Send, CheckCircle, Clock, AlertTriangle, Pause, AlertCircle, Loader2, Trash2, RotateCcw, MessageSquare, ExternalLink, ChevronDown, Search } from 'lucide-react';
 import { api } from '../../api/axios';
-import { toast } from 'react-hot-toast';
+import { toast } from '../../utils/toast';
 
 interface WhatsAppTemplate {
   id: number;

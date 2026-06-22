@@ -6,7 +6,7 @@
 import React, { useState } from 'react';
 import { RefreshCw, Download, Settings } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
-import toast from 'react-hot-toast';
+import { toast } from '../../utils/toast';
 
 // Constants & Types
 import type { Cart, CartFilters } from './types';

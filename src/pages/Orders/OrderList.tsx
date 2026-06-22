@@ -32,7 +32,7 @@ import { OrderSearchWithSuggestions } from '../../components/Orders/OrderSearchW
 import { KeyboardShortcutsHelp } from '../../components/Orders/KeyboardShortcutsHelp';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 import { api } from '../../api/axios';
-import { toast } from 'react-hot-toast';
+import { toast } from '../../utils/toast';
 
 // WhatsApp notification types
 type WhatsAppNotificationType = 'order_placed' | 'order_shipped' | 'order_delivered';

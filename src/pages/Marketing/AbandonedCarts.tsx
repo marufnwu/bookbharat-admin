@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ShoppingCart, Send, CheckCircle, TrendingUp, DollarSign, Package, Calendar, Search, Filter } from 'lucide-react';
 import { api } from '../../api/axios';
-import { toast } from 'react-hot-toast';
+import { toast } from '../../utils/toast';
 
 interface AbandonedCart {
   id: number;

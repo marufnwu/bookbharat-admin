@@ -20,6 +20,7 @@ import { productsApi, categoriesApi, brandsApi } from '../../api';
 import { Table, Button, Input, Badge, LoadingSpinner, Card, CardContent, StatusBadge } from '../../components';
 import { useNotificationStore } from '../../store/notificationStore';
 import { Product, FilterOptions, TableColumn } from '../../types';
+import { computeSeoScore, getSeoScoreColor } from '../../utils/seoScore';
 import { format } from 'date-fns';
 import { getFullImageUrl } from '../../utils/imageUrl';
 
@@ -340,6 +341,41 @@ const ProductList: React.FC = () => {
       title: 'Status',
       sortable: true,
       render: (value) => getStatusBadge(value),
+    },
+    {
+      key: 'seo',
+      title: 'SEO',
+      render: (_, record) => {
+        const p = record as any;
+        if (!p.focus_keyword) {
+          return (
+            <span className="text-xs text-gray-400" title="Add SEO fields by editing this product">
+              —
+            </span>
+          );
+        }
+        const { score } = computeSeoScore({
+          name: p.name || '',
+          slug: p.slug || '',
+          description: p.description || '',
+          short_description: p.short_description || '',
+          meta_title: p.meta_title || '',
+          meta_description: p.meta_description || '',
+          meta_keywords: p.meta_keywords || '',
+          focus_keyword: p.focus_keyword || '',
+          images: p.images || [],
+        });
+        const color = getSeoScoreColor(score);
+        return (
+          <span
+            className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold"
+            style={{ backgroundColor: `${color}20`, color }}
+            title={`SEO Score: ${score}/100`}
+          >
+            {score}
+          </span>
+        );
+      },
     },
     {
       key: 'stock',

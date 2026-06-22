@@ -11,7 +11,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { publishersApi } from '../../api';
-import toast from 'react-hot-toast';
+import { toast } from '../../utils/toast';
 
 interface Publisher {
   id: number;

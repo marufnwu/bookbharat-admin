@@ -11,7 +11,7 @@ import {
   Trash2
 } from 'lucide-react';
 import { api } from '../../api/axios';
-import toast from 'react-hot-toast';
+import { toast } from '../../utils/toast';
 
 const ContentBlocks: React.FC = () => {
   const queryClient = useQueryClient();

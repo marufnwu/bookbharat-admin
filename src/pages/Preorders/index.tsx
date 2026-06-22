@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { Calendar, Package, TrendingUp, AlertCircle, ChevronRight, Search } from 'lucide-react';
-import { toast } from 'react-hot-toast';
+import { toast } from '../../utils/toast';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, Badge, Button, Input } from '../../components';
 import { productsApi } from '../../api';
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Loader2, MapPin } from 'lucide-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { toast } from 'react-hot-toast';
+import { toast } from '../../utils/toast';
 import { orderEnhancementsApi } from '../../api/orderEnhancements';
 import type { UpdateAddressRequest } from '../../types/orderEnhancements';
 

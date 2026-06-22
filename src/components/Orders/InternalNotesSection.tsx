@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Lock, Plus, Loader2, User } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { toast } from 'react-hot-toast';
+import { toast } from '../../utils/toast';
 import { orderEnhancementsApi } from '../../api/orderEnhancements';
 
 interface InternalNotesSectionProps {

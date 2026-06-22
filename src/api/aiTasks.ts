@@ -4,6 +4,8 @@ import type {
   AiUsageStats,
   AiTaskExecutionResponse,
   ProductFieldGenerationInput,
+  SeoOptimizationInput,
+  SeoOptimizationOutput,
 } from '../types/ai';
 
 const AI_BASE = '/ai';
@@ -49,7 +51,26 @@ export const aiTasksApi = {
   // Generate product fields (convenience method)
   generateProductFields: async (input: ProductFieldGenerationInput): Promise<AiTaskExecutionResponse> => {
     const response = await api.post(`${PRODUCTS_AI_BASE}/generate-fields`, input, {
-      timeout: 300000, // 5 minutes timeout for AI tasks
+      timeout: 300000,
+    });
+    return response.data;
+  },
+
+  // SEO content optimization
+  seoOptimize: async (input: SeoOptimizationInput): Promise<AiTaskExecutionResponse & { data: SeoOptimizationOutput }> => {
+    const response = await api.post(`${PRODUCTS_AI_BASE}/seo-optimize`, input, {
+      timeout: 300000,
+    });
+    return response.data;
+  },
+
+  // SEO field variants (convenience wrapper)
+  seoFieldVariants: async (input: Omit<SeoOptimizationInput, 'mode' | 'requested_field'> & { requested_field: string }): Promise<AiTaskExecutionResponse & { data: SeoOptimizationOutput }> => {
+    const response = await api.post(`${PRODUCTS_AI_BASE}/seo-optimize`, {
+      ...input,
+      mode: 'variants',
+    }, {
+      timeout: 300000,
     });
     return response.data;
   },

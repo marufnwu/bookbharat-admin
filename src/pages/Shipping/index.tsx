@@ -9,7 +9,7 @@ import PincodeZones from './PincodeZones';
 import Warehouses from './Warehouses';
 import CarrierConfiguration from './CarrierConfiguration';
 import { api } from '../../api/axios';
-import { toast } from 'react-hot-toast';
+import { toast } from '../../utils/toast';
 
 type TabType = 'carriers' | 'warehouses' | 'pincodes' | 'settings';
 

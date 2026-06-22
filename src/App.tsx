@@ -374,7 +374,19 @@ const App: React.FC = () => {
       )}
 
       {/* Toast Notifications */}
-      <Toaster position="top-right" />
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          duration: 4000,
+          style: {
+            maxWidth: '500px',
+          },
+        }}
+        containerStyle={{
+          top: 20,
+        }}
+        gutter={8}
+      />
     </QueryClientProvider>
   );
 };

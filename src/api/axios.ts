@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { useAuthStore } from '../store/authStore';
-import { toast } from 'react-hot-toast';
+import { toast } from '../utils/toast';
 
 // Create single axios instance
 export const api = axios.create({
@@ -29,7 +29,9 @@ api.interceptors.request.use(
   }
 );
 
-// Response interceptor to handle auth errors and global errors
+// Response interceptor to handle auth errors and network-level issues.
+// HTTP error toasts (4xx/5xx) are intentionally NOT shown here to avoid
+// duplicate toasts — each component handles its own error notifications.
 api.interceptors.response.use(
   (response) => {
     return response;
@@ -38,50 +40,22 @@ api.interceptors.response.use(
     const originalRequest = error.config;
     const status = error.response?.status;
 
-    // Handle 401 Unauthorized or 419 CSRF Token Expired
+    // Handle 401 Unauthorized or 419 CSRF Token Expired — global concern
     if ((status === 401 || status === 419) && !originalRequest._retry) {
       originalRequest._retry = true;
 
       // Clear auth state and redirect to login
       useAuthStore.getState().logout();
-      window.location.href = '/login';
       toast.error('Session expired. Please login again.');
+      window.location.href = '/login';
 
       return Promise.reject(error);
     }
 
-    // Handle 403 Forbidden
-    if (status === 403) {
-      toast.error('You do not have permission to perform this action.');
-      return Promise.reject(error);
-    }
-
-    // Handle 500+ Server Errors - show error toast but do NOT log out
-    // Use optional chaining defensively in case response is malformed
+    // Log server errors for debugging but do NOT show a toast
+    // (components handle their own error messages)
     if (status && status >= 500) {
-      toast.error('A server error occurred. Please try again later.');
       console.error('Server Error:', error.response?.data?.message || error.message);
-      return Promise.reject(error);
-    }
-
-    // Handle 400-499 Client Errors - show error toast, do NOT log out
-    if (status && status >= 400 && status < 500) {
-      const message = error.response?.data?.message || 'An error occurred.';
-      toast.error(message);
-      return Promise.reject(error);
-    }
-
-    // Handle Network Errors (no response received) - show error toast but do NOT log out
-    // We intentionally do NOT log out on network errors since they don't indicate auth failures
-    if (!error.response && error.request) {
-      toast.error('Network error. Please check your connection.');
-      return Promise.reject(error);
-    }
-
-    // Handle any other errors (fallback)
-    if (!error.response) {
-      toast.error('An unexpected error occurred. Please try again.');
-      return Promise.reject(error);
     }
 
     return Promise.reject(error);

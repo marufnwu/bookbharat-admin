@@ -6,7 +6,7 @@ import Input from '../../../components/Input';
 import Badge from '../../../components/Badge';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../components/Card';
 import { Checkbox } from '../../../components/Checkbox';
-import { toast } from 'react-hot-toast';
+import { toast } from '../../../utils/toast';
 
 interface LegacyCategory {
   id: number;

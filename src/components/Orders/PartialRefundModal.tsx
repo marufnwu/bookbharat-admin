@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { X, Loader2, DollarSign, AlertCircle } from 'lucide-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { toast } from 'react-hot-toast';
+import { toast } from '../../utils/toast';
 import { orderEnhancementsApi } from '../../api/orderEnhancements';
 
 interface OrderItem {

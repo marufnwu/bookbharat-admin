@@ -11,7 +11,7 @@ import {
 } from '@heroicons/react/24/outline';
 import api, { type MigrationSettings as MigrationSettingsType } from '../../api';
 import { LoadingSpinner } from '../../components';
-import { toast } from 'react-hot-toast';
+import { toast } from '../../utils/toast';
 
 const MigrationSettings: React.FC = () => {
   const queryClient = useQueryClient();

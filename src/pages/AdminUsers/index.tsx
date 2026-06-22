@@ -11,7 +11,7 @@ import {
   X,
   Eye
 } from 'lucide-react';
-import { toast } from 'react-hot-toast';
+import { toast } from '../../utils/toast';
 
 interface AdminUser {
   id: number;

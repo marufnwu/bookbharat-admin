@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Mail, MessageSquare, Phone, AlertCircle, Loader2, Settings, FileText } from 'lucide-react';
 import { api } from '../../api/axios';
-import { toast } from 'react-hot-toast';
+import { toast } from '../../utils/toast';
 
 interface ChannelConfig {
   provider: string;

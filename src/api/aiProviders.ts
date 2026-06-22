@@ -8,7 +8,7 @@ const AI_PROVIDERS_BASE = '/ai-providers';
 
 export const aiProvidersApi = {
   // Get all AI providers
-  getAll: async (): Promise<{ success: boolean; data: AiProvider[]; supported_providers: string[] }> => {
+  getAll: async (): Promise<{ success: boolean; data: AiProvider[]; supported_methods: string[] }> => {
     const response = await api.get(AI_PROVIDERS_BASE);
     return response.data;
   },
@@ -46,6 +46,16 @@ export const aiProvidersApi = {
   // Set provider as default
   setDefault: async (id: number): Promise<{ success: boolean; data: AiProvider; message: string }> => {
     const response = await api.post(`${AI_PROVIDERS_BASE}/${id}/set-default`);
+    return response.data;
+  },
+
+  // Fetch available models from a provider
+  fetchModels: async (data: {
+    api_key: string;
+    api_endpoint?: string;
+    compatibility: string;
+  }): Promise<{ success: boolean; data: Array<{ id: string; name: string; owned_by: string }> }> => {
+    const response = await api.post(`${AI_PROVIDERS_BASE}/fetch-models`, data, { timeout: 30000 });
     return response.data;
   },
 };

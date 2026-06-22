@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { api } from "../../api/axios";
 import { toKg, toGrams } from "../../utils/weight";
-import toast from "react-hot-toast";
+import { toast } from '../../utils/toast';
 import {
   Package,
   Truck,

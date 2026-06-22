@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { heroConfigApi } from '../../api';
-import toast from 'react-hot-toast';
+import { toast } from '../../utils/toast';
 import { HeroConfig, HeroFormData, HeroFormTab } from '../../types/hero';
 import { validateField, validateForm } from './validation';
 import HeroConfigTable from './HeroConfigTable';

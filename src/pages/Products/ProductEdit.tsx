@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { productsApi, categoriesApi, publishersApi, authorsApi } from '../../api';
 import { productsApiExtended } from '../../api/extended';
-import { Upload, X, Save, ArrowLeft, Loader2, Truck, GripVertical, Star, Plus, Search, Check } from 'lucide-react';
+import { Upload, X, Save, ArrowLeft, Loader2, Truck, GripVertical, Star, Plus, Search, Check, Wand2, Sparkles } from 'lucide-react';
 import {
   DndContext,
   closestCenter,
@@ -21,10 +21,18 @@ import {
   useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { toast } from 'react-hot-toast';
+import { toast } from '../../utils/toast';
 import RichTextEditor from '../../components/RichTextEditor';
 import BundleVariantManager from '../../components/BundleVariantManager';
 import { ShippingConfigInput } from '../../components/products/ShippingConfigInput';
+import SeoScoreBar from '../../components/products/SeoScoreBar';
+import SeoScoreAnalyzer from '../../components/products/SeoScoreAnalyzer';
+import SeoChecklist from '../../components/products/SeoChecklist';
+import SeoPreviewPanel from '../../components/products/SeoPreviewPanel';
+import SeoFieldHelp from '../../components/products/SeoFieldHelp';
+import KeywordChips from '../../components/products/KeywordChips';
+import AiSeoSidebar from '../../components/products/AiSeoSidebar';
+import { useSeoAutoFill } from '../../hooks/useSeoAutoFill';
 import { toKg, toGrams } from '../../utils/weight';
 import {
   Card,
@@ -73,6 +81,9 @@ interface ProductForm {
   meta_title?: string;
   meta_description?: string;
   meta_keywords?: string;
+  focus_keyword?: string;
+  canonical_url?: string;
+  og_image?: string;
   images: File[];
   existing_images?: string[];
   // Preorder fields
@@ -197,6 +208,8 @@ const ProductEdit: React.FC = () => {
   const [showPublisherDropdown, setShowPublisherDropdown] = useState(false);
   const [showPublisherCreate, setShowPublisherCreate] = useState(false);
   const [newPublisherName, setNewPublisherName] = useState('');
+  const { autoFillSeo } = useSeoAutoFill();
+  const [showSeoSidebar, setShowSeoSidebar] = useState(false);
   const [formData, setFormData] = useState<ProductForm>({
     name: '',
     sku: '',
@@ -230,6 +243,9 @@ const ProductEdit: React.FC = () => {
     width: undefined,
     height: undefined,
     images: [],
+    focus_keyword: '',
+    canonical_url: '',
+    og_image: '',
     is_preorder: false,
     preorder_requires_deposit: false,
   });
@@ -299,6 +315,9 @@ const ProductEdit: React.FC = () => {
         meta_title: p.meta_title || '',
         meta_description: p.meta_description || '',
         meta_keywords: p.meta_keywords || '',
+        focus_keyword: p.focus_keyword || '',
+        canonical_url: p.canonical_url || '',
+        og_image: p.og_image || '',
         images: [],
         // Preorder fields
         is_preorder: p.is_preorder || false,
@@ -342,9 +361,6 @@ const ProductEdit: React.FC = () => {
     mutationFn: async (data: FormData) => {
       return productsApi.update(Number(id), data);
     },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Failed to update product');
-    },
   });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -365,6 +381,12 @@ const ProductEdit: React.FC = () => {
       setFormData(prev => ({ ...prev, slug }));
     }
   };
+
+  const handleAiSuggestion = (field: string, value: any) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const categoryName = (categoryTree as any)?.data?.find((c: any) => c.id === formData.category_id)?.name || '';
 
   // Helper function to render categories with indentation for hierarchy
   const renderCategoryOptions = (categories: any[], level = 0): React.ReactElement[] => {
@@ -565,6 +587,15 @@ const ProductEdit: React.FC = () => {
             Back
           </Button>
           <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowSeoSidebar(true)}
+            className="flex items-center gap-1.5"
+          >
+            <Sparkles className="h-4 w-4 text-purple-600" />
+            <span className="hidden sm:inline">AI SEO</span>
+          </Button>
+          <Button
             variant="primary"
             size="sm"
             onClick={handleSubmit}
@@ -577,6 +608,15 @@ const ProductEdit: React.FC = () => {
       </div>
 
       <Card>
+        {/* Persistent SEO Score Bar */}
+        <div className="px-6 pt-4">
+          <SeoScoreBar
+            formData={formData}
+            existingImages={existingImages}
+            onViewSeo={() => setActiveTab('seo')}
+          />
+        </div>
+
         <div className="border-b border-gray-200 overflow-x-auto">
           <nav className="flex -mb-px min-w-max">
             {tabs.map(tab => (
@@ -1530,72 +1570,140 @@ const ProductEdit: React.FC = () => {
 
               {activeTab === 'seo' && (
                 <div className="space-y-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Meta Title
-                    </label>
-                    <input
-                      type="text"
-                      name="meta_title"
-                      value={formData.meta_title || ''}
-                      onChange={handleInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                      {formData.meta_title?.length || 0}/60 characters
-                    </p>
-                  </div>
+                  {/* Score Gauge */}
+                  <SeoScoreAnalyzer
+                    formData={formData}
+                    existingImages={existingImages}
+                  />
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Meta Description
-                    </label>
-                    <textarea
-                      name="meta_description"
-                      value={formData.meta_description || ''}
-                      onChange={handleInputChange}
-                      rows={3}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                      {formData.meta_description?.length || 0}/160 characters
-                    </p>
-                  </div>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Left: SEO Fields */}
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Focus Keyword <SeoFieldHelp field="focus_keyword" />
+                        </label>
+                        <input
+                          type="text"
+                          name="focus_keyword"
+                          value={formData.focus_keyword || ''}
+                          onChange={handleInputChange}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                          placeholder="e.g., bangla novel, science fiction book"
+                        />
+                      </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Meta Keywords
-                    </label>
-                    <input
-                      type="text"
-                      name="meta_keywords"
-                      value={formData.meta_keywords || ''}
-                      onChange={handleInputChange}
-                      placeholder="Separate keywords with commas"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Meta Title <SeoFieldHelp field="meta_title" />
+                        </label>
+                        <input
+                          type="text"
+                          name="meta_title"
+                          value={formData.meta_title || ''}
+                          onChange={handleInputChange}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          {formData.meta_title?.length || 0}/60 characters
+                        </p>
+                      </div>
 
-                  <div className="p-4 bg-blue-50 rounded-lg">
-                    <h4 className="text-sm font-medium text-blue-900 mb-2">SEO Preview</h4>
-                    <div className="space-y-1">
-                      <p className="text-blue-800 font-medium">
-                        {formData.meta_title || formData.name || 'Product Title'}
-                      </p>
-                      <p className="text-green-700 text-xs">
-                        www.bookbharat.com/products/{formData.slug || 'product-slug'}
-                      </p>
-                      <p className="text-gray-600 text-sm">
-                        {formData.meta_description || formData.description?.substring(0, 160) || 'Product description will appear here...'}
-                      </p>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Meta Description <SeoFieldHelp field="meta_description" />
+                        </label>
+                        <textarea
+                          name="meta_description"
+                          value={formData.meta_description || ''}
+                          onChange={handleInputChange}
+                          rows={3}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          {formData.meta_description?.length || 0}/160 characters
+                        </p>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Meta Keywords <SeoFieldHelp field="meta_keywords" />
+                        </label>
+                        <KeywordChips
+                          value={formData.meta_keywords || ''}
+                          onChange={(value) => setFormData(prev => ({ ...prev, meta_keywords: value }))}
+                          placeholder="Type keyword and press Enter"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          URL Slug <SeoFieldHelp field="slug" />
+                        </label>
+                        <input
+                          type="text"
+                          name="slug"
+                          value={formData.slug || ''}
+                          onChange={handleInputChange}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                          placeholder="auto-generated-from-name"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Canonical URL <SeoFieldHelp field="canonical_url" />
+                        </label>
+                        <input
+                          type="url"
+                          name="canonical_url"
+                          value={formData.canonical_url || ''}
+                          onChange={handleInputChange}
+                          placeholder="Leave blank for most products"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Right: Checklist */}
+                    <div className="space-y-4">
+                      <SeoChecklist
+                        formData={formData}
+                        existingImages={existingImages}
+                        format={formData.format}
+                      />
                     </div>
                   </div>
+
+                  {/* Previews */}
+                  <SeoPreviewPanel formData={formData} />
                 </div>
               )}
             </form>
           )}
         </CardContent>
       </Card>
+
+      {/* AI SEO Sidebar */}
+      <AiSeoSidebar
+        isOpen={showSeoSidebar}
+        onClose={() => setShowSeoSidebar(false)}
+        formData={formData}
+        categoryName={categoryName}
+        onApplyField={handleAiSuggestion}
+        onApplyAll={(suggestions) => {
+          setFormData(prev => ({
+            ...prev,
+            focus_keyword: suggestions.focus_keyword || prev.focus_keyword,
+            meta_title: suggestions.meta_title || prev.meta_title,
+            meta_description: suggestions.meta_description || prev.meta_description,
+            slug: suggestions.slug || prev.slug,
+            meta_keywords: suggestions.meta_keywords || prev.meta_keywords,
+            short_description: suggestions.short_description || prev.short_description,
+            description: suggestions.description || prev.description,
+          }));
+        }}
+      />
     </div>
   );
 };

@@ -12,7 +12,7 @@ import {
   Layers
 } from 'lucide-react';
 import { api } from '../../api/axios';
-import toast from 'react-hot-toast';
+import { toast } from '../../utils/toast';
 
 interface MenuItem {
   id: string;

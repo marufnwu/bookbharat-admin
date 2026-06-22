@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { bundleVariantsApi } from '../api/extended';
 import { ProductBundleVariant } from '../types';
-import { toast } from 'react-hot-toast';
+import { toast } from '../utils/toast';
 import {
   PlusIcon,
   TrashIcon,

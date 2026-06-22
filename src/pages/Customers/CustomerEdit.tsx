@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { customersApi } from '../../api';
 import { ArrowLeft, Save, User, Mail, Phone, MapPin, Calendar, Shield, Bell, Eye, EyeOff } from 'lucide-react';
-import { toast } from 'react-hot-toast';
+import { toast } from '../../utils/toast';
 import { Button, Card, CardContent, PageSkeleton } from '../../components';
 
 interface CustomerForm {

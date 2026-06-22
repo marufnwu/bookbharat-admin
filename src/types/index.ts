@@ -363,7 +363,7 @@ export interface Customer {
 
 // Table Types
 export interface TableColumn<T = any> {
-  key: keyof T | 'actions' | 'rating' | 'select' | 'stock';
+  key: keyof T | 'actions' | 'rating' | 'select' | 'stock' | 'seo';
   title: React.ReactNode;
   sortable?: boolean;
   render?: (value: any, record: T) => React.ReactNode;

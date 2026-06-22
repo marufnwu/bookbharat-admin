@@ -19,7 +19,7 @@ import {
   Calendar,
   Package
 } from 'lucide-react';
-import { toast } from 'react-hot-toast';
+import { toast } from '../../utils/toast';
 
 interface Review {
   id: number;

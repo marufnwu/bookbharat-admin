@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { aiProvidersApi } from '../../api/aiProviders';
 import { aiTasksApi } from '../../api/aiTasks';
-import toast from 'react-hot-toast';
+import { toast } from '../../utils/toast';
 import {
   Plus,
   Loader2,
@@ -15,8 +15,14 @@ import {
   Sparkles,
   TrendingUp,
   Star,
+  RefreshCw,
 } from 'lucide-react';
 import type { AiProvider } from '../../types/ai';
+
+const COMPATIBILITY_TYPES = [
+  { value: 'openai-compatible', label: 'OpenAI Compatible', description: 'Works with OpenAI, DeepSeek, Grok, Ollama, LiteLLM, and any /v1/chat/completions API' },
+  { value: 'anthropic', label: 'Anthropic (Claude)', description: 'Native Claude API using /v1/messages endpoint' },
+];
 
 const AiProvidersPage: React.FC = () => {
   const [showForm, setShowForm] = useState(false);
@@ -278,7 +284,7 @@ const AiProvidersPage: React.FC = () => {
       {showForm && (
         <ProviderFormModal
           provider={editingProvider}
-          supportedProviders={providersData?.supported_providers || []}
+          supportedMethods={providersData?.supported_methods || []}
           onClose={handleFormClose}
           onSuccess={() => {
             handleFormClose();
@@ -320,13 +326,13 @@ const StatCard: React.FC<{
 // Provider Form Modal Component
 const ProviderFormModal: React.FC<{
   provider: AiProvider | null;
-  supportedProviders: string[];
+  supportedMethods: string[];
   onClose: () => void;
   onSuccess: () => void;
-}> = ({ provider, supportedProviders, onClose, onSuccess }) => {
+}> = ({ provider, supportedMethods, onClose, onSuccess }) => {
   const [formData, setFormData] = useState({
-    provider_name: provider?.provider_name || 'openai',
-    display_name: provider?.display_name || '',
+    provider_name: provider?.provider_name || '',
+    api_method: provider?.configuration?.api_method || 'openai-compatible',
     api_key: '',
     api_endpoint: provider?.api_endpoint || '',
     model: provider?.model || '',
@@ -335,6 +341,39 @@ const ProviderFormModal: React.FC<{
     priority: provider?.priority || 1,
     is_enabled: provider?.is_enabled ?? true,
   });
+
+  const [models, setModels] = useState<Array<{ id: string; name: string; owned_by: string }>>([]);
+  const [loadingModels, setLoadingModels] = useState(false);
+  const [modelsFetched, setModelsFetched] = useState(false);
+
+  const fetchModels = async () => {
+    if (!formData.api_key) {
+      toast.error('Please enter an API key first');
+      return;
+    }
+
+    setLoadingModels(true);
+    try {
+      const response = await aiProvidersApi.fetchModels({
+        api_key: formData.api_key,
+        api_endpoint: formData.api_endpoint || undefined,
+        compatibility: formData.api_method,
+      });
+
+      if (response.success) {
+        setModels(response.data);
+        setModelsFetched(true);
+        if (response.data.length > 0 && !formData.model) {
+          setFormData(prev => ({ ...prev, model: response.data[0].id }));
+        }
+        toast.success(`Found ${response.data.length} models`);
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to fetch models');
+    } finally {
+      setLoadingModels(false);
+    }
+  };
 
   const mutation = useMutation({
     mutationFn: provider
@@ -352,8 +391,15 @@ const ProviderFormModal: React.FC<{
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     mutation.mutate({
-      ...formData,
+      provider_name: formData.provider_name,
+      display_name: formData.provider_name,
+      api_key: formData.api_key,
+      api_endpoint: formData.api_endpoint,
+      model: formData.model,
+      priority: formData.priority,
+      is_enabled: formData.is_enabled,
       configuration: {
+        api_method: formData.api_method,
         temperature: formData.temperature,
         max_tokens: formData.max_tokens,
       },
@@ -362,129 +408,171 @@ const ProviderFormModal: React.FC<{
 
   return (
     <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full">
-        <div className="px-6 py-4 border-b">
+      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="px-6 py-4 border-b sticky top-0 bg-white z-10">
           <h2 className="text-xl font-semibold">
             {provider ? 'Edit Provider' : 'Add New Provider'}
           </h2>
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          {/* Provider Name + API Method */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Provider Type
+                Provider Name <span className="text-red-500">*</span>
               </label>
-              <select
+              <input
+                type="text"
                 value={formData.provider_name}
-                onChange={(e) =>
-                  setFormData({ ...formData, provider_name: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, provider_name: e.target.value })}
                 className="w-full px-3 py-2 border rounded-lg"
-                disabled={!!provider}
-              >
-                {supportedProviders.map((p) => (
-                  <option key={p} value={p}>
-                    {p}
-                  </option>
-                ))}
-              </select>
+                placeholder="e.g., OpenAI, DeepSeek, Anthropic"
+                required
+              />
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Display Name
+                API Method <span className="text-red-500">*</span>
               </label>
-              <input
-                type="text"
-                value={formData.display_name}
-                onChange={(e) => setFormData({ ...formData, display_name: e.target.value })}
-                className="w-full px-3 py-2 border rounded-lg"
-                required
-              />
+              <div className="flex gap-2">
+                {COMPATIBILITY_TYPES.map((type) => (
+                  <button
+                    key={type.value}
+                    type="button"
+                    onClick={() => {
+                      setFormData(prev => ({
+                        ...prev,
+                        api_method: type.value,
+                        model: '',
+                      }));
+                      setModels([]);
+                      setModelsFetched(false);
+                    }}
+                    className={`flex-1 p-2 border-2 rounded-lg text-center text-sm font-medium transition-all ${
+                      formData.api_method === type.value
+                        ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
+                        : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                    }`}
+                  >
+                    {type.label}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              API Key {!provider && <span className="text-red-500">*</span>}
-            </label>
-            <input
-              type="password"
-              value={formData.api_key}
-              onChange={(e) => setFormData({ ...formData, api_key: e.target.value })}
-              className="w-full px-3 py-2 border rounded-lg"
-              placeholder={provider ? 'Leave blank to keep existing' : ''}
-              required={!provider}
-            />
-          </div>
-
+          {/* API Key + Base URL */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Model</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                API Key <span className="text-red-500">*</span>
+              </label>
               <input
-                type="text"
-                value={formData.model}
-                onChange={(e) => setFormData({ ...formData, model: e.target.value })}
+                type="password"
+                value={formData.api_key}
+                onChange={(e) => setFormData({ ...formData, api_key: e.target.value })}
                 className="w-full px-3 py-2 border rounded-lg"
-                placeholder="e.g., gpt-4, gemini-pro"
-                required
+                placeholder={provider ? 'Leave blank to keep existing' : 'sk-...'}
+                required={!provider}
               />
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                API Endpoint (Optional)
+                Base URL (Optional)
               </label>
               <input
                 type="text"
                 value={formData.api_endpoint}
                 onChange={(e) => setFormData({ ...formData, api_endpoint: e.target.value })}
                 className="w-full px-3 py-2 border rounded-lg"
+                placeholder="Leave empty for default"
               />
             </div>
           </div>
 
+          {/* Fetch Models */}
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-sm font-medium text-gray-700">
+                Model {!provider && <span className="text-red-500">*</span>}
+              </label>
+              <button
+                type="button"
+                onClick={fetchModels}
+                disabled={loadingModels || !formData.api_key}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-indigo-600 hover:bg-indigo-50 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {loadingModels ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="w-4 h-4" />
+                )}
+                {modelsFetched ? 'Refresh Models' : 'Fetch Models'}
+              </button>
+            </div>
+
+            {modelsFetched && models.length > 0 ? (
+              <select
+                value={formData.model}
+                onChange={(e) => setFormData({ ...formData, model: e.target.value })}
+                className="w-full px-3 py-2 border rounded-lg"
+                required
+              >
+                {models.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.name} {m.owned_by ? `(${m.owned_by})` : ''}
+                  </option>
+                ))}
+              </select>
+            ) : modelsFetched && models.length === 0 ? (
+              <div className="text-sm text-amber-600 bg-amber-50 p-3 rounded-lg">
+                No models found. Check your API key and endpoint.
+              </div>
+            ) : (
+              <input
+                type="text"
+                value={formData.model}
+                onChange={(e) => setFormData({ ...formData, model: e.target.value })}
+                className="w-full px-3 py-2 border rounded-lg"
+                placeholder={loadingModels ? 'Fetching models...' : 'Enter model name or click "Fetch Models"'}
+                required
+                disabled={loadingModels}
+              />
+            )}
+          </div>
+
+          {/* Settings */}
           <div className="grid grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Temperature
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Temperature</label>
               <input
                 type="number"
                 step="0.1"
                 min="0"
                 max="2"
                 value={formData.temperature}
-                onChange={(e) =>
-                  setFormData({ ...formData, temperature: parseFloat(e.target.value) })
-                }
+                onChange={(e) => setFormData({ ...formData, temperature: parseFloat(e.target.value) })}
                 className="w-full px-3 py-2 border rounded-lg"
               />
             </div>
-
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Max Tokens
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Max Tokens</label>
               <input
                 type="number"
                 value={formData.max_tokens}
-                onChange={(e) =>
-                  setFormData({ ...formData, max_tokens: parseInt(e.target.value) })
-                }
+                onChange={(e) => setFormData({ ...formData, max_tokens: parseInt(e.target.value) })}
                 className="w-full px-3 py-2 border rounded-lg"
               />
             </div>
-
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Priority</label>
               <input
                 type="number"
                 value={formData.priority}
-                onChange={(e) =>
-                  setFormData({ ...formData, priority: parseInt(e.target.value) })
-                }
+                onChange={(e) => setFormData({ ...formData, priority: parseInt(e.target.value) })}
                 className="w-full px-3 py-2 border rounded-lg"
               />
             </div>
@@ -510,7 +598,7 @@ const ProviderFormModal: React.FC<{
             </button>
             <button
               type="submit"
-              disabled={mutation.isPending}
+              disabled={mutation.isPending || !formData.model}
               className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-2"
             >
               {mutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
