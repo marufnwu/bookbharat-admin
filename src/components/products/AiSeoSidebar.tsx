@@ -114,7 +114,7 @@ const AiSeoSidebar: React.FC<AiSeoSidebarProps> = ({
       {
         field: 'description',
         label: 'Full Description',
-        currentValue: (formData.description || '').replace(/<[^>]*>/g, '').substring(0, 100) + '...',
+        currentValue: (formData.description || '').replace(/<[^>]*>/g, '').substring(0, 80) + '...',
         suggestedValue: results.improved_description || '',
       },
     ];
@@ -151,9 +151,11 @@ const AiSeoSidebar: React.FC<AiSeoSidebarProps> = ({
   };
 
   const suggestions = getSuggestions();
-  const score = results?.current_score ?? computeSeoScore(formData).score;
-  const scoreColor = getSeoScoreColor(score);
-  const scoreLabel = getSeoScoreLabel(score);
+  const currentScore = computeSeoScore(formData).score;
+  const expectedScore = results?.expected_score ?? currentScore;
+  const currentScoreColor = getSeoScoreColor(currentScore);
+  const expectedScoreColor = getSeoScoreColor(expectedScore);
+  const scoreDiff = results ? expectedScore - currentScore : 0;
 
   if (!isOpen) return null;
 
@@ -180,25 +182,65 @@ const AiSeoSidebar: React.FC<AiSeoSidebarProps> = ({
       </div>
 
       {/* Score bar */}
-      <div className="px-5 py-3 border-b bg-gray-50 flex items-center gap-3 flex-shrink-0">
-        <div className="relative w-10 h-10 flex-shrink-0">
-          <svg className="w-10 h-10 -rotate-90" viewBox="0 0 44 44">
-            <circle cx="22" cy="22" r="18" fill="none" stroke="#e5e7eb" strokeWidth="4" />
-            <circle
-              cx="22" cy="22" r="18" fill="none" stroke={scoreColor} strokeWidth="4"
-              strokeLinecap="round"
-              strokeDasharray={2 * Math.PI * 18}
-              strokeDashoffset={2 * Math.PI * 18 * (1 - score / 100)}
-              className="transition-all duration-500"
-            />
-          </svg>
-          <div className="absolute inset-0 flex items-center justify-center">
-            <span className="text-xs font-bold" style={{ color: scoreColor }}>{score}</span>
+      <div className="px-5 py-3 border-b bg-gray-50 flex-shrink-0">
+        <div className="flex items-center gap-3">
+          {/* Current score circle */}
+          <div className="flex items-center gap-2">
+            <div className="relative w-10 h-10 flex-shrink-0">
+              <svg className="w-10 h-10 -rotate-90" viewBox="0 0 44 44">
+                <circle cx="22" cy="22" r="18" fill="none" stroke="#e5e7eb" strokeWidth="4" />
+                <circle
+                  cx="22" cy="22" r="18" fill="none" stroke={currentScoreColor} strokeWidth="4"
+                  strokeLinecap="round"
+                  strokeDasharray={2 * Math.PI * 18}
+                  strokeDashoffset={2 * Math.PI * 18 * (1 - currentScore / 100)}
+                  className="transition-all duration-500"
+                />
+              </svg>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="text-xs font-bold" style={{ color: currentScoreColor }}>{currentScore}</span>
+              </div>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500">Current</p>
+              <p className="text-xs font-medium" style={{ color: currentScoreColor }}>{getSeoScoreLabel(currentScore)}</p>
+            </div>
           </div>
-        </div>
-        <div className="flex-1">
-          <p className="text-sm font-medium text-gray-900">Current Score: <span style={{ color: scoreColor }}>{scoreLabel}</span></p>
-          {results && <p className="text-xs text-gray-500">AI estimated score based on current content</p>}
+
+          {/* Arrow and expected score */}
+          {results && (
+            <>
+              <div className="flex flex-col items-center">
+                <span className={`text-sm font-bold ${scoreDiff > 0 ? 'text-green-600' : scoreDiff < 0 ? 'text-red-600' : 'text-gray-400'}`}>
+                  {scoreDiff > 0 ? `+${scoreDiff}` : scoreDiff}
+                </span>
+                <svg className={`w-5 h-5 ${scoreDiff > 0 ? 'text-green-500' : scoreDiff < 0 ? 'text-red-500 rotate-180' : 'text-gray-300'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                </svg>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="relative w-10 h-10 flex-shrink-0">
+                  <svg className="w-10 h-10 -rotate-90" viewBox="0 0 44 44">
+                    <circle cx="22" cy="22" r="18" fill="none" stroke="#e5e7eb" strokeWidth="4" />
+                    <circle
+                      cx="22" cy="22" r="18" fill="none" stroke={expectedScoreColor} strokeWidth="4"
+                      strokeLinecap="round"
+                      strokeDasharray={2 * Math.PI * 18}
+                      strokeDashoffset={2 * Math.PI * 18 * (1 - expectedScore / 100)}
+                      className="transition-all duration-500"
+                    />
+                  </svg>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className="text-xs font-bold" style={{ color: expectedScoreColor }}>{expectedScore}</span>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Expected</p>
+                  <p className="text-xs font-medium" style={{ color: expectedScoreColor }}>{getSeoScoreLabel(expectedScore)}</p>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
@@ -332,12 +374,17 @@ const AiSeoSidebar: React.FC<AiSeoSidebarProps> = ({
                           <div className="p-2 bg-purple-50 border border-purple-100 rounded text-sm text-gray-800 min-h-[36px]">
                             {suggestion.field === 'meta_keywords' ? (
                               <div className="flex flex-wrap gap-1">
-                                {suggestion.suggestedValue.split(',').map((kw, i) => (
+                                {suggestion.suggestedValue.split(',').map((kw: string, i: number) => (
                                   <span key={i} className="px-2 py-0.5 bg-purple-100 text-purple-800 text-xs rounded-full">
                                     {kw.trim()}
                                   </span>
                                 ))}
                               </div>
+                            ) : suggestion.field === 'description' ? (
+                              <div
+                                className="prose prose-sm max-w-none text-gray-800"
+                                dangerouslySetInnerHTML={{ __html: suggestion.suggestedValue }}
+                              />
                             ) : (
                               <p className="whitespace-pre-wrap">{suggestion.suggestedValue}</p>
                             )}

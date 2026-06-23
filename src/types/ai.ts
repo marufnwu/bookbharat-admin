@@ -84,6 +84,7 @@ export interface SeoOptimizationInput {
 
 export interface SeoOptimizationOutput {
   current_score: number;
+  expected_score: number;
   improved_meta_title: string;
   improved_meta_description: string;
   improved_focus_keyword: string;
