@@ -69,6 +69,7 @@ import MarketingSettings from "./pages/Marketing/MarketingSettings";
 import RolesPermissions from "./pages/Settings/RolesPermissions";
 import MarketingAnalytics from "./pages/Marketing/MarketingAnalytics";
 import FeedManagement from "./pages/Marketing/FeedManagement";
+import ProductCollections from "./pages/Marketing/ProductCollections";
 import AnalyticsHub from "./pages/Analytics";
 import PaymentAnalytics from "./pages/Analytics/PaymentAnalytics";
 import MessageLogs from "./pages/Analytics/MessageLogs";
@@ -83,11 +84,6 @@ import BlogCreate from "./pages/Blog/BlogCreate";
 import BlogEdit from "./pages/Blog/BlogEdit";
 import CategoryCreate from "./pages/Blog/CategoryCreate";
 import CategoryEdit from "./pages/Blog/CategoryEdit";
-
-// Social Commerce
-import SocialCommerce from "./pages/SocialCommerce/SocialCommerce";
-import SocialAccounts from "./pages/SocialCommerce/SocialAccounts";
-import SocialContent from "./pages/SocialCommerce/SocialContent";
 
 // Migration Pages
 import MigrationDashboard from "./pages/Migration/Dashboard";
@@ -282,6 +278,7 @@ const App: React.FC = () => {
                 element={<MarketingAnalytics />}
               />
               <Route path="marketing/feeds" element={<FeedManagement />} />
+              <Route path="marketing/collections" element={<ProductCollections />} />
               <Route path="marketing/abandoned-carts" element={<AbandonedCarts />} />
 
               {/* Analytics */}
@@ -303,17 +300,6 @@ const App: React.FC = () => {
                 element={<CategoryEdit />}
               />
               <Route path="blog/comments" element={<BlogComments />} />
-
-              {/* Social Commerce */}
-              <Route path="social-commerce" element={<SocialCommerce />} />
-              <Route
-                path="social-commerce/accounts"
-                element={<SocialAccounts />}
-              />
-              <Route
-                path="social-commerce/content"
-                element={<SocialContent />}
-              />
 
               {/* Migration */}
               <Route path="migration" element={<MigrationDashboard />} />

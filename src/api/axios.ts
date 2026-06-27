@@ -4,7 +4,7 @@ import { toast } from '../utils/toast';
 
 // Create single axios instance
 export const api = axios.create({
-  baseURL: process.env.REACT_APP_ADMIN_API_URL || 'http://localhost:8000/api/v1/admin',
+  baseURL: process.env.REACT_APP_ADMIN_API_URL || 'http://bookbharat.com/api/v1/admin',
   timeout: 30000,
   withCredentials: true,
   headers: {
