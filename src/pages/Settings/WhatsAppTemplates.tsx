@@ -101,7 +101,7 @@ const WhatsAppTemplates: React.FC = () => {
         login_otp: { name: order.customer_name || order.user?.name || 'Test User', otp: '123456', order_id: order.order_number },
         cart_recovery: { name: order.customer_name || order.user?.name || 'Test User', items_count: '3', cart_value: order.total_amount, recovery_url: `https://bookbharat.com/cart/recover?token=${order.id}` },
         order_placed: { customer_name: order.customer_name || order.user?.name || 'Customer', order_number: order.order_number, amount: order.total_amount, order_id: order.order_number },
-        order_shipped: { customer_name: order.customer_name || order.user?.name || 'Customer', order_number: order.order_number, carrier: order.courier_partner || 'BlueDart', tracking_number: order.tracking_number || 'TRK123456', delivery_date: 'Monday', order_id: order.order_number },
+        order_shipped: { customer_name: order.customer_name || order.user?.name || 'Customer', order_number: order.order_number, carrier: order.shipments?.[0]?.carrier?.name || order.shipment?.carrier?.name || 'BlueDart', tracking_number: order.shipments?.[0]?.tracking_number || order.shipment?.tracking_number || 'TRK123456', delivery_date: 'Monday', order_id: order.order_number },
         order_delivered: { order_number: order.order_number, order_id: order.order_number },
         payment_failed: { customer_name: order.customer_name || order.user?.name || 'Customer', order_number: order.order_number, amount: order.total_amount, payment_method: order.payment_method || 'Card' },
       };
