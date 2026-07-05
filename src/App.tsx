@@ -58,6 +58,7 @@ import AbandonedCarts from "./pages/Marketing/AbandonedCarts";
 import MessagingChannels from "./pages/Settings/MessagingChannels";
 import WhatsAppTemplates from "./pages/Settings/WhatsAppTemplates";
 import AiProvidersPage from "./pages/Settings/AiProvidersPage";
+import MaintenanceMode from "./pages/Settings/MaintenanceMode";
 import PreordersList from "./pages/Preorders";
 
 // Documentation Pages
@@ -265,6 +266,7 @@ const App: React.FC = () => {
               <Route path="settings/messaging-channels" element={<MessagingChannels />} />
               <Route path="settings/whatsapp-templates" element={<WhatsAppTemplates />} />
               <Route path="settings/ai-providers" element={<AiProvidersPage />} />
+              <Route path="settings/maintenance" element={<MaintenanceMode />} />
 
               {/* Communication & Notifications - REMOVED */}
 

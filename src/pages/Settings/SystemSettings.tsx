@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   ServerIcon,
   CircleStackIcon,
   DocumentDuplicateIcon,
+  WrenchIcon,
   DocumentTextIcon,
   ClockIcon,
   ExclamationTriangleIcon,
@@ -88,6 +90,7 @@ const SystemSettings: React.FC = () => {
     { id: 'backups', name: 'Backups', icon: DocumentDuplicateIcon },
     { id: 'logs', name: 'System Logs', icon: DocumentTextIcon },
     { id: 'queue', name: 'Queue Status', icon: ClockIcon },
+    { id: 'maintenance', name: 'Maintenance Mode', icon: WrenchIcon },
   ];
 
   const systemData = healthData?.data || mockHealthData;
@@ -382,6 +385,21 @@ const SystemSettings: React.FC = () => {
     </div>
   );
 
+
+  const renderMaintenanceSection = () => (
+    <div className="bg-white p-6 rounded-lg shadow">
+      <h3 className="text-lg font-medium text-gray-900 mb-4">Maintenance Mode</h3>
+      <p className="text-gray-600 mb-6">
+        Open the dedicated maintenance mode page to toggle and configure it.
+      </p>
+      <Link
+        to="/settings/maintenance"
+        className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+      >
+        Open Maintenance Mode Settings
+      </Link>
+    </div>
+  );
   const renderContent = () => {
     switch (activeSection) {
       case 'health':
@@ -394,6 +412,8 @@ const SystemSettings: React.FC = () => {
         return renderLogsSection();
       case 'queue':
         return renderQueueSection();
+      case 'maintenance':
+        return renderMaintenanceSection();
       default:
         return renderHealthSection();
     }
