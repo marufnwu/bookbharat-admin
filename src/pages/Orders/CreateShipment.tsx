@@ -124,6 +124,17 @@ const CreateShipment: React.FC = () => {
 
   const order = orderResponse?.order;
 
+  const PREFERRED_COURIER_META: Record<string, { name: string; bg: string; text: string; border: string; logo: string }> = {
+    delhivery:   { name: 'Delhivery',   bg: 'bg-red-50',      text: 'text-red-700',     border: 'border-red-200',     logo: '/images/couriers/delhivery.png' },
+    shadowfax:   { name: 'Shadowfax',   bg: 'bg-blue-50',     text: 'text-blue-700',    border: 'border-blue-200',    logo: '/images/couriers/shadowfax.png' },
+    ekart:       { name: 'Ekart',       bg: 'bg-orange-50',   text: 'text-orange-700',  border: 'border-orange-200',  logo: '/images/couriers/ekart.png' },
+    bluedart:    { name: 'Blue Dart',   bg: 'bg-sky-50',      text: 'text-sky-700',     border: 'border-sky-200',     logo: '/images/couriers/bluedart.png' },
+    xpressbees:  { name: 'Xpressbees',  bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', logo: '/images/couriers/xpressbees.png' },
+  };
+  const preferredCouriers: string[] = Array.isArray((order as any)?.metadata?.customer_preferences?.preferred_couriers)
+    ? ((order as any).metadata.customer_preferences.preferred_couriers as string[])
+    : [];
+
   // Fetch pickup location
   const { data: pickupLocation } = useQuery({
     queryKey: ["pickup-location"],
@@ -894,6 +905,39 @@ const CreateShipment: React.FC = () => {
               <div className="bg-white p-3 rounded-lg shadow-sm border text-center">
                 <p className="text-xs text-gray-500">Avg Price</p>
                 <p className="text-xl font-bold">{formatCurrency(ratesData.summary.average_price)}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Buyer Preferred Couriers Banner */}
+          {preferredCouriers.length > 0 && (
+            <div className="bg-amber-50 border-2 border-amber-300 rounded-xl p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Truck className="h-5 w-5 text-amber-600" />
+                <span className="font-bold text-amber-900">Buyer's Preferred Couriers</span>
+              </div>
+              <p className="text-sm text-amber-700 mb-3">
+                Please prefer these carriers — picked by the customer for good service in their area. We can also ship via India Post if needed.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {preferredCouriers.map((code) => {
+                  const meta = PREFERRED_COURIER_META[code];
+                  if (!meta) return null;
+                  return (
+                    <span
+                      key={code}
+                      className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-semibold border ${meta.bg} ${meta.text} ${meta.border}`}
+                    >
+                      <img
+                        src={meta.logo}
+                        alt={`${meta.name} logo`}
+                        className="h-5 w-5 object-contain flex-shrink-0"
+                        onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                      />
+                      {meta.name}
+                    </span>
+                  );
+                })}
               </div>
             </div>
           )}

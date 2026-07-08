@@ -113,6 +113,17 @@ const OrderDetail: React.FC = () => {
 
   const order = orderResponse?.order;
 
+  const PREFERRED_COURIER_META: Record<string, { name: string; bg: string; text: string; border: string; logo: string }> = {
+    delhivery:   { name: 'Delhivery',   bg: 'bg-red-50',      text: 'text-red-700',     border: 'border-red-200',     logo: '/images/couriers/delhivery.png' },
+    shadowfax:   { name: 'Shadowfax',   bg: 'bg-blue-50',     text: 'text-blue-700',    border: 'border-blue-200',    logo: '/images/couriers/shadowfax.png' },
+    ekart:       { name: 'Ekart',       bg: 'bg-orange-50',   text: 'text-orange-700',  border: 'border-orange-200',  logo: '/images/couriers/ekart.png' },
+    bluedart:    { name: 'Blue Dart',   bg: 'bg-sky-50',      text: 'text-sky-700',     border: 'border-sky-200',     logo: '/images/couriers/bluedart.png' },
+    xpressbees:  { name: 'Xpressbees',  bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', logo: '/images/couriers/xpressbees.png' },
+  };
+  const preferredCouriers: string[] = Array.isArray((order as any)?.metadata?.customer_preferences?.preferred_couriers)
+    ? ((order as any).metadata.customer_preferences.preferred_couriers as string[])
+    : [];
+
   // Fetch shipment details for this order
   const { data: shipmentResponse, refetch: refetchShipment } = useQuery({
     queryKey: ['shipment', id],
@@ -877,6 +888,8 @@ const OrderDetail: React.FC = () => {
                       )}
                     </div>
 
+                   
+
                     <div>
                       <p className="text-sm text-gray-500 mb-1">Shipping Cost</p>
                       <p className="font-medium">{formatCurrency(shipment.shipping_cost || 0)}</p>
@@ -1027,6 +1040,31 @@ const OrderDetail: React.FC = () => {
                 <div className="text-center py-8">
                   <Package className="h-12 w-12 text-gray-400 mx-auto mb-3" />
                   <p className="text-gray-500 mb-4">No shipment created yet</p>
+                  {preferredCouriers.length > 0 && (
+                    <div className="max-w-xs mx-auto mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg text-left">
+                      <p className="text-xs text-amber-700 font-medium mb-2">Customer's Preferred Couriers:</p>
+                      <div className="flex flex-wrap gap-1.5 justify-center">
+                        {preferredCouriers.map((code) => {
+                          const meta = PREFERRED_COURIER_META[code];
+                          if (!meta) return null;
+                          return (
+                            <span
+                              key={code}
+                              className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold border ${meta.bg} ${meta.text} ${meta.border}`}
+                            >
+                              <img
+                                src={meta.logo}
+                                alt={`${meta.name} logo`}
+                                className="h-4 w-4 object-contain flex-shrink-0"
+                                onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                              />
+                              {meta.name}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                   {(order.status === 'confirmed' || order.status === 'processing' || order.status === 'shipped') && (
                     <Button variant="success" onClick={() => navigate(`/orders/${id}/create-shipment`)}>
                       <Send className="h-4 w-4 mr-2" />
@@ -1335,6 +1373,13 @@ const OrderDetail: React.FC = () => {
             </Card>
           )}
 
+           {/* Financial Summary */}
+          <OrderFinancialSummary
+            order={order}
+            formatCurrency={formatCurrency}
+          />
+
+
           {/* Delivery Information Card */}
           <Card>
             <CardHeader>
@@ -1390,9 +1435,32 @@ const OrderDetail: React.FC = () => {
                   </div>
                 )}
 
-                {!order.delivery_option && !order.pickup_pincode && !order.delivery_pincode && !order.estimated_delivery_date && (
-                  <p className="text-sm text-gray-500">No delivery details available</p>
-                )}
+                {preferredCouriers.length > 0 && (
+                      <div>
+                        <p className="text-sm text-gray-500 mb-1">Customer's Preferred Couriers</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {preferredCouriers.map((code) => {
+                            const meta = PREFERRED_COURIER_META[code];
+                            if (!meta) return null;
+                            return (
+                              <span
+                                key={code}
+                                className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold border ${meta.bg} ${meta.text} ${meta.border}`}
+                              >
+                                <img
+                                  src={meta.logo}
+                                  alt={`${meta.name} logo`}
+                                  className="h-4 w-4 object-contain flex-shrink-0"
+                                  onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                                />
+                                {meta.name}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                    
               </div>
             </CardContent>
           </Card>
@@ -1620,12 +1688,7 @@ const OrderDetail: React.FC = () => {
             </Card>
           )}
 
-          {/* Financial Summary */}
-          <OrderFinancialSummary
-            order={order}
-            formatCurrency={formatCurrency}
-          />
-
+         
           {/* Order Notes */}
           <Card>
             <CardHeader>
