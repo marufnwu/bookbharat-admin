@@ -719,6 +719,27 @@ const OrderList: React.FC = () => {
     }
   };
 
+  // Fast Delivery helpers — "Fast Delivery" is the literal courier name written
+  // to `Order.metadata.shipping_method` by ShippingService when the customer
+  // picks the faster shipping option at checkout. It is also promoted to the
+  // top-level `shipping_method` field on the order detail endpoint.
+  const isFastDelivery = (order: Order | null | undefined): boolean => {
+    if (!order) return false;
+    return (
+      order.shipping_method === 'Fast Delivery' ||
+      order.metadata?.shipping_method === 'Fast Delivery'
+    );
+  };
+
+  const renderFastDeliveryBadge = () => (
+    <span
+      className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800"
+      title="Customer selected Fast Delivery at checkout"
+    >
+      Fast Delivery
+    </span>
+  );
+
   const getPaymentStatusBadge = (status: string, onClick?: () => void) => {
     const badges = {
       pending: <Badge variant="warning" className="cursor-pointer hover:opacity-80">Pending</Badge>,
@@ -780,6 +801,13 @@ const OrderList: React.FC = () => {
     // High-value orders (>5000): gold left border
     if ((record.total_amount || 0) > 5000 && record.payment_status !== 'failed') {
       classes.push('border-l-4 border-l-yellow-500');
+    }
+
+    // Fast Delivery: green row tint + green left border (highest visual priority
+    // so it wins over COD / failed / high-value left-border accents).
+    if (isFastDelivery(record)) {
+      classes.push('bg-green-50');
+      classes.push('border-l-4 border-l-green-500');
     }
 
     return classes.join(' ');
@@ -995,14 +1023,13 @@ const OrderList: React.FC = () => {
       key: 'user' as const,
       title: 'Customer',
       render: (_: any, record: Order) => (
-        <div>
-          <div className="font-medium text-gray-900">
-            {record.user?.name || 'Guest'}
-          </div>
-          <div className="text-sm text-gray-500">
-            {record.user?.email || 'N/A'}
-          </div>
-        </div>
+        <span className="font-medium text-gray-900">
+          {record.user?.name ||
+            (record.billing_address
+              ? `${record.billing_address.first_name || ''} ${record.billing_address.last_name || ''}`.trim()
+              : '') ||
+            'Guest'}
+        </span>
       ),
     },
     {
@@ -1066,6 +1093,15 @@ const OrderList: React.FC = () => {
           </span>
         ) : (
           <span className="text-gray-400 text-xs">Regular</span>
+        )
+      ),
+    },
+    {
+      key: 'shipping_method' as any,
+      title: 'Delivery',
+      render: (_: any, record: Order) => (
+        isFastDelivery(record) ? renderFastDeliveryBadge() : (
+          <span className="text-gray-400 text-xs">Standard</span>
         )
       ),
     },
@@ -1347,12 +1383,16 @@ const OrderList: React.FC = () => {
             const isCOD = order.is_cod || order.payment_method === 'cod';
             const isFailedPayment = order.payment_status === 'failed';
             const isHighValue = (order.total_amount || 0) > 5000 && !isFailedPayment;
-            const borderClass = isFailedPayment ? 'border-l-4 border-l-red-400' :
-              isCOD ? 'border-l-4 border-l-orange-400' :
-                isHighValue ? 'border-l-4 border-l-yellow-500' : '';
+            const isFastDeliveryOrder = isFastDelivery(order);
+            // Fast Delivery wins over the other left-border accents because it
+            // signals shipping priority — staff need to spot these at a glance.
+            const borderClass = isFastDeliveryOrder ? 'border-l-4 border-l-green-500' :
+              isFailedPayment ? 'border-l-4 border-l-red-400' :
+                isCOD ? 'border-l-4 border-l-orange-400' :
+                  isHighValue ? 'border-l-4 border-l-yellow-500' : '';
 
             return (
-              <Card key={order.id} className={`overflow-hidden ${isPendingOld ? 'bg-yellow-50' : ''} ${borderClass}`}>
+              <Card key={order.id} className={`overflow-hidden ${isPendingOld ? 'bg-yellow-50' : ''} ${isFastDeliveryOrder ? 'bg-green-50' : ''} ${borderClass}`}>
                 <CardContent className="p-4" onClick={() => setSelectedMobileOrder(order)}>
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center gap-2">
@@ -1372,6 +1412,11 @@ const OrderList: React.FC = () => {
                         {order.is_preorder && (
                           <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800">
                             Preorder
+                          </span>
+                        )}
+                        {isFastDeliveryOrder && (
+                          <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                            Fast Delivery
                           </span>
                         )}
                         <p className="text-xs text-gray-500 mt-1">

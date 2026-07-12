@@ -276,6 +276,25 @@ export interface Order {
   shipping_address?: Address;
   billing_address?: Address;
   payment?: Payment;
+
+  // Shipping metadata (from backend `Order.metadata` JSON column)
+  // - `shipping_method` is set at checkout when the customer picks a shipping option
+  //   (e.g. "Fast Delivery" via ShippingService::buildManualShippingOptions()).
+  // - `shipping_options` is the full list of options that were offered.
+  metadata?: {
+    shipping_method?: string;
+    shipping_options?: Array<{
+      courier?: string;
+      base_cost?: number;
+      total_cost?: number;
+      is_fast_delivery?: boolean;
+      fast_delivery_charge?: number;
+      delivery_estimate?: string;
+    }>;
+  };
+  // Convenience top-level mirror of metadata.shipping_method (only set by
+  // OrderController@show; the list endpoint exposes it under `metadata` instead).
+  shipping_method?: string;
 }
 
 export interface OrderItem {
