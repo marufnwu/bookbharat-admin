@@ -37,7 +37,7 @@ export interface DrawerProps {
   open: boolean;
   onClose: () => void;
   position?: DrawerPosition;
-  title?: string;
+  title?: React.ReactNode;
   description?: string;
   showCloseButton?: boolean;
   closeOnOverlayClick?: boolean;

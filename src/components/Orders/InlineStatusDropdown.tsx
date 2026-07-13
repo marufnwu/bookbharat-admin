@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { cn } from '../../utils/cn';
-import { Badge } from '../../components';
+import { VALID_TRANSITIONS, ORDER_STATUSES } from '../../features/orders';
 
 interface StatusOption {
   value: string;
@@ -8,23 +8,36 @@ interface StatusOption {
   color: string;
 }
 
-const allStatuses: StatusOption[] = [
-  { value: 'pending', label: 'Pending', color: 'yellow' },
-  { value: 'processing', label: 'Processing', color: 'indigo' },
-  { value: 'shipped', label: 'Shipped', color: 'purple' },
-  { value: 'delivered', label: 'Delivered', color: 'green' },
-  { value: 'cancelled', label: 'Cancelled', color: 'red' },
-  { value: 'refunded', label: 'Refunded', color: 'gray' },
-];
+const allStatuses: StatusOption[] = ORDER_STATUSES.filter((s) => s !== 'confirmed').map(
+  (value) => {
+    const labels: Record<string, string> = {
+      pending: 'Pending',
+      processing: 'Processing',
+      shipped: 'Shipped',
+      delivered: 'Delivered',
+      cancelled: 'Cancelled',
+      refunded: 'Refunded',
+    };
+    const colors: Record<string, string> = {
+      pending: 'yellow',
+      processing: 'indigo',
+      shipped: 'purple',
+      delivered: 'green',
+      cancelled: 'red',
+      refunded: 'gray',
+    };
+    return {
+      value,
+      label: labels[value],
+      color: colors[value],
+    };
+  },
+);
 
-const validTransitions: Record<string, string[]> = {
-  pending: ['processing', 'cancelled'],
-  processing: ['shipped', 'cancelled'],
-  shipped: ['delivered'],
-  delivered: [],
-  cancelled: [],
-  refunded: [],
-};
+// Use the authoritative transition map from features/orders. Previously this
+// was duplicated here with a slightly different set (e.g. "pending" was
+// missing the "confirmed" branch). Use the same source of truth as the
+// OrderDetail status-update modal.
 
 const statusColors: Record<string, { bg: string; hover: string; dot: string }> = {
   pending: { bg: 'bg-yellow-50', hover: 'hover:bg-yellow-100', dot: 'bg-yellow-400' },
@@ -49,7 +62,7 @@ export const InlineStatusDropdown: React.FC<InlineStatusDropdownProps> = ({
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const transitions = validTransitions[currentStatus] || [];
+  const transitions = (VALID_TRANSITIONS as Record<string, string[]>)[currentStatus] || [];
   const canTransition = transitions.length > 0;
 
   useEffect(() => {
@@ -107,7 +120,7 @@ export const InlineStatusDropdown: React.FC<InlineStatusDropdownProps> = ({
       {isOpen && (
         <div className="absolute z-50 top-full left-0 mt-1 w-44 bg-white rounded-lg shadow-lg border border-gray-200 py-1 animate-in fade-in slide-in-from-top-1">
           {transitions.map((status) => {
-            const option = allStatuses.find(s => s.value === status);
+            const option = allStatuses.find((s: StatusOption) => s.value === status);
             const colors = statusColors[status];
             if (!option || !colors) return null;
 

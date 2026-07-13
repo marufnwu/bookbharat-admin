@@ -22,7 +22,7 @@ import ProductCreate from "./pages/Products/ProductCreate";
 import ProductEdit from "./pages/Products/ProductEdit";
 import PackagingList from "./pages/Packaging/PackagingList";
 import OrderList from "./pages/Orders/OrderList";
-import OrderDetail from "./pages/Orders/OrderDetail";
+import OrderDetail from "./pages/Orders/OrderDetail/index";
 import CreateShipment from "./pages/Orders/CreateShipment";
 import ManualShipment from "./pages/Orders/ManualShipment";
 import UserList from "./pages/Users/UserList";
