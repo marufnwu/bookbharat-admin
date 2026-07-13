@@ -54,6 +54,8 @@ interface Props {
   /** Refetch handlers from the parent (status update, generate label, cancel). */
   onCancelShipment: () => void;
   onGenerateLabel: () => void;
+  /** Prompt to confirm regeneration when an existing label will be overwritten. */
+  onRegenerateLabel: () => void;
   onDownloadLabel: () => void;
   onRefetchShipment: () => void;
   isCancelling: boolean;
@@ -72,6 +74,7 @@ export const ShipmentCard: React.FC<Props> = ({
   orderId,
   onCancelShipment,
   onGenerateLabel,
+  onRegenerateLabel,
   onDownloadLabel,
   onRefetchShipment,
   isCancelling,
@@ -281,9 +284,25 @@ export const ShipmentCard: React.FC<Props> = ({
         {/* Label actions */}
         <div className="flex flex-wrap gap-2 pt-2 border-t border-gray-100">
           {shipment.label_url ? (
-            <Button variant="primary" size="sm" onClick={onDownloadLabel} leftIcon={<Download className="h-4 w-4" />} rightIcon={<ExternalLink className="h-3 w-3" />}>
-              Download Shipping Label
-            </Button>
+            <>
+              <Button variant="primary" size="sm" onClick={onDownloadLabel} leftIcon={<Download className="h-4 w-4" />} rightIcon={<ExternalLink className="h-3 w-3" />}>
+                Download Shipping Label
+              </Button>
+              {shipment.status !== 'cancelled' &&
+                shipment.status !== 'delivered' &&
+                shipment.tracking_number && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={onRegenerateLabel}
+                    loading={isGeneratingLabel}
+                    leftIcon={<RefreshCw className="h-4 w-4" />}
+                    title="Regenerate the shipping label PDF using the current recipient address. The existing PDF will be replaced."
+                  >
+                    Regenerate Label
+                  </Button>
+                )}
+            </>
           ) : shipment.status !== 'cancelled' && shipment.status !== 'delivered' ? (
             <Button
               variant="outline"

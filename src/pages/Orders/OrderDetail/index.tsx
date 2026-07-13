@@ -65,6 +65,7 @@ const OrderDetail: React.FC = () => {
   >(null);
   const [refundOpen, setRefundOpen] = useState(false);
   const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
+  const [regenerateLabelOpen, setRegenerateLabelOpen] = useState(false);
   const [whatsAppOpen, setWhatsAppOpen] = useState(false);
   const [sendingWhatsApp, setSendingWhatsApp] = useState(false);
 
@@ -159,7 +160,13 @@ const OrderDetail: React.FC = () => {
     },
     onSuccess: (data: any) => {
       if (data.success && data.data?.label_url) {
-        toast.success('Shipping label generated successfully');
+        const wasRegenerate = !!shipment?.label_url;
+        toast.success(
+          wasRegenerate
+            ? 'Shipping label regenerated successfully'
+            : 'Shipping label generated successfully',
+        );
+        setRegenerateLabelOpen(false);
         refetchShipment();
       } else {
         toast.error(data.message || 'Failed to generate label');
@@ -337,6 +344,7 @@ const OrderDetail: React.FC = () => {
             orderId={id || ''}
             onCancelShipment={() => setCancelConfirmOpen(true)}
             onGenerateLabel={() => generateLabelMutation.mutate()}
+            onRegenerateLabel={() => setRegenerateLabelOpen(true)}
             onDownloadLabel={handleDownloadShippingLabel}
             onRefetchShipment={() => refetchShipment()}
             isCancelling={cancelShipmentMutation.isPending}
@@ -413,6 +421,17 @@ const OrderDetail: React.FC = () => {
         confirmText="Cancel Shipment"
         variant="danger"
         loading={cancelShipmentMutation.isPending}
+      />
+
+      <ConfirmModal
+        open={regenerateLabelOpen}
+        onClose={() => setRegenerateLabelOpen(false)}
+        onConfirm={() => generateLabelMutation.mutate()}
+        title="Regenerate Shipping Label"
+        message="Regenerating will overwrite the existing shipping label PDF using the current recipient address. If the package has already been dispatched, the printed/stickered label on the parcel must be replaced."
+        confirmText="Regenerate Label"
+        variant="warning"
+        loading={generateLabelMutation.isPending}
       />
 
       {editAddress && (
