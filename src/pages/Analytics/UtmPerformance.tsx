@@ -5,6 +5,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { formatCurrency, formatPercent, formatNumber, daysAgoIso, toIsoDate } from '../../utils/format';
 import {
     BarChart,
     Bar,
@@ -32,28 +33,7 @@ import { format } from 'date-fns';
 import { api } from '../../api/axios';
 import { LoadingSpinner, Card, CardHeader, CardTitle, CardContent, Badge } from '../../components';
 
-// API response types
-interface UtmMetrics {
-    utm_source: string;
-    utm_medium: string | null;
-    utm_campaign: string | null;
-    sessions: number;
-    orders: number;
-    revenue: number;
-    conversion_rate: number;
-    avg_order_value: number;
-}
-
-interface UtmPerformanceResponse {
-    data: UtmMetrics[];
-    summary: {
-        total_sessions: number;
-        total_orders: number;
-        total_revenue: number;
-        avg_conversion_rate: number;
-    };
-    period: string;
-}
+// (type definitions moved below — see BackendUtmResponse)
 
 interface DateRange {
     start: string;
@@ -61,29 +41,41 @@ interface DateRange {
 }
 
 // Sort field type
-type SortField = 'utm_source' | 'utm_medium' | 'utm_campaign' | 'sessions' | 'orders' | 'revenue' | 'conversion_rate';
+type SortField = 'utm_source' | 'utm_campaign' | 'sessions' | 'orders' | 'revenue' | 'conversion_rate';
 type SortOrder = 'asc' | 'desc';
 
 // Color palette for bar chart
 const COLORS = ['#3b82f6', '#10b981', '#8b5cf6', '#f59e0b', '#ef4444', '#06b6d4', '#84cc16', '#f97316'];
 
-// Format currency
-const formatCurrency = (value: number | undefined | null): string => {
-    if (value === undefined || value === null) return '₹0';
-    return `₹${value.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
-};
+// (formatters moved to ../../utils/format)
 
-// Format percentage
-const formatPercent = (value: number | undefined | null): string => {
-    if (value === undefined || value === null) return '0%';
-    return `${value.toFixed(2)}%`;
-};
+// Backend AnalyticsController::getUtmPerformance response:
+//   { success, campaigns: [{utm_source, utm_campaign, sessions, orders,
+//     revenue, conversion_rate}] }
+// NB: backend `conversion_rate` is currently `orders / max(orders, 1) * 100`
+// which is always 100% — display with a "— (backend bug)" caveat.
+interface BackendUtmRow {
+    utm_source: string;
+    utm_campaign: string;
+    sessions: number;
+    orders: number;
+    revenue: number;
+    conversion_rate: number;
+}
 
-// Format number
-const formatNumber = (value: number | undefined | null): string => {
-    if (value === undefined || value === null) return '0';
-    return value.toLocaleString();
-};
+interface BackendUtmResponse {
+    success: boolean;
+    campaigns: BackendUtmRow[];
+}
+
+interface UtmMetrics {
+    utm_source: string;
+    utm_campaign: string;
+    sessions: number;
+    orders: number;
+    revenue: number;
+    conversion_rate: number;
+}
 
 // KPI Card Component
 interface KPICardProps {
@@ -164,7 +156,7 @@ const PerformanceTable: React.FC<PerformanceTableProps> = ({ data, sortField, so
                 <thead className="bg-gray-50">
                     <tr>
                         <SortableHeader label="UTM Source" field="utm_source" currentSort={sortField} sortOrder={sortOrder} onSort={onSort} />
-                        <SortableHeader label="UTM Medium" field="utm_medium" currentSort={sortField} sortOrder={sortOrder} onSort={onSort} />
+                        {/* UTM Medium column removed — backend does not emit it. */}
                         <SortableHeader label="Campaign" field="utm_campaign" currentSort={sortField} sortOrder={sortOrder} onSort={onSort} />
                         <SortableHeader label="Sessions" field="sessions" currentSort={sortField} sortOrder={sortOrder} onSort={onSort} align="right" />
                         <SortableHeader label="Orders" field="orders" currentSort={sortField} sortOrder={sortOrder} onSort={onSort} align="right" />
@@ -174,7 +166,7 @@ const PerformanceTable: React.FC<PerformanceTableProps> = ({ data, sortField, so
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                     {data.map((row, index) => (
-                        <tr key={`${row.utm_source}-${row.utm_medium}-${row.utm_campaign}`} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                        <tr key={`${row.utm_source}-${row.utm_campaign}`} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                             <td className="px-4 py-3">
                                 <div className="flex items-center gap-2">
                                     <Search className="h-4 w-4 text-gray-400" />
@@ -182,7 +174,7 @@ const PerformanceTable: React.FC<PerformanceTableProps> = ({ data, sortField, so
                                 </div>
                             </td>
                             <td className="px-4 py-3">
-                                <span className="text-sm text-gray-700">{row.utm_medium || '-'}</span>
+                                <span className="text-sm text-gray-400">—</span>
                             </td>
                             <td className="px-4 py-3">
                                 <span className="text-sm text-gray-700">{row.utm_campaign || '-'}</span>
@@ -348,10 +340,10 @@ const SearchFilter: React.FC<SearchFilterProps> = ({
 );
 
 const UtmPerformance: React.FC = () => {
-    // Date range state
+    // Date range state — local-time helpers.
     const [dateRange, setDateRange] = useState<DateRange>({
-        start: format(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd'),
-        end: format(new Date(), 'yyyy-MM-dd')
+        start: daysAgoIso(30),
+        end: toIsoDate(new Date()),
     });
 
     // Sort state
@@ -371,8 +363,8 @@ const UtmPerformance: React.FC = () => {
 
     const handleQuickRange = (days: number) => {
         setDateRange({
-            start: format(new Date(Date.now() - days * 24 * 60 * 60 * 1000), 'yyyy-MM-dd'),
-            end: format(new Date(), 'yyyy-MM-dd')
+            start: daysAgoIso(days),
+            end: toIsoDate(new Date()),
         });
     };
 
@@ -386,31 +378,36 @@ const UtmPerformance: React.FC = () => {
         }
     };
 
-    // Fetch UTM performance data
+    // Fetch UTM performance data. Backend returns a flat `campaigns[]` array;
+    // there is no `summary` block — we aggregate sessions/orders/revenue
+    // client-side for the KPI cards.
     const { data, isLoading, refetch } = useQuery({
         queryKey: ['utm-performance', dateRange],
         queryFn: async () => {
-            const response = await api.get<UtmPerformanceResponse>('/analytics/utm-performance', {
-                params: {
-                    start_date: dateRange.start,
-                    end_date: dateRange.end
-                }
+            const response = await api.get<BackendUtmResponse>('/analytics/utm-performance', {
+                params: { start_date: dateRange.start, end_date: dateRange.end },
             });
             return response.data;
-        }
+        },
     });
 
-    // Get unique sources for filter dropdown
+    // Get unique sources for the source filter dropdown.
     const uniqueSources = useMemo(() => {
-        if (!data?.data) return [];
-        return Array.from(new Set(data.data.map(row => row.utm_source).filter(Boolean)));
+        if (!data?.campaigns) return [];
+        return Array.from(new Set(data.campaigns.map(row => row.utm_source).filter(Boolean)));
     }, [data]);
+
+    // Derive summary metrics + the working dataset used by the table/chart.
+    const rows: UtmMetrics[] = data?.campaigns ?? [];
+    const totalSessions = rows.reduce((s, r) => s + (r.sessions ?? 0), 0);
+    const totalOrdersUtm = rows.reduce((s, r) => s + (r.orders ?? 0), 0);
+    const totalRevenueUtm = rows.reduce((s, r) => s + Number(r.revenue ?? 0), 0);
 
     // Filter and sort data
     const filteredAndSortedData = useMemo(() => {
-        if (!data?.data) return [];
+        if (!data?.campaigns) return [];
 
-        let filtered = [...data.data];
+        let filtered = [...data.campaigns];
 
         // Apply source filter
         if (selectedSource) {
@@ -422,7 +419,7 @@ const UtmPerformance: React.FC = () => {
             const term = searchTerm.toLowerCase();
             filtered = filtered.filter(row =>
                 (row.utm_source?.toLowerCase().includes(term)) ||
-                (row.utm_medium?.toLowerCase().includes(term)) ||
+                (row.utm_campaign?.toLowerCase().includes(term)) ||
                 (row.utm_campaign?.toLowerCase().includes(term))
             );
         }
@@ -518,7 +515,7 @@ const UtmPerformance: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <KPICard
                     title="Total Sessions"
-                    value={formatNumber(data?.summary.total_sessions) || '0'}
+                    value={formatNumber(totalSessions)}
                     subtitle="Tracked sessions"
                     icon={MousePointerClick}
                     color="text-blue-600"
@@ -526,7 +523,7 @@ const UtmPerformance: React.FC = () => {
                 />
                 <KPICard
                     title="Total Orders"
-                    value={formatNumber(data?.summary.total_orders) || '0'}
+                    value={formatNumber(totalOrdersUtm)}
                     subtitle="From UTM traffic"
                     icon={ShoppingCart}
                     color="text-green-600"
@@ -534,7 +531,7 @@ const UtmPerformance: React.FC = () => {
                 />
                 <KPICard
                     title="UTM Revenue"
-                    value={formatCurrency(data?.summary.total_revenue) || '₹0'}
+                    value={formatCurrency(totalRevenueUtm)}
                     subtitle="Attributed revenue"
                     icon={DollarSign}
                     color="text-purple-600"
@@ -542,8 +539,9 @@ const UtmPerformance: React.FC = () => {
                 />
                 <KPICard
                     title="Avg Conv. Rate"
-                    value={formatPercent(data?.summary.avg_conversion_rate) || '0%'}
-                    subtitle="Overall conversion"
+                    /* backend conversion_rate is a known-bug constant — show "—" */
+                    value={'—'}
+                    subtitle="backend metric unreliable"
                     icon={TrendingUp}
                     color="text-amber-600"
                     bgColor="bg-amber-100"
@@ -556,7 +554,7 @@ const UtmPerformance: React.FC = () => {
                     <CardTitle>Revenue by UTM Source</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <SourceChart data={data?.data || []} isLoading={isLoading} />
+                    <SourceChart data={rows} isLoading={isLoading} />
                 </CardContent>
             </Card>
 

@@ -27,56 +27,35 @@ import {
     Calendar,
     RefreshCw
 } from 'lucide-react';
-import { format } from 'date-fns';
 import { api } from '../../api/axios';
 import { LoadingSpinner, Card, CardHeader, CardTitle, CardContent, Badge } from '../../components';
+import { formatCurrency, formatPercent, formatNumber, daysAgoIso, toIsoDate } from '../../utils/format';
 
-// API response types
-interface CampaignMetrics {
-    campaign_id: number;
-    campaign_name: string;
+// Backend AnalyticsController::getRecoveryCampaigns response:
+//   { success: bool, campaigns: [{id, name, channel, sent_count, clicked_count,
+//     converted_count, conversion_rate, revenue}] }
+// We compute summary metrics client-side (the controller currently does not
+// emit total_* aggregates; see controller comment for fallback row).
+interface BackendCampaignRow {
+    id: number | string | null;
+    name: string;
     channel: string;
-    type: string;
-    messages_sent: number;
-    link_clicks: number;
-    checkouts_started: number;
-    payments_completed: number;
+    sent_count: number;
+    clicked_count: number;
+    converted_count: number;
     conversion_rate: number;
-    attributed_revenue: number;
-    avg_time_to_convert_hours: number | null;
-    created_at: string;
+    revenue: number;
 }
 
-interface CampaignsSummary {
-    total_sent: number;
-    total_clicked: number;
-    total_converted: number;
-    overall_conversion_rate: number;
-    total_attributed_revenue: number;
-}
-
-interface RecoveryCampaignsResponse {
-    data: CampaignMetrics[];
-    summary: CampaignsSummary;
-    period: string;
+interface BackendRecoveryCampaignsResponse {
+    success: boolean;
+    campaigns: BackendCampaignRow[];
 }
 
 interface DateRange {
     start: string;
     end: string;
 }
-
-// Format currency
-const formatCurrency = (value: number | undefined | null): string => {
-    if (value === undefined || value === null) return '₹0';
-    return `₹${value.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
-};
-
-// Format percentage
-const formatPercent = (value: number | undefined | null): string => {
-    if (value === undefined || value === null) return '0%';
-    return `${value.toFixed(1)}%`;
-};
 
 // KPI Card Component
 interface KPICardProps {
@@ -105,7 +84,7 @@ const KPICard: React.FC<KPICardProps> = ({ title, value, subtitle, icon: Icon, c
 
 // Table component for campaign data
 interface CampaignTableProps {
-    campaigns: CampaignMetrics[];
+    campaigns: BackendCampaignRow[];
     isLoading: boolean;
 }
 
@@ -156,10 +135,10 @@ const CampaignTable: React.FC<CampaignTableProps> = ({ campaigns, isLoading }) =
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                     {campaigns.map((campaign, index) => (
-                        <tr key={campaign.campaign_id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                        <tr key={String(campaign.id ?? index)} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                             <td className="px-4 py-3">
-                                <div className="text-sm font-medium text-gray-900">{campaign.campaign_name}</div>
-                                <div className="text-xs text-gray-500">{campaign.type}</div>
+                                <div className="text-sm font-medium text-gray-900">{campaign.name}</div>
+                                <div className="text-xs text-gray-500">ID #{String(campaign.id ?? '—')}</div>
                             </td>
                             <td className="px-4 py-3">
                                 <Badge variant={campaign.channel === 'whatsapp' ? 'default' : 'secondary'}>
@@ -167,13 +146,13 @@ const CampaignTable: React.FC<CampaignTableProps> = ({ campaigns, isLoading }) =
                                 </Badge>
                             </td>
                             <td className="px-4 py-3 text-right text-sm text-gray-700">
-                                {campaign.messages_sent.toLocaleString()}
+                                {formatNumber(campaign.sent_count)}
                             </td>
                             <td className="px-4 py-3 text-right text-sm text-gray-700">
-                                {campaign.link_clicks.toLocaleString()}
+                                {formatNumber(campaign.clicked_count)}
                             </td>
                             <td className="px-4 py-3 text-right text-sm text-gray-700">
-                                {campaign.payments_completed.toLocaleString()}
+                                {formatNumber(campaign.converted_count)}
                             </td>
                             <td className="px-4 py-3 text-right">
                                 <span className={`text-sm font-medium ${campaign.conversion_rate >= 10 ? 'text-green-600' :
@@ -183,7 +162,7 @@ const CampaignTable: React.FC<CampaignTableProps> = ({ campaigns, isLoading }) =
                                 </span>
                             </td>
                             <td className="px-4 py-3 text-right text-sm font-medium text-gray-900">
-                                {formatCurrency(campaign.attributed_revenue)}
+                                {formatCurrency(campaign.revenue)}
                             </td>
                         </tr>
                     ))}
@@ -194,10 +173,10 @@ const CampaignTable: React.FC<CampaignTableProps> = ({ campaigns, isLoading }) =
 };
 
 const RecoveryCampaigns: React.FC = () => {
-    // Date range state
+    // Date range state — local-time helpers avoid the date-fns UTC off-by-one.
     const [dateRange, setDateRange] = useState<DateRange>({
-        start: format(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd'),
-        end: format(new Date(), 'yyyy-MM-dd')
+        start: daysAgoIso(30),
+        end: toIsoDate(new Date()),
     });
 
     // Quick date range options
@@ -209,35 +188,44 @@ const RecoveryCampaigns: React.FC = () => {
 
     const handleQuickRange = (days: number) => {
         setDateRange({
-            start: format(new Date(Date.now() - days * 24 * 60 * 60 * 1000), 'yyyy-MM-dd'),
-            end: format(new Date(), 'yyyy-MM-dd')
+            start: daysAgoIso(days),
+            end: toIsoDate(new Date()),
         });
     };
 
-    // Fetch recovery campaigns data
-    const { data, isLoading, refetch } = useQuery({
+    // Fetch recovery campaigns data. The backend returns per-row metrics
+    // but no top-level aggregates, so the summary cards are derived from
+    // the same `campaigns` array on the client.
+    const { data: campaigns, isLoading, refetch } = useQuery({
         queryKey: ['recovery-campaigns', dateRange],
         queryFn: async () => {
-            const response = await api.get<RecoveryCampaignsResponse>('/analytics/recovery-campaigns', {
-                params: {
-                    start_date: dateRange.start,
-                    end_date: dateRange.end
-                }
-            });
-            return response.data;
-        }
+            const response = await api.get<BackendRecoveryCampaignsResponse>(
+                '/analytics/recovery-campaigns',
+                { params: { start_date: dateRange.start, end_date: dateRange.end } },
+            );
+            return response.data?.campaigns ?? [];
+        },
     });
 
-    // Prepare chart data - conversion rates over time
-    const chartData = data?.data.map(campaign => ({
-        name: campaign.campaign_name.length > 15
-            ? campaign.campaign_name.substring(0, 15) + '...'
-            : campaign.campaign_name,
-        sent: campaign.messages_sent,
-        clicked: campaign.link_clicks,
-        converted: campaign.payments_completed,
-        rate: campaign.conversion_rate
-    })) || [];
+    const rows = campaigns ?? [];
+    const totalSent = rows.reduce((s, c) => s + (c.sent_count ?? 0), 0);
+    const totalClicked = rows.reduce((s, c) => s + (c.clicked_count ?? 0), 0);
+    const totalConverted = rows.reduce((s, c) => s + (c.converted_count ?? 0), 0);
+    const totalRevenue = rows.reduce((s, c) => s + Number(c.revenue ?? 0), 0);
+    const overallConversionRate = totalSent > 0
+        ? (totalConverted / totalSent) * 100
+        : 0;
+
+    // Prepare chart data - per-campaign funnel for the bar chart.
+    const chartData = rows.map((campaign) => ({
+        name: campaign.name.length > 15
+            ? campaign.name.substring(0, 15) + '...'
+            : campaign.name,
+        sent: campaign.sent_count,
+        clicked: campaign.clicked_count,
+        converted: campaign.converted_count,
+        rate: campaign.conversion_rate,
+    }));
 
     return (
         <div className="space-y-6 pb-20">
@@ -302,7 +290,7 @@ const RecoveryCampaigns: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <KPICard
                     title="Total Sent"
-                    value={data?.summary.total_sent.toLocaleString() || '0'}
+                    value={formatNumber(totalSent)}
                     subtitle="Recovery messages"
                     icon={Send}
                     color="text-blue-600"
@@ -310,7 +298,7 @@ const RecoveryCampaigns: React.FC = () => {
                 />
                 <KPICard
                     title="Total Clicked"
-                    value={data?.summary.total_clicked.toLocaleString() || '0'}
+                    value={formatNumber(totalClicked)}
                     subtitle="Link clicks"
                     icon={MousePointerClick}
                     color="text-purple-600"
@@ -318,7 +306,7 @@ const RecoveryCampaigns: React.FC = () => {
                 />
                 <KPICard
                     title="Overall Conversion"
-                    value={formatPercent(data?.summary.overall_conversion_rate) || '0%'}
+                    value={formatPercent(overallConversionRate)}
                     subtitle="Payments completed"
                     icon={CheckCircle}
                     color="text-green-600"
@@ -326,7 +314,7 @@ const RecoveryCampaigns: React.FC = () => {
                 />
                 <KPICard
                     title="Attributed Revenue"
-                    value={formatCurrency(data?.summary.total_attributed_revenue) || '₹0'}
+                    value={formatCurrency(totalRevenue)}
                     subtitle="From recovery campaigns"
                     icon={DollarSign}
                     color="text-amber-600"
@@ -394,7 +382,7 @@ const RecoveryCampaigns: React.FC = () => {
                     <CardTitle>Campaign Details</CardTitle>
                 </CardHeader>
                 <CardContent className="p-0">
-                    <CampaignTable campaigns={data?.data || []} isLoading={isLoading} />
+                    <CampaignTable campaigns={rows} isLoading={isLoading} />
                 </CardContent>
             </Card>
         </div>

@@ -1,8 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { RefreshCw, Download, Eye, Mail, MessageSquare, Phone, AlertCircle, X, ChevronLeft, ChevronRight, Search } from 'lucide-react';
 import { format } from 'date-fns';
 import { api } from '../../api/axios';
 import { toast } from '../../utils/toast';
+import { daysAgoIso, toIsoDate } from '../../utils/format';
+import { LoadingSpinner } from '../../components';
 
 interface MessageLog {
   id: number;
@@ -17,12 +20,14 @@ interface MessageLog {
   metadata?: any;
 }
 
+interface MessageLogsEnvelope {
+  data: MessageLog[];
+  total?: number;
+}
+
 const MessageLogs: React.FC = () => {
-  const [logs, setLogs] = useState<MessageLog[]>([]);
-  const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
-  const [rowsPerPage, setRowsPerPage] = useState(50);
-  const [total, setTotal] = useState(0);
+  const [rowsPerPage] = useState(50);
   const [selectedLog, setSelectedLog] = useState<MessageLog | null>(null);
 
   // Filters
@@ -32,40 +37,43 @@ const MessageLogs: React.FC = () => {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
 
-  useEffect(() => {
-    loadLogs();
-  }, [page, rowsPerPage, channelFilter, statusFilter, templateFilter, dateFrom, dateTo]);
-
-  const loadLogs = async () => {
-    setLoading(true);
-    try {
-      const params = {
-        page: page,
-        per_page: rowsPerPage,
-        channel: channelFilter,
-        status: statusFilter,
-        template_code: templateFilter,
-        date_from: dateFrom,
-        date_to: dateTo,
-      };
-
-      const response = await api.get('/settings/messaging/logs', { params });
-      setLogs(response.data.logs.data);
-      setTotal(response.data.logs.total);
-    } catch (error) {
-      console.error('Failed to load logs:', error);
-      toast.error('Failed to load message logs');
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Fetch message logs via React Query. The backend (MessageLogController)
+  // currently returns `{success, logs: {data: [...], total: N}}`; the route
+  // is not yet registered against `/settings/messaging/logs` (see repo
+  // memory "Dashboard API Fix" section for the wiring TODO).
+  const { data: logsResp, isLoading: loading, refetch } = useQuery({
+    queryKey: ['message-logs', page, rowsPerPage, channelFilter, statusFilter, templateFilter, dateFrom, dateTo],
+    queryFn: async () => {
+      const response = await api.get<MessageLogsEnvelope>('/settings/messaging/logs', {
+        params: {
+          page,
+          per_page: rowsPerPage,
+          channel: channelFilter,
+          status: statusFilter,
+          template_code: templateFilter,
+          date_from: dateFrom,
+          date_to: dateTo,
+        },
+      });
+      // Tolerate both `{data, total}` and Laravel paginator `{data: [], total: N}`.
+      const data = (response.data as any)?.logs?.data
+        ?? (response.data as any)?.data
+        ?? [];
+      const total = (response.data as any)?.logs?.total
+        ?? (response.data as any)?.total
+        ?? 0;
+      return { data: data as MessageLog[], total: Number(total) };
+    },
+  });
+  const logs = logsResp?.data ?? [];
+  const total = logsResp?.total ?? 0;
 
   const retryMessage = async (id: number) => {
     try {
       const response = await api.post(`/settings/messaging/logs/${id}/retry`);
       if (response.data.success) {
         toast.success('Message resent successfully');
-        loadLogs();
+        refetch();
         setSelectedLog(null);
       } else {
         toast.error(response.data.message);
@@ -88,6 +96,16 @@ const MessageLogs: React.FC = () => {
         params,
         responseType: 'blob',
       });
+
+      // Guard against JSON error bodies (4xx/5xx) which axios serves as a
+      // blob with `application/json` content-type — those would otherwise
+      // download as a corrupt "log.csv". Refuse non-CSV bodies and surface a
+      // useful error instead.
+      const contentType = String(response.headers?.['content-type'] ?? '');
+      if (!/csv|text\/plain/i.test(contentType)) {
+        toast.error('Export endpoint returned a non-CSV response — check the route is wired.');
+        return;
+      }
 
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
@@ -135,7 +153,7 @@ const MessageLogs: React.FC = () => {
         <h1 className="text-2xl font-bold text-gray-900">Message Logs</h1>
         <div className="flex gap-2">
           <button
-            onClick={loadLogs}
+            onClick={() => refetch()}
             disabled={loading}
             className="flex items-center px-4 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
           >

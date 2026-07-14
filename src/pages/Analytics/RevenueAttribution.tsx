@@ -5,6 +5,7 @@
 
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { formatCurrency, formatNumber, daysAgoIso, toIsoDate } from '../../utils/format';
 import {
     BarChart,
     Bar,
@@ -31,7 +32,25 @@ import { format } from 'date-fns';
 import { api } from '../../api/axios';
 import { LoadingSpinner, Card, CardHeader, CardTitle, CardContent, Badge } from '../../components';
 
-// API response types
+// Backend AnalyticsController::getRevenue response:
+//   { success, revenue_by_source: {<source>: {revenue, order_count, source, avg_order_value}},
+//     total_revenue }
+// The controller does NOT emit by_campaign or recovery_roi — those legacy
+// fields from the old frontend type are impossible to compute from this
+// payload alone, so the UI degrades gracefully (cards show "—").
+interface BackendRevenueSourceRow {
+    source: string;
+    revenue: number;
+    order_count: number;
+    avg_order_value: number;
+}
+
+interface BackendRevenueResponse {
+    success: boolean;
+    revenue_by_source: Record<string, BackendRevenueSourceRow>;
+    total_revenue: number;
+}
+
 interface RevenueBySource {
     source: string;
     source_label: string;
@@ -39,31 +58,6 @@ interface RevenueBySource {
     orders: number;
     avg_order_value: number;
     percentage: number;
-}
-
-interface RevenueByCampaign {
-    campaign_id: number;
-    campaign_name: string;
-    channel: string;
-    attributed_revenue: number;
-    conversions: number;
-    roi_percentage?: number;
-}
-
-interface RecoveryROI {
-    total_spent: number;
-    attributed_revenue: number;
-    roi_percentage: number;
-}
-
-interface RevenueAttributionResponse {
-    by_source: RevenueBySource[];
-    by_campaign: RevenueByCampaign[];
-    recovery_roi: RecoveryROI;
-    period: string;
-    total_revenue: number;
-    previous_period_revenue?: number;
-    revenue_change_percentage?: number;
 }
 
 interface DateRange {
@@ -74,16 +68,10 @@ interface DateRange {
 // Color palette for bar chart
 const COLORS = ['#3b82f6', '#10b981', '#8b5cf6', '#f59e0b', '#ef4444', '#06b6d4', '#84cc16', '#f97316'];
 
-// Format currency
-const formatCurrency = (value: number | undefined | null): string => {
-    if (value === undefined || value === null) return '₹0';
-    return `₹${value.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
-};
-
 // Format percentage
-const formatPercent = (value: number | undefined | null): string => {
+const formatPercent = (value: number | undefined | null, withSign: boolean = false): string => {
     if (value === undefined || value === null) return '0%';
-    const sign = value >= 0 ? '+' : '';
+    const sign = withSign && value >= 0 ? '+' : '';
     return `${sign}${value.toFixed(1)}%`;
 };
 
@@ -288,138 +276,16 @@ const SourceTable: React.FC<SourceTableProps> = ({ sources, totalRevenue, isLoad
     );
 };
 
-// Campaign Table
-interface CampaignTableProps {
-    campaigns: RevenueByCampaign[];
-    isLoading: boolean;
-}
-
-const CampaignTable: React.FC<CampaignTableProps> = ({ campaigns, isLoading }) => {
-    if (isLoading) {
-        return (
-            <div className="flex justify-center py-12">
-                <LoadingSpinner size="lg" />
-            </div>
-        );
-    }
-
-    if (!campaigns.length) {
-        return (
-            <div className="text-center py-12 text-gray-500">
-                No campaign data available for the selected period.
-            </div>
-        );
-    }
-
-    return (
-        <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                    <tr>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Campaign
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Channel
-                        </th>
-                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Conversions
-                        </th>
-                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Attributed Revenue
-                        </th>
-                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            ROI
-                        </th>
-                    </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                    {campaigns.map((campaign, index) => (
-                        <tr key={campaign.campaign_id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                            <td className="px-4 py-3">
-                                <div className="text-sm font-medium text-gray-900">{campaign.campaign_name}</div>
-                            </td>
-                            <td className="px-4 py-3">
-                                <Badge variant={campaign.channel === 'whatsapp' ? 'default' : 'secondary'}>
-                                    {campaign.channel}
-                                </Badge>
-                            </td>
-                            <td className="px-4 py-3 text-right text-sm text-gray-700">
-                                {campaign.conversions.toLocaleString()}
-                            </td>
-                            <td className="px-4 py-3 text-right text-sm font-medium text-gray-900">
-                                {formatCurrency(campaign.attributed_revenue)}
-                            </td>
-                            <td className="px-4 py-3 text-right">
-                                {campaign.roi_percentage !== undefined ? (
-                                    <span className={`text-sm font-medium ${campaign.roi_percentage >= 100 ? 'text-green-600' :
-                                            campaign.roi_percentage >= 50 ? 'text-yellow-600' : 'text-red-600'
-                                        }`}>
-                                        {formatPercent(campaign.roi_percentage)}
-                                    </span>
-                                ) : (
-                                    <span className="text-sm text-gray-400">-</span>
-                                )}
-                            </td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
-        </div>
-    );
-};
-
-// Recovery ROI Card
-interface ROICardProps {
-    roi: RecoveryROI;
-    isLoading: boolean;
-}
-
-const ROICard: React.FC<ROICardProps> = ({ roi, isLoading }) => {
-    if (isLoading) {
-        return (
-            <div className="flex justify-center py-8">
-                <LoadingSpinner size="lg" />
-            </div>
-        );
-    }
-
-    const isPositive = roi.roi_percentage >= 100;
-
-    return (
-        <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-6">
-            <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">Recovery Campaign ROI</h3>
-                <div className={`p-2 rounded-lg ${isPositive ? 'bg-green-200' : 'bg-red-200'}`}>
-                    <TrendingUp className={`h-5 w-5 ${isPositive ? 'text-green-700' : 'text-red-700'}`} />
-                </div>
-            </div>
-
-            <div className="grid grid-cols-3 gap-4">
-                <div>
-                    <p className="text-sm text-gray-600">Total Spent</p>
-                    <p className="text-xl font-bold text-gray-900">{formatCurrency(roi.total_spent)}</p>
-                </div>
-                <div>
-                    <p className="text-sm text-gray-600">Revenue Generated</p>
-                    <p className="text-xl font-bold text-gray-900">{formatCurrency(roi.attributed_revenue)}</p>
-                </div>
-                <div>
-                    <p className="text-sm text-gray-600">ROI</p>
-                    <p className={`text-xl font-bold ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
-                        {formatPercent(roi.roi_percentage).replace('+', '')}
-                    </p>
-                </div>
-            </div>
-        </div>
-    );
-};
+// Campaign-level + recovery_roi widgets removed — the live backend
+// (AnalyticsController::getRevenue) does not emit `by_campaign` or
+// `recovery_roi`. Once those land server-side, reintroduce the components
+// here.
 
 const RevenueAttribution: React.FC = () => {
-    // Date range state
+    // Date range state — local-time helpers avoid the date-fns UTC off-by-one.
     const [dateRange, setDateRange] = useState<DateRange>({
-        start: format(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd'),
-        end: format(new Date(), 'yyyy-MM-dd')
+        start: daysAgoIso(30),
+        end: toIsoDate(new Date()),
     });
 
     // Quick date range options
@@ -431,16 +297,19 @@ const RevenueAttribution: React.FC = () => {
 
     const handleQuickRange = (days: number) => {
         setDateRange({
-            start: format(new Date(Date.now() - days * 24 * 60 * 60 * 1000), 'yyyy-MM-dd'),
-            end: format(new Date(), 'yyyy-MM-dd')
+            start: daysAgoIso(days),
+            end: toIsoDate(new Date()),
         });
     };
 
-    // Fetch revenue attribution data
+    // Fetch revenue attribution data. Backend returns
+    // {revenue_by_source: {<source>: {...}}, total_revenue}.
+    // by_source is an indexed map keyed by source name; we derive
+    // percentages and a flat array for the chart/table client-side.
     const { data, isLoading, refetch } = useQuery({
         queryKey: ['revenue-attribution', dateRange],
         queryFn: async () => {
-            const response = await api.get<RevenueAttributionResponse>('/analytics/revenue', {
+            const response = await api.get<BackendRevenueResponse>('/analytics/revenue', {
                 params: {
                     start_date: dateRange.start,
                     end_date: dateRange.end
@@ -450,10 +319,24 @@ const RevenueAttribution: React.FC = () => {
         }
     });
 
-    // Determine trend direction for total revenue
-    const revenueTrend = data?.revenue_change_percentage !== undefined
-        ? data.revenue_change_percentage >= 0 ? 'up' : 'down'
-        : null;
+    // Transform backend's `revenue_by_source` map into a flat array that the
+    // chart and table components can consume directly. Percentages are derived
+    // against `total_revenue` from the same payload.
+    const sourceRows: RevenueBySource[] = React.useMemo(() => {
+        const map = data?.revenue_by_source ?? {};
+        const total = Number(data?.total_revenue ?? 0);
+        return Object.entries(map).map(([key, row]) => ({
+            source: row.source ?? key,
+            source_label: key,
+            revenue: Number(row.revenue ?? 0),
+            orders: row.order_count ?? 0,
+            avg_order_value: Number(row.avg_order_value ?? 0),
+            percentage: total > 0 ? (Number(row.revenue ?? 0) / total) * 100 : 0,
+        }));
+    }, [data]);
+
+    const totalRevenue = Number(data?.total_revenue ?? 0);
+    const totalOrders = sourceRows.reduce((s, r) => s + r.orders, 0);
 
     return (
         <div className="space-y-6 pb-20">
@@ -518,37 +401,27 @@ const RevenueAttribution: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <KPICard
                     title="Total Revenue"
-                    value={formatCurrency(data?.total_revenue) || '₹0'}
+                    value={formatCurrency(totalRevenue)}
                     subtitle="In selected period"
                     icon={DollarSign}
                     color="text-green-600"
                     bgColor="bg-green-100"
-                    trend={revenueTrend}
-                    trendValue={revenueTrend ? formatPercent(data?.revenue_change_percentage) : undefined}
-                />
-                <KPICard
-                    title="Recovery Revenue"
-                    value={formatCurrency(data?.recovery_roi.attributed_revenue) || '₹0'}
-                    subtitle="From recovery campaigns"
-                    icon={TrendingUp}
-                    color="text-blue-600"
-                    bgColor="bg-blue-100"
                 />
                 <KPICard
                     title="Total Orders"
-                    value={data?.by_source.reduce((sum, s) => sum + s.orders, 0).toLocaleString() || '0'}
+                    value={formatNumber(totalOrders)}
                     subtitle="Across all sources"
                     icon={ShoppingCart}
                     color="text-purple-600"
                     bgColor="bg-purple-100"
                 />
                 <KPICard
-                    title="Recovery ROI"
-                    value={formatPercent(data?.recovery_roi.roi_percentage) || '0%'}
-                    subtitle="Campaign performance"
-                    icon={Percent}
-                    color={data?.recovery_roi.roi_percentage && data.recovery_roi.roi_percentage >= 100 ? 'text-green-600' : 'text-red-600'}
-                    bgColor={data?.recovery_roi.roi_percentage && data.recovery_roi.roi_percentage >= 100 ? 'bg-green-100' : 'bg-red-100'}
+                    title="Sources Tracked"
+                    value={formatNumber(sourceRows.length)}
+                    subtitle="Different channels"
+                    icon={Tag}
+                    color="text-blue-600"
+                    bgColor="bg-blue-100"
                 />
             </div>
 
@@ -558,42 +431,26 @@ const RevenueAttribution: React.FC = () => {
                     <CardTitle>Revenue by Source</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <SourceChart data={data?.by_source || []} isLoading={isLoading} />
+                    <SourceChart data={sourceRows} isLoading={isLoading} />
                 </CardContent>
             </Card>
 
-            {/* ROI Card */}
-            <ROICard roi={data?.recovery_roi || { total_spent: 0, attributed_revenue: 0, roi_percentage: 0 }} isLoading={isLoading} />
+            {/* Source Breakdown Table */}
+            <Card>
+                <CardHeader>
+                    <CardTitle>Revenue by Source</CardTitle>
+                </CardHeader>
+                <CardContent className="p-0">
+                    <SourceTable
+                        sources={sourceRows}
+                        totalRevenue={totalRevenue}
+                        isLoading={isLoading}
+                    />
+                </CardContent>
+            </Card>
 
-            {/* Tables Row */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Source Breakdown Table */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Revenue by Source</CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-0">
-                        <SourceTable
-                            sources={data?.by_source || []}
-                            totalRevenue={data?.total_revenue || 0}
-                            isLoading={isLoading}
-                        />
-                    </CardContent>
-                </Card>
-
-                {/* Campaign Table */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Revenue by Campaign</CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-0">
-                        <CampaignTable
-                            campaigns={data?.by_campaign || []}
-                            isLoading={isLoading}
-                        />
-                    </CardContent>
-                </Card>
-            </div>
+            {/* Campaign and recovery_ROI widgets removed — see comment above
+                the component definition for why. */}
         </div>
     );
 };

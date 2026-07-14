@@ -1354,6 +1354,107 @@ const OrderList: React.FC = () => {
         )}
       </div>
 
+      {/* Orders List - Mobile (cards) */}
+      <div className="block md:hidden space-y-3">
+        {isLoading ? (
+          <div className="bg-white rounded-lg shadow p-8 text-center text-gray-500">
+            Loading orders…
+          </div>
+        ) : (ordersResponse as any)?.orders?.data?.length ? (
+          ((ordersResponse as any).orders.data as Order[]).map((order, index) => (
+            <div
+              key={order.id}
+              className={`bg-white rounded-lg shadow p-4 ${getRowClassName(order, index) ?? ''}`}
+            >
+              <div className="flex items-start justify-between gap-3 mb-2">
+                <div className="min-w-0 flex-1">
+                  <button
+                    className="font-semibold text-blue-600 hover:text-blue-800 hover:underline truncate text-left"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      if (e.ctrlKey || e.metaKey) {
+                        window.open(`/orders/${order.id}`, '_blank');
+                      } else {
+                        setQuickViewOrderId(order.id);
+                      }
+                    }}
+                  >
+                    #{order.order_number}
+                  </button>
+                  <div className="text-sm text-gray-600 mt-0.5 truncate">
+                    {getCustomerName(order)}
+                  </div>
+                </div>
+                <InlineStatusDropdown
+                  currentStatus={order.status}
+                  onStatusChange={(newStatus) => handleStatusUpdate(order.id, newStatus)}
+                />
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <div className="text-gray-500">
+                  {order.created_at
+                    ? new Date(order.created_at).toLocaleDateString()
+                    : ''}
+                </div>
+                <div className="font-semibold text-gray-900">
+                  {formatCurrency(order.total_amount)}
+                </div>
+              </div>
+              <div className="mt-3 flex items-center justify-between">
+                <span className="text-xs text-gray-500">
+                  Paid: <span className="font-medium text-gray-700">{formatCurrency(order.paid_amount ?? 0)}</span>
+                </span>
+                <Link
+                  to={`/orders/${order.id}`}
+                  className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                >
+                  View details →
+                </Link>
+              </div>
+            </div>
+          ))
+        ) : (
+          <div className="bg-white rounded-lg shadow p-8 text-center text-gray-500">
+            No orders found for the current filters.
+          </div>
+        )}
+        {/* Mobile pagination controls — re-use the same handler as desktop */}
+        {((ordersResponse as any)?.orders?.total || 0) > (filters.per_page || 10) && (
+          <div className="flex items-center justify-between bg-white rounded-lg shadow px-4 py-3">
+            <button
+              type="button"
+              onClick={() => handlePageChange(Math.max(1, (filters.page || 1) - 1))}
+              disabled={(filters.page || 1) <= 1}
+              className="px-3 py-1 text-sm border rounded disabled:opacity-50"
+            >
+              ← Prev
+            </button>
+            <span className="text-sm text-gray-600">
+              Page {filters.page || 1} of {Math.max(1, Math.ceil(((ordersResponse as any)?.orders?.total || 0) / (filters.per_page || 10)))}
+            </span>
+            <button
+              type="button"
+              onClick={() =>
+                handlePageChange(
+                  Math.min(
+                    Math.max(1, Math.ceil(((ordersResponse as any)?.orders?.total || 0) / (filters.per_page || 10))),
+                    (filters.page || 1) + 1,
+                  ),
+                )
+              }
+              disabled={
+                (filters.page || 1) >=
+                Math.max(1, Math.ceil(((ordersResponse as any)?.orders?.total || 0) / (filters.per_page || 10)))
+              }
+              className="px-3 py-1 text-sm border rounded disabled:opacity-50"
+            >
+              Next →
+            </button>
+          </div>
+        )}
+      </div>
+
       {/* Orders Table - Desktop */}
       <div className="hidden md:block bg-white rounded-lg shadow">
         <Table

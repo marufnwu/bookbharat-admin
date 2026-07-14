@@ -28,28 +28,31 @@ import {
     ShoppingCart,
     TrendingUp,
     Calendar,
-    RefreshCw,
-    Percent
+    RefreshCw
 } from 'lucide-react';
-import { format } from 'date-fns';
 import { api } from '../../api/axios';
-import { LoadingSpinner, Card, CardHeader, CardTitle, CardContent, Badge } from '../../components';
+import { LoadingSpinner, Card, CardHeader, CardTitle, CardContent } from '../../components';
+import {
+    formatCurrency,
+    formatNumber,
+    daysAgoIso,
+    toIsoDate
+} from '../../utils/format';
 
-// API response types
-interface SourceMetrics {
+// Backend AnalyticsController::getOrderSources shape.
+// After 2026-07-14 fix: each row carries order_count/revenue/avg_order_value;
+// no count/percentage/total_orders/total_revenue/top-level. Derived fields
+// (label, percentage, totals) are computed client-side.
+interface BackendSourceRow {
     source: string;
-    source_label: string;
-    count: number;
+    order_count: number;
     revenue: number;
     avg_order_value: number;
-    percentage: number;
 }
 
-interface OrderSourcesResponse {
-    data: SourceMetrics[];
-    period: string;
-    total_orders: number;
-    total_revenue: number;
+interface BackendOrderSourcesResponse {
+    success: boolean;
+    sources: BackendSourceRow[];
 }
 
 interface DateRange {
@@ -60,61 +63,37 @@ interface DateRange {
 // Color palette for pie chart
 const COLORS = ['#3b82f6', '#10b981', '#8b5cf6', '#f59e0b', '#ef4444', '#06b6d4', '#84cc16'];
 
-// Source icon mapping
-const getSourceIcon = (source: string): React.ElementType => {
-    switch (source) {
-        case 'direct':
-            return Globe;
-        case 'whatsapp_recovery':
-        case 'cart_whatsapp':
-        case 'order_whatsapp':
-            return MessageCircle;
-        case 'email_recovery':
-        case 'cart_email':
-        case 'order_email':
-            return Mail;
-        case 'organic':
-            return Search;
-        case 'utm':
-            return Tag;
-        default:
-            return ShoppingCart;
-    }
+// Static (Tailwind JIT-safe) source presentation.
+// Each entry maps a backend source string to icon, color, and human label.
+// Add new sources by adding a row — never interpolate them into classnames.
+type SourcePresentation = {
+    label: string;
+    icon: React.ElementType;
+    badgeBg: string;
+    badgeText: string;
 };
 
-// Source badge color
-const getSourceBadgeVariant = (source: string): string => {
-    switch (source) {
-        case 'direct':
-            return 'blue';
-        case 'whatsapp_recovery':
-        case 'cart_whatsapp':
-        case 'order_whatsapp':
-            return 'green';
-        case 'email_recovery':
-        case 'cart_email':
-        case 'order_email':
-            return 'purple';
-        case 'organic':
-            return 'yellow';
-        case 'utm':
-            return 'amber';
-        default:
-            return 'gray';
-    }
+const SOURCE_PRESENTATION: Record<string, SourcePresentation> = {
+    direct:        { label: 'Direct',        icon: Globe,         badgeBg: 'bg-blue-100',   badgeText: 'text-blue-600' },
+    whatsapp_recovery: { label: 'WhatsApp Recovery', icon: MessageCircle, badgeBg: 'bg-green-100', badgeText: 'text-green-600' },
+    cart_whatsapp: { label: 'Cart WhatsApp', icon: MessageCircle, badgeBg: 'bg-green-100',  badgeText: 'text-green-600' },
+    order_whatsapp:{ label: 'Order WhatsApp', icon: MessageCircle, badgeBg: 'bg-green-100', badgeText: 'text-green-600' },
+    email_recovery:{ label: 'Email Recovery',icon: Mail,          badgeBg: 'bg-purple-100', badgeText: 'text-purple-600' },
+    cart_email:    { label: 'Cart Email',    icon: Mail,          badgeBg: 'bg-purple-100', badgeText: 'text-purple-600' },
+    order_email:   { label: 'Order Email',   icon: Mail,          badgeBg: 'bg-purple-100', badgeText: 'text-purple-600' },
+    organic:       { label: 'Organic',       icon: Search,        badgeBg: 'bg-yellow-100', badgeText: 'text-yellow-600' },
+    utm:           { label: 'UTM',           icon: Tag,           badgeBg: 'bg-amber-100',  badgeText: 'text-amber-600' },
 };
 
-// Format currency
-const formatCurrency = (value: number | undefined | null): string => {
-    if (value === undefined || value === null) return '₹0';
-    return `₹${value.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
+const DEFAULT_PRESENTATION: SourcePresentation = {
+    label: 'Unknown',
+    icon: ShoppingCart,
+    badgeBg: 'bg-gray-100',
+    badgeText: 'text-gray-600',
 };
 
-// Format percentage
-const formatPercent = (value: number | undefined | null): string => {
-    if (value === undefined || value === null) return '0%';
-    return `${value.toFixed(1)}%`;
-};
+const getSourcePresentation = (source: string): SourcePresentation =>
+    SOURCE_PRESENTATION[source] ?? DEFAULT_PRESENTATION;
 
 // KPI Card Component
 interface KPICardProps {
@@ -143,7 +122,7 @@ const KPICard: React.FC<KPICardProps> = ({ title, value, subtitle, icon: Icon, c
 
 // Pie Chart with custom label
 interface PieChartProps {
-    data: SourceMetrics[];
+    data: BackendSourceRow[];
     isLoading: boolean;
 }
 
@@ -165,9 +144,9 @@ const SourcePieChart: React.FC<PieChartProps> = ({ data, isLoading }) => {
     }
 
     const chartData = data.map(item => ({
-        name: item.source_label || item.source,
-        value: item.count,
-        revenue: item.revenue
+        name: getSourcePresentation(item.source).label,
+        value: item.order_count,
+        revenue: item.revenue,
     }));
 
     return (
@@ -182,7 +161,7 @@ const SourcePieChart: React.FC<PieChartProps> = ({ data, isLoading }) => {
                         outerRadius={100}
                         paddingAngle={2}
                         dataKey="value"
-                        label={({ name, percent, ...props }: any) => `${name} (${((percent || 0) * 100).toFixed(0)}%)`}
+                        label={({ name, percent }: any) => `${name} (${((percent || 0) * 100).toFixed(0)}%)`}
                         labelLine={false}
                     >
                         {chartData.map((_, index) => (
@@ -190,8 +169,8 @@ const SourcePieChart: React.FC<PieChartProps> = ({ data, isLoading }) => {
                         ))}
                     </Pie>
                     <Tooltip
-                        formatter={(value: number, name: string, props: any) => {
-                            const item = data.find(d => (d.source_label || d.source) === name);
+                        formatter={(value: number, name: string) => {
+                            const item = chartData.find(d => d.name === name);
                             return [
                                 <div key={name} className="text-left">
                                     <div className="font-medium">{value} orders</div>
@@ -210,7 +189,7 @@ const SourcePieChart: React.FC<PieChartProps> = ({ data, isLoading }) => {
 
 // Bar Chart for revenue comparison
 interface RevenueBarChartProps {
-    data: SourceMetrics[];
+    data: BackendSourceRow[];
     isLoading: boolean;
 }
 
@@ -232,10 +211,10 @@ const RevenueBarChart: React.FC<RevenueBarChartProps> = ({ data, isLoading }) =>
     }
 
     const chartData = data.map(item => ({
-        name: item.source_label || item.source,
-        orders: item.count,
+        name: getSourcePresentation(item.source).label,
+        orders: item.order_count,
         revenue: item.revenue,
-        aov: item.avg_order_value
+        aov: item.avg_order_value,
     }));
 
     return (
@@ -280,7 +259,7 @@ const RevenueBarChart: React.FC<RevenueBarChartProps> = ({ data, isLoading }) =>
 
 // Sources Table
 interface SourcesTableProps {
-    sources: SourceMetrics[];
+    sources: BackendSourceRow[];
     totalOrders: number;
     totalRevenue: number;
     isLoading: boolean;
@@ -327,41 +306,46 @@ const SourcesTable: React.FC<SourcesTableProps> = ({ sources, totalOrders, total
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                     {sources.map((source, index) => {
-                        const Icon = getSourceIcon(source.source);
+                        const pres = getSourcePresentation(source.source);
+                        const pct = totalOrders > 0
+                            ? (source.order_count / totalOrders) * 100
+                            : 0;
+                        const rowAvg = source.order_count > 0
+                            ? Number(source.revenue) / source.order_count
+                            : 0;
+                        const Icon = pres.icon;
                         return (
                             <tr key={source.source} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                                 <td className="px-4 py-3">
                                     <div className="flex items-center gap-2">
-                                        <div className={`p-2 rounded-lg bg-${getSourceBadgeVariant(source.source)}-100`}>
-                                            <Icon className={`h-4 w-4 text-${getSourceBadgeVariant(source.source)}-600`} />
+                                        <div className={`p-2 rounded-lg ${pres.badgeBg}`}>
+                                            <Icon className={`h-4 w-4 ${pres.badgeText}`} />
                                         </div>
                                         <div>
-                                            <div className="text-sm font-medium text-gray-900">
-                                                {source.source_label || source.source}
-                                            </div>
+                                            <div className="text-sm font-medium text-gray-900">{pres.label}</div>
                                             <div className="text-xs text-gray-500">{source.source}</div>
                                         </div>
                                     </div>
                                 </td>
                                 <td className="px-4 py-3 text-right text-sm text-gray-700">
-                                    {source.count.toLocaleString()}
+                                    {source.order_count.toLocaleString()}
                                 </td>
                                 <td className="px-4 py-3 text-right text-sm font-medium text-gray-900">
                                     {formatCurrency(source.revenue)}
                                 </td>
                                 <td className="px-4 py-3 text-right text-sm text-gray-700">
-                                    {formatCurrency(source.avg_order_value)}
+                                    {formatCurrency(rowAvg)}
                                 </td>
                                 <td className="px-4 py-3 text-right">
                                     <div className="flex items-center justify-end gap-2">
                                         <div className="w-16 bg-gray-200 rounded-full h-2">
                                             <div
                                                 className="bg-blue-500 h-2 rounded-full"
-                                                style={{ width: `${source.percentage}%` }}
+                                                style={{ width: `${pct}%` }}
                                             />
                                         </div>
                                         <span className="text-sm font-medium text-gray-700 w-12">
-                                            {formatPercent(source.percentage)}
+                                            {pct.toFixed(1)}%
                                         </span>
                                     </div>
                                 </td>
@@ -372,13 +356,13 @@ const SourcesTable: React.FC<SourcesTableProps> = ({ sources, totalOrders, total
                     <tr className="bg-gray-100 font-semibold">
                         <td className="px-4 py-3 text-sm text-gray-900">Total</td>
                         <td className="px-4 py-3 text-right text-sm text-gray-900">
-                            {totalOrders.toLocaleString()}
+                            {formatNumber(totalOrders)}
                         </td>
                         <td className="px-4 py-3 text-right text-sm text-gray-900">
                             {formatCurrency(totalRevenue)}
                         </td>
                         <td className="px-4 py-3 text-right text-sm text-gray-900">
-                            {formatCurrency(totalRevenue / totalOrders)}
+                            {formatCurrency(totalOrders > 0 ? totalRevenue / totalOrders : 0)}
                         </td>
                         <td className="px-4 py-3 text-right text-sm text-gray-900">100%</td>
                     </tr>
@@ -389,10 +373,10 @@ const SourcesTable: React.FC<SourcesTableProps> = ({ sources, totalOrders, total
 };
 
 const OrderSources: React.FC = () => {
-    // Date range state
+    // Date range state — initialised from local-time helpers (no UTC off-by-one).
     const [dateRange, setDateRange] = useState<DateRange>({
-        start: format(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd'),
-        end: format(new Date(), 'yyyy-MM-dd')
+        start: daysAgoIso(30),
+        end: toIsoDate(new Date()),
     });
 
     // Quick date range options
@@ -404,24 +388,33 @@ const OrderSources: React.FC = () => {
 
     const handleQuickRange = (days: number) => {
         setDateRange({
-            start: format(new Date(Date.now() - days * 24 * 60 * 60 * 1000), 'yyyy-MM-dd'),
-            end: format(new Date(), 'yyyy-MM-dd')
+            start: daysAgoIso(days),
+            end: toIsoDate(new Date()),
         });
     };
 
-    // Fetch order sources data
+    // Backend AnalyticsController::getOrderSources returns `{success, sources}`.
+    // Each source row carries {source, order_count, revenue, avg_order_value}.
+    // We derive total_orders/total_revenue/percentage client-side.
     const { data, isLoading, refetch } = useQuery({
         queryKey: ['order-sources', dateRange],
         queryFn: async () => {
-            const response = await api.get<OrderSourcesResponse>('/analytics/order-sources', {
+            const response = await api.get<BackendOrderSourcesResponse>('/analytics/order-sources', {
                 params: {
                     start_date: dateRange.start,
-                    end_date: dateRange.end
-                }
+                    end_date: dateRange.end,
+                },
             });
-            return response.data;
-        }
+            const sources = response.data?.sources ?? [];
+            const totalOrders = sources.reduce((sum, s) => sum + (s.order_count ?? 0), 0);
+            const totalRevenue = sources.reduce((sum, s) => sum + Number(s.revenue ?? 0), 0);
+            return { sources, totalOrders, totalRevenue };
+        },
     });
+
+    const sources = data?.sources ?? [];
+    const totalOrders = data?.totalOrders ?? 0;
+    const totalRevenue = data?.totalRevenue ?? 0;
 
     return (
         <div className="space-y-6 pb-20">
@@ -477,6 +470,12 @@ const OrderSources: React.FC = () => {
                                 onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
                                 className="px-3 py-1 border rounded text-sm"
                             />
+                            <input
+                                type="date"
+                                value={dateRange.end}
+                                onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
+                                className="px-3 py-1 border rounded text-sm"
+                            />
                         </div>
                     </div>
                 </CardContent>
@@ -486,7 +485,7 @@ const OrderSources: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <KPICard
                     title="Total Orders"
-                    value={data?.total_orders.toLocaleString() || '0'}
+                    value={formatNumber(totalOrders)}
                     subtitle="In selected period"
                     icon={ShoppingCart}
                     color="text-blue-600"
@@ -494,7 +493,7 @@ const OrderSources: React.FC = () => {
                 />
                 <KPICard
                     title="Total Revenue"
-                    value={formatCurrency(data?.total_revenue) || '₹0'}
+                    value={formatCurrency(totalRevenue)}
                     subtitle="From all sources"
                     icon={DollarSign}
                     color="text-green-600"
@@ -502,19 +501,17 @@ const OrderSources: React.FC = () => {
                 />
                 <KPICard
                     title="Avg Order Value"
-                    value={formatCurrency(
-                        data?.total_orders ? data.total_revenue / data.total_orders : 0
-                    ) || '₹0'}
-                    subtitle="Across all sources"
-                    icon={TrendingUp}
+                    value={formatCurrency(totalOrders > 0 ? totalRevenue / totalOrders : 0)}
+                    subtitle={`From ${sources.length} source${sources.length === 1 ? '' : 's'}`}
+                    icon={DollarSign}
                     color="text-purple-600"
                     bgColor="bg-purple-100"
                 />
                 <KPICard
                     title="Sources Tracked"
-                    value={data?.data.length.toString() || '0'}
+                    value={formatNumber(sources.length)}
                     subtitle="Different channels"
-                    icon={Percent}
+                    icon={TrendingUp}
                     color="text-amber-600"
                     bgColor="bg-amber-100"
                 />
@@ -528,7 +525,7 @@ const OrderSources: React.FC = () => {
                         <CardTitle>Orders by Source</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <SourcePieChart data={data?.data || []} isLoading={isLoading} />
+                        <SourcePieChart data={sources} isLoading={isLoading} />
                     </CardContent>
                 </Card>
 
@@ -538,7 +535,7 @@ const OrderSources: React.FC = () => {
                         <CardTitle>Revenue by Source</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <RevenueBarChart data={data?.data || []} isLoading={isLoading} />
+                        <RevenueBarChart data={sources} isLoading={isLoading} />
                     </CardContent>
                 </Card>
             </div>
@@ -550,9 +547,9 @@ const OrderSources: React.FC = () => {
                 </CardHeader>
                 <CardContent className="p-0">
                     <SourcesTable
-                        sources={data?.data || []}
-                        totalOrders={data?.total_orders || 0}
-                        totalRevenue={data?.total_revenue || 0}
+                        sources={sources}
+                        totalOrders={totalOrders}
+                        totalRevenue={totalRevenue}
                         isLoading={isLoading}
                     />
                 </CardContent>

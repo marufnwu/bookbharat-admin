@@ -5,6 +5,7 @@
 
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { formatCurrency, formatPercent, formatNumber, daysAgoIso, toIsoDate } from '../../utils/format';
 import {
     BarChart,
     Bar,
@@ -35,7 +36,26 @@ import { format } from 'date-fns';
 import { api } from '../../api/axios';
 import { LoadingSpinner, Card, CardHeader, CardTitle, CardContent, Badge } from '../../components';
 
-// API response types
+// Backend AnalyticsController::getConversionFunnel response:
+//   { success, stages: {recovery_sent, link_clicked, checkout_started,
+//     payment_completed: <count>}, rates: {click_rate, checkout_rate,
+//     payment_rate} }
+// We synthesise a FunnelStage[] client-side from these parallel counters.
+interface BackendFunnelResponse {
+    success: boolean;
+    stages: {
+        recovery_sent: number;
+        link_clicked: number;
+        checkout_started: number;
+        payment_completed: number;
+    };
+    rates: {
+        click_rate: number;
+        checkout_rate: number;
+        payment_rate: number;
+    };
+}
+
 interface FunnelStage {
     stage: string;
     stage_label: string;
@@ -45,33 +65,10 @@ interface FunnelStage {
     avg_time_to_stage?: number;
 }
 
-interface ConversionFunnelResponse {
-    funnel: FunnelStage[];
-    avg_time_to_convert_hours: number | null;
-    total_conversion_value: number;
-    period: string;
-    channel_breakdown?: {
-        channel: string;
-        stages: FunnelStage[];
-    }[];
-}
-
 interface DateRange {
     start: string;
     end: string;
 }
-
-// Format currency
-const formatCurrency = (value: number | undefined | null): string => {
-    if (value === undefined || value === null) return '₹0';
-    return `₹${value.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
-};
-
-// Format percentage
-const formatPercent = (value: number | undefined | null): string => {
-    if (value === undefined || value === null) return '0%';
-    return `${value.toFixed(1)}%`;
-};
 
 // Format time in hours
 const formatTime = (hours: number | undefined | null): string => {
@@ -319,7 +316,7 @@ const FunnelTable: React.FC<FunnelTableProps> = ({ stages, isLoading }) => {
                                     )}
                                 </td>
                                 <td className="px-4 py-3 text-right text-sm text-gray-500">
-                                    {formatTime(stage.avg_time_to_stage)}
+                                    {formatTime(undefined)}
                                 </td>
                             </tr>
                         );
@@ -399,10 +396,10 @@ const ConversionChart: React.FC<ConversionChartProps> = ({ stages, isLoading }) 
 };
 
 const ConversionFunnel: React.FC = () => {
-    // Date range state
+    // Date range state — local-time helpers avoid the date-fns UTC off-by-one.
     const [dateRange, setDateRange] = useState<DateRange>({
-        start: format(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd'),
-        end: format(new Date(), 'yyyy-MM-dd')
+        start: daysAgoIso(30),
+        end: toIsoDate(new Date()),
     });
 
     // Channel filter
@@ -425,31 +422,50 @@ const ConversionFunnel: React.FC = () => {
 
     const handleQuickRange = (days: number) => {
         setDateRange({
-            start: format(new Date(Date.now() - days * 24 * 60 * 60 * 1000), 'yyyy-MM-dd'),
-            end: format(new Date(), 'yyyy-MM-dd')
+            start: daysAgoIso(days),
+            end: toIsoDate(new Date()),
         });
     };
 
-    // Fetch conversion funnel data
+    // Fetch conversion funnel data. Backend returns `{stages: {...}, rates: {...}}`
+    // with raw counts; we synthesise a FunnelStage[] (with percentages +
+    // dropoff) client-side for tables, charts, and the funnel visualisation.
     const { data, isLoading, refetch } = useQuery({
         queryKey: ['conversion-funnel', dateRange, channelFilter],
         queryFn: async () => {
-            const response = await api.get<ConversionFunnelResponse>('/analytics/conversion-funnel', {
+            const response = await api.get<BackendFunnelResponse>('/analytics/conversion-funnel', {
                 params: {
                     start_date: dateRange.start,
                     end_date: dateRange.end,
-                    channel: channelFilter || undefined
-                }
+                    channel: channelFilter || undefined,
+                },
             });
             return response.data;
-        }
+        },
     });
 
-    // Calculate overall conversion rate (recovery_sent to payment_completed)
+    // Synthesise a FunnelStage[] from the parallel `stages{}` payload so all
+    // downstream components (charts, tables, KPI cards) keep a single shape.
+    const stages: FunnelStage[] = React.useMemo(() => {
+        if (!data?.stages) return [];
+        const sent = data.stages.recovery_sent ?? 0;
+        const clicked = data.stages.link_clicked ?? 0;
+        const checkout = data.stages.checkout_started ?? 0;
+        const paid = data.stages.payment_completed ?? 0;
+        const base = sent || 1;
+        const pct = (n: number) => sent > 0 ? (n / sent) * 100 : 0;
+        return [
+            { stage: 'recovery_sent', stage_label: 'Recovery Sent', count: sent, percentage: pct(sent), dropoff_from_previous: 0 },
+            { stage: 'link_clicked', stage_label: 'Link Clicked', count: clicked, percentage: pct(clicked), dropoff_from_previous: sent > 0 ? ((sent - clicked) / sent) * 100 : 0 },
+            { stage: 'checkout_started', stage_label: 'Checkout Started', count: checkout, percentage: pct(checkout), dropoff_from_previous: sent > 0 ? ((clicked - checkout) / Math.max(clicked, 1)) * 100 : 0 },
+            { stage: 'payment_completed', stage_label: 'Payment Completed', count: paid, percentage: pct(paid), dropoff_from_previous: sent > 0 ? ((checkout - paid) / Math.max(checkout, 1)) * 100 : 0 },
+        ];
+    }, [data]);
+
     const overallConversionRate = React.useMemo(() => {
-        if (!data?.funnel || data.funnel.length < 2) return 0;
-        const sent = data.funnel.find(s => s.stage === 'recovery_sent')?.count || 0;
-        const completed = data.funnel.find(s => s.stage === 'payment_completed')?.count || 0;
+        if (!data?.stages) return 0;
+        const sent = data.stages.recovery_sent ?? 0;
+        const completed = data.stages.payment_completed ?? 0;
         return sent > 0 ? (completed / sent) * 100 : 0;
     }, [data]);
 
@@ -531,7 +547,7 @@ const ConversionFunnel: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <KPICard
                     title="Messages Sent"
-                    value={data?.funnel.find(s => s.stage === 'recovery_sent')?.count.toLocaleString() || '0'}
+                    value={formatNumber(stages.find(s => s.stage === 'recovery_sent')?.count ?? 0)}
                     subtitle="Recovery messages"
                     icon={Send}
                     color="text-blue-600"
@@ -539,7 +555,7 @@ const ConversionFunnel: React.FC = () => {
                 />
                 <KPICard
                     title="Link Clicks"
-                    value={data?.funnel.find(s => s.stage === 'link_clicked')?.count.toLocaleString() || '0'}
+                    value={formatNumber(stages.find(s => s.stage === 'link_clicked')?.count ?? 0)}
                     subtitle="Click-through rate"
                     icon={MousePointerClick}
                     color="text-purple-600"
@@ -547,7 +563,7 @@ const ConversionFunnel: React.FC = () => {
                 />
                 <KPICard
                     title="Conversions"
-                    value={data?.funnel.find(s => s.stage === 'payment_completed')?.count.toLocaleString() || '0'}
+                    value={formatNumber(stages.find(s => s.stage === 'payment_completed')?.count ?? 0)}
                     subtitle="Payment completed"
                     icon={CheckCircle}
                     color="text-green-600"
@@ -555,7 +571,7 @@ const ConversionFunnel: React.FC = () => {
                 />
                 <KPICard
                     title="Avg Time to Convert"
-                    value={formatTime(data?.avg_time_to_convert_hours) || '-'}
+                    value={formatTime(null)}
                     subtitle="From send to payment"
                     icon={Clock}
                     color="text-amber-600"
@@ -574,7 +590,7 @@ const ConversionFunnel: React.FC = () => {
                         <div className="text-right">
                             <p className="text-4xl font-bold text-green-600">{formatPercent(overallConversionRate)}</p>
                             <p className="text-sm text-gray-500">
-                                {formatCurrency(data?.total_conversion_value)} revenue
+                                {formatCurrency(0)} revenue
                             </p>
                         </div>
                     </div>
@@ -596,7 +612,7 @@ const ConversionFunnel: React.FC = () => {
                     <CardTitle>Visual Funnel</CardTitle>
                 </CardHeader>
                 <CardContent className="p-6">
-                    <FunnelChart stages={data?.funnel || []} isLoading={isLoading} />
+                    <FunnelChart stages={stages} isLoading={isLoading} />
                 </CardContent>
             </Card>
 
@@ -608,7 +624,7 @@ const ConversionFunnel: React.FC = () => {
                         <CardTitle>Stage-to-Stage Conversion Rates</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <ConversionChart stages={data?.funnel || []} isLoading={isLoading} />
+                        <ConversionChart stages={stages} isLoading={isLoading} />
                     </CardContent>
                 </Card>
 
@@ -618,7 +634,7 @@ const ConversionFunnel: React.FC = () => {
                         <CardTitle>Funnel Metrics</CardTitle>
                     </CardHeader>
                     <CardContent className="p-0">
-                        <FunnelTable stages={data?.funnel || []} isLoading={isLoading} />
+                        <FunnelTable stages={stages} isLoading={isLoading} />
                     </CardContent>
                 </Card>
             </div>
