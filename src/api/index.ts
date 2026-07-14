@@ -164,18 +164,28 @@ export const dashboardApi = {
   getStats: (): Promise<any> =>
     api.get('/dashboard/overview').then(res => res.data), // Returns the full response including dashboard object
 
-  getRevenueData: (period: string = '30d'): Promise<any> =>
-    api.get('/dashboard/sales-analytics').then(res => {
-      // Transform the response to match expected format
-      const salesData = res.data?.data?.chart_data || [];
+  getRevenueData: (period: string = '30d'): Promise<any> => {
+    // Pass period through to the backend; only include as a query param
+    // if it's a real period string (not the default 'all').
+    const config =
+      period && period !== 'all' ? { params: { period } } : {};
+    return api.get('/dashboard/sales-analytics', config).then(res => {
+      // Backend now returns {analytics: {chart_data: {labels, revenue, orders}}}
+      // where each of those three arrays is parallel — zip them into one
+      // row-per-day array that Recharts can consume directly.
+      const chart = res.data?.analytics?.chart_data ?? {};
+      const labels: string[] = chart.labels ?? [];
+      const revenues: any[] = chart.revenue ?? [];
+      const orders: any[] = chart.orders ?? [];
       return {
-        data: salesData.map((item: any) => ({
-          date: item.date,
-          revenue: item.revenue || 0,
-          orders: item.orders || 0
-        }))
+        data: labels.map((date, i) => ({
+          date,
+          revenue: parseFloat(revenues[i] ?? 0) || 0,
+          orders: parseInt(String(orders[i] ?? 0), 10) || 0,
+        })),
       };
-    }),
+    });
+  },
 
   getTopProducts: (limit: number = 5): Promise<any> =>
     api.get('/dashboard/overview').then(res => {
@@ -188,10 +198,12 @@ export const dashboardApi = {
 
   getRecentOrders: (limit: number = 5): Promise<any> =>
     api.get('/dashboard/order-insights').then(res => {
-      // Extract recent orders from the response
-      const orders = res.data?.data?.recent_orders || [];
+      // After the dashboard API fix, recent_orders is surfaced under
+      // order_insights.recent_orders (added because the admin frontend
+      // reads it from this endpoint rather than from /overview).
+      const orders = res.data?.order_insights?.recent_orders ?? [];
       return {
-        data: orders.slice(0, limit)
+        data: orders.slice(0, limit),
       };
     }),
 

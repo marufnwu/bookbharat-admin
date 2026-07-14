@@ -167,38 +167,65 @@ const Dashboard: React.FC = () => {
             <CardTitle>Order Status</CardTitle>
           </CardHeader>
           <CardContent className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={stats?.order_status_distribution || []}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={80}
-                  paddingAngle={5}
-                  dataKey="value"
-                >
-                  {stats?.order_status_distribution?.map((entry: any, index: number) => (
-                    <Cell key={`cell-${index}`} fill={orderStatusColors[index % orderStatusColors.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="mt-4 space-y-2">
-              {stats?.order_status_distribution?.map((item: any, index: number) => (
-                <div key={item.name} className="flex items-center justify-between text-sm">
-                  <div className="flex items-center gap-2">
-                    <div
-                      className="w-3 h-3 rounded-full"
-                      style={{ backgroundColor: orderStatusColors[index % orderStatusColors.length] }}
-                    />
-                    <span className="text-gray-600">{item.name}</span>
+            {/* Map backend {status, count, percentage} -> UI {name, value}.
+                Backend returns the canonical strings (pending, processing, …);
+                we rename to name/value just for the chart's dataKey.        */}
+            {(() => {
+              const distribution = (stats?.order_status_distribution ?? []).map(
+                (entry: any) => ({
+                  name: entry.status,
+                  value: entry.count,
+                  percentage: entry.percentage,
+                })
+              );
+              return (
+                <>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={distribution}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={80}
+                        paddingAngle={5}
+                        dataKey="value"
+                      >
+                        {distribution.map((entry: any, index: number) => (
+                          <Cell
+                            key={`cell-${index}`}
+                            fill={orderStatusColors[index % orderStatusColors.length]}
+                          />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="mt-4 space-y-2">
+                    {distribution.map((item: any, index: number) => (
+                      <div
+                        key={item.name}
+                        className="flex items-center justify-between text-sm"
+                      >
+                        <div className="flex items-center gap-2">
+                          <div
+                            className="w-3 h-3 rounded-full"
+                            style={{
+                              backgroundColor:
+                                orderStatusColors[index % orderStatusColors.length],
+                            }}
+                          />
+                          <span className="text-gray-600 capitalize">{item.name}</span>
+                        </div>
+                        <span className="font-medium text-gray-900">
+                          {formatNumber(item.value)}
+                        </span>
+                      </div>
+                    ))}
                   </div>
-                  <span className="font-medium text-gray-900">{item.value}</span>
-                </div>
-              ))}
-            </div>
+                </>
+              );
+            })()}
           </CardContent>
         </Card>
       </div>
@@ -247,9 +274,13 @@ const Dashboard: React.FC = () => {
                       <p className="text-sm font-medium text-gray-900 truncate">{product.name}</p>
                       <p className="text-sm text-gray-500">{formatCurrency(product.price)}</p>
                     </div>
+                    {/* /dashboard/overview emits `sales_count` only — no revenue
+                        per product. Render the units-sold metric and skip the
+                        revenue cell to avoid showing "₹0" everywhere.        */}
                     <div className="text-right">
-                      <p className="text-sm font-medium text-gray-900">{product.sales} sold</p>
-                      <p className="text-sm text-gray-500">{formatCurrency(product.revenue)}</p>
+                      <p className="text-sm font-medium text-gray-900">
+                        {formatNumber(product.sales_count ?? product.sales ?? 0)} sold
+                      </p>
                     </div>
                   </div>
                 ))}
