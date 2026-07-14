@@ -20,14 +20,13 @@ import {
   PaperAirplaneIcon as WhatsAppIcon,
 } from '@heroicons/react/24/outline';
 import { ordersApi } from '../../api';
-import { Table, Button, Badge, LoadingSpinner, Card, CardContent, StatusBadge, Modal } from '../../components';
+import { Table, Button, Badge, LoadingSpinner, StatusBadge, Modal } from '../../components';
 import { useNotificationStore } from '../../store/notificationStore';
 import { Order, FilterOptions, TableColumn } from '../../types';
 import { format } from 'date-fns';
 import { OrderStatusTabs } from '../../components/Orders/OrderStatusTabs';
 import { InlineStatusDropdown } from '../../components/Orders/InlineStatusDropdown';
 import { OrderQuickView } from '../../components/Orders/OrderQuickView';
-import { MobileActionBar } from '../../components/Orders/MobileActionBar';
 import { OrderSearchWithSuggestions } from '../../components/Orders/OrderSearchWithSuggestions';
 import { KeyboardShortcutsHelp } from '../../components/Orders/KeyboardShortcutsHelp';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
@@ -42,6 +41,22 @@ const WHATSAPP_NOTIFICATIONS: { type: WhatsAppNotificationType; label: string; d
   { type: 'order_shipped', label: 'Shipping Update', description: 'Send shipment notification with tracking', icon: '🚚' },
   { type: 'order_delivered', label: 'Delivery Confirmation', description: 'Send delivery confirmation', icon: '✅' },
 ];
+
+// Single source of truth for the customer display name shown in the order list.
+// Always derives from the billing_address (first_name + last_name). If the
+// billing address is missing or has no name parts, returns 'N/A'.
+const getCustomerName = (order: Order | null | undefined): string => {
+  if (!order) return 'N/A';
+
+  const billing = order.billing_address;
+  if (billing) {
+    const fullName = `${billing.first_name || ''} ${billing.last_name || ''}`.trim();
+    if (fullName) return fullName;
+    if ((billing as any).name?.trim()) return (billing as any).name.trim();
+  }
+
+  return 'N/A';
+};
 
 // WhatsApp Send Modal Component
 interface WhatsAppSendModalProps {
@@ -90,7 +105,7 @@ const WhatsAppSendModal: React.FC<WhatsAppSendModalProps> = ({ isOpen, onClose, 
   if (!isOpen || !order) return null;
 
   const customerPhone = (order.user as any)?.phone || (order as any).shipping_address?.phone || (order as any).shipping_address?.mobile;
-  const customerName = (order.user as any)?.name || 'Customer';
+  const customerName = getCustomerName(order);
 
   return (
     <Modal open={isOpen} onClose={onClose} title="Send WhatsApp Notification" size="md">
@@ -518,7 +533,6 @@ const OrderList: React.FC = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [selectedOrders, setSelectedOrders] = useState<Set<number>>(new Set());
   const [quickViewOrderId, setQuickViewOrderId] = useState<number | null>(null);
-  const [selectedMobileOrder, setSelectedMobileOrder] = useState<Order | null>(null);
   const [highlightedRowIndex, setHighlightedRowIndex] = useState<number>(-1);
   const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
   const [paymentStatusModal, setPaymentStatusModal] = useState<{
@@ -1023,13 +1037,7 @@ const OrderList: React.FC = () => {
       key: 'user' as const,
       title: 'Customer',
       render: (_: any, record: Order) => (
-        <span className="font-medium text-gray-900">
-          {record.user?.name ||
-            (record.billing_address
-              ? `${record.billing_address.first_name || ''} ${record.billing_address.last_name || ''}`.trim()
-              : '') ||
-            'Guest'}
-        </span>
+        <span className="font-medium text-gray-900">{getCustomerName(record)}</span>
       ),
     },
     {
@@ -1363,140 +1371,6 @@ const OrderList: React.FC = () => {
         />
       </div>
 
-      {/* Orders Cards - Mobile */}
-      <div className="md:hidden space-y-4">
-        {isLoading ? (
-          <div className="flex justify-center py-8">
-            <LoadingSpinner size="lg" />
-          </div>
-        ) : ((ordersResponse as any)?.orders?.data || []).length === 0 ? (
-          <Card>
-            <CardContent className="py-12 text-center">
-              <p className="text-gray-500">No orders found</p>
-            </CardContent>
-          </Card>
-        ) : (
-          ((ordersResponse as any)?.orders?.data || []).map((order: any) => {
-            // Mobile visual priority indicators
-            const isPendingOld = order.status === 'pending' && order.created_at &&
-              ((Date.now() - new Date(order.created_at).getTime()) / (1000 * 60 * 60)) > 24;
-            const isCOD = order.is_cod || order.payment_method === 'cod';
-            const isFailedPayment = order.payment_status === 'failed';
-            const isHighValue = (order.total_amount || 0) > 5000 && !isFailedPayment;
-            const isFastDeliveryOrder = isFastDelivery(order);
-            // Fast Delivery wins over the other left-border accents because it
-            // signals shipping priority — staff need to spot these at a glance.
-            const borderClass = isFastDeliveryOrder ? 'border-l-4 border-l-green-500' :
-              isFailedPayment ? 'border-l-4 border-l-red-400' :
-                isCOD ? 'border-l-4 border-l-orange-400' :
-                  isHighValue ? 'border-l-4 border-l-yellow-500' : '';
-
-            return (
-              <Card key={order.id} className={`overflow-hidden ${isPendingOld ? 'bg-yellow-50' : ''} ${isFastDeliveryOrder ? 'bg-green-50' : ''} ${borderClass}`}>
-                <CardContent className="p-4" onClick={() => setSelectedMobileOrder(order)}>
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={selectedOrders.has(order.id)}
-                        onChange={() => handleSelectOrder(order.id)}
-                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                      />
-                      <div>
-                        <Link
-                          to={`/orders/${order.id}`}
-                          className="text-sm font-medium text-primary-600 hover:text-primary-700"
-                        >
-                          #{order.order_number}
-                        </Link>
-                        {order.is_preorder && (
-                          <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800">
-                            Preorder
-                          </span>
-                        )}
-                        {isFastDeliveryOrder && (
-                          <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
-                            Fast Delivery
-                          </span>
-                        )}
-                        <p className="text-xs text-gray-500 mt-1">
-                          {order.created_at ? format(new Date(order.created_at), 'MMM d, yyyy h:mm a') : '-'}
-                        </p>
-                      </div>
-                    </div>
-                    <InlineStatusDropdown
-                      currentStatus={order.status}
-                      onStatusChange={(newStatus) => handleStatusUpdate(order.id, newStatus)}
-                    />
-                  </div>
-
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Customer</span>
-                      <span className="font-medium text-gray-900">
-                        {order.user?.name || order.billing_address?.first_name ? `${order.billing_address.first_name} ${order.billing_address.last_name || ''}`.trim() : order.billing_address?.name || 'N/A'}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Items</span>
-                      <span className="font-medium text-gray-900">
-                        {order.order_items_count || order.items_count || order.items?.length || 0}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Total</span>
-                      <span className="font-medium text-gray-900">₹{Number(order.total_amount || order.total || 0).toLocaleString('en-IN')}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Paid</span>
-                      <span className={`font-medium ${(order.paid_amount || 0) >= (order.total_amount || 0) && (order.total_amount || 0) > 0 ? 'text-green-600' : (order.paid_amount || 0) > 0 ? 'text-blue-600' : 'text-gray-400'}`}>
-                        ₹{Number(order.paid_amount || 0).toLocaleString('en-IN')}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-500">Payment</span>
-                      <div>
-                        {order.is_cod || order.payment_method === 'cod' ? (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-800">
-                            COD
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
-                            Prepaid
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-500">Pay Status</span>
-                      <button
-                        onClick={() => setPaymentStatusModal({
-                          isOpen: true,
-                          orderId: order.id,
-                          currentStatus: order.payment_status,
-                        })}
-                      >
-                        <StatusBadge status={order.payment_status as any} size="sm" />
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="mt-4 pt-3 border-t border-gray-100">
-                    <Link
-                      to={`/orders/${order.id}`}
-                      className="w-full inline-flex items-center justify-center px-3 py-2 text-sm font-medium text-primary-600 bg-primary-50 rounded-md hover:bg-primary-100 transition-colors"
-                    >
-                      <EyeIcon className="h-4 w-4 mr-1" />
-                      View Details
-                    </Link>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })
-        )}
-      </div>
-
       {/* Bulk Action Toolbar */}
       <BulkActionToolbar
         selectedCount={selectedOrders.size}
@@ -1682,16 +1556,6 @@ const OrderList: React.FC = () => {
         onSuccess={() => {
           queryClient.invalidateQueries({ queryKey: ['orders'] });
         }}
-      />
-
-      {/* Mobile Action Bar */}
-      <MobileActionBar
-        order={selectedMobileOrder}
-        onStatusChange={(id, status) => {
-          handleStatusUpdate(id, status);
-          setSelectedMobileOrder(null);
-        }}
-        isLoading={updateStatusMutation.isPending}
       />
 
       {/* Keyboard Shortcuts Help */}
