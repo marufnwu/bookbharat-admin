@@ -322,9 +322,9 @@ const Dashboard: React.FC = () => {
                         <Badge
                           variant={
                             order.status === 'delivered' ? 'success' :
-                            order.status === 'processing' ? 'primary' :
-                            order.status === 'pending' ? 'warning' :
-                            order.status === 'cancelled' ? 'error' : 'default'
+                              order.status === 'processing' ? 'primary' :
+                                order.status === 'pending' ? 'warning' :
+                                  order.status === 'cancelled' ? 'error' : 'default'
                           }
                           size="sm"
                         >
@@ -376,9 +376,8 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, change, icon: Icon, c
           {change !== undefined && (
             <div className="flex items-center gap-1 mt-2">
               <span
-                className={`text-sm font-medium flex items-center ${
-                  isPositive ? 'text-success-600' : 'text-error-600'
-                }`}
+                className={`text-sm font-medium flex items-center ${isPositive ? 'text-success-600' : 'text-error-600'
+                  }`}
               >
                 {isPositive ? (
                   <ArrowTrendingUpIcon className="w-4 h-4 mr-1" />
