@@ -74,15 +74,15 @@ type SourcePresentation = {
 };
 
 const SOURCE_PRESENTATION: Record<string, SourcePresentation> = {
-    direct:        { label: 'Direct',        icon: Globe,         badgeBg: 'bg-blue-100',   badgeText: 'text-blue-600' },
+    direct: { label: 'Direct', icon: Globe, badgeBg: 'bg-blue-100', badgeText: 'text-blue-600' },
     whatsapp_recovery: { label: 'WhatsApp Recovery', icon: MessageCircle, badgeBg: 'bg-green-100', badgeText: 'text-green-600' },
-    cart_whatsapp: { label: 'Cart WhatsApp', icon: MessageCircle, badgeBg: 'bg-green-100',  badgeText: 'text-green-600' },
-    order_whatsapp:{ label: 'Order WhatsApp', icon: MessageCircle, badgeBg: 'bg-green-100', badgeText: 'text-green-600' },
-    email_recovery:{ label: 'Email Recovery',icon: Mail,          badgeBg: 'bg-purple-100', badgeText: 'text-purple-600' },
-    cart_email:    { label: 'Cart Email',    icon: Mail,          badgeBg: 'bg-purple-100', badgeText: 'text-purple-600' },
-    order_email:   { label: 'Order Email',   icon: Mail,          badgeBg: 'bg-purple-100', badgeText: 'text-purple-600' },
-    organic:       { label: 'Organic',       icon: Search,        badgeBg: 'bg-yellow-100', badgeText: 'text-yellow-600' },
-    utm:           { label: 'UTM',           icon: Tag,           badgeBg: 'bg-amber-100',  badgeText: 'text-amber-600' },
+    cart_whatsapp: { label: 'Cart WhatsApp', icon: MessageCircle, badgeBg: 'bg-green-100', badgeText: 'text-green-600' },
+    order_whatsapp: { label: 'Order WhatsApp', icon: MessageCircle, badgeBg: 'bg-green-100', badgeText: 'text-green-600' },
+    email_recovery: { label: 'Email Recovery', icon: Mail, badgeBg: 'bg-purple-100', badgeText: 'text-purple-600' },
+    cart_email: { label: 'Cart Email', icon: Mail, badgeBg: 'bg-purple-100', badgeText: 'text-purple-600' },
+    order_email: { label: 'Order Email', icon: Mail, badgeBg: 'bg-purple-100', badgeText: 'text-purple-600' },
+    organic: { label: 'Organic', icon: Search, badgeBg: 'bg-yellow-100', badgeText: 'text-yellow-600' },
+    utm: { label: 'UTM', icon: Tag, badgeBg: 'bg-amber-100', badgeText: 'text-amber-600' },
 };
 
 const DEFAULT_PRESENTATION: SourcePresentation = {

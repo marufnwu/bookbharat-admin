@@ -190,7 +190,7 @@ const PerformanceTable: React.FC<PerformanceTableProps> = ({ data, sortField, so
                             </td>
                             <td className="px-4 py-3 text-right">
                                 <span className={`text-sm font-medium ${row.conversion_rate >= 5 ? 'text-green-600' :
-                                        row.conversion_rate >= 2 ? 'text-yellow-600' : 'text-red-600'
+                                    row.conversion_rate >= 2 ? 'text-yellow-600' : 'text-red-600'
                                     }`}>
                                     {formatPercent(row.conversion_rate)}
                                 </span>

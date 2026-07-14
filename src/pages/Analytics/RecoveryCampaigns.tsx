@@ -156,7 +156,7 @@ const CampaignTable: React.FC<CampaignTableProps> = ({ campaigns, isLoading }) =
                             </td>
                             <td className="px-4 py-3 text-right">
                                 <span className={`text-sm font-medium ${campaign.conversion_rate >= 10 ? 'text-green-600' :
-                                        campaign.conversion_rate >= 5 ? 'text-yellow-600' : 'text-red-600'
+                                    campaign.conversion_rate >= 5 ? 'text-yellow-600' : 'text-red-600'
                                     }`}>
                                     {formatPercent(campaign.conversion_rate)}
                                 </span>

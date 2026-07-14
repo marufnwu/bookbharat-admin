@@ -388,7 +388,7 @@ const MessageLogs: React.FC = () => {
                         <div>
                           <label className="text-xs font-semibold text-gray-500 uppercase">Metadata</label>
                           <div className="mt-1 bg-gray-50 p-2 rounded text-xs font-mono overflow-auto max-h-40">
-                             <pre>{JSON.stringify(selectedLog.metadata, null, 2)}</pre>
+                            <pre>{JSON.stringify(selectedLog.metadata, null, 2)}</pre>
                           </div>
                         </div>
                       )}
