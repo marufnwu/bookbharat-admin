@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   PhotoIcon,
@@ -10,12 +10,23 @@ import {
   CogIcon,
   ChevronRightIcon,
   CheckCircleIcon,
+  Squares2X2Icon,
 } from '@heroicons/react/24/outline';
 import { Button, Card, CardContent, PageSkeleton } from '../../components';
 import { useNotificationStore } from '../../store/notificationStore';
 import { settingsApi } from '../../api';
+import { api } from '../../api/axios';
 import type { ApiResponse } from '../../types';
 import ImageUploader from '../../components/ImageUploader';
+import DynamicSettings from '../../components/settings/DynamicSettings';
+import {
+  buildSettingsGroupsParams,
+  filterGroupsByWhitelist,
+  readRuntimeOverrides,
+  applyRuntimeOverride,
+  SITE_SETTINGS_PAGE_CONTEXT,
+  SETTINGS_GROUPS,
+} from '../../constants/settings';
 
 interface SiteConfig {
   site: {
@@ -93,13 +104,91 @@ const SiteSettings: React.FC = () => {
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [faviconUrl, setFaviconUrl] = useState<string | null>(null);
 
+  // Hardcoded sections with custom UI (logo uploader, color picker, etc.).
+  // Anything added to /config/settings/{group}.php on the backend is appended
+  // below automatically via the dynamic sections — no admin code change needed.
+  const HARDCODED_SECTION_IDS = ['brand', 'contact', 'hours', 'theme', 'social', 'seo', 'features'];
+
+  // Read runtime overrides from the URL — useful for debugging the filter
+  // without editing the constants file. e.g. /settings/site?groups=android_app
+  const runtimeOverrides = useMemo(() => readRuntimeOverrides(), []);
+  const effectiveContext = runtimeOverrides.noFilter
+    ? ([] as readonly string[])
+    : applyRuntimeOverride(SITE_SETTINGS_PAGE_CONTEXT, runtimeOverrides.context);
+  const effectiveGroups = runtimeOverrides.noFilter
+    ? ([] as readonly string[])
+    : applyRuntimeOverride(SETTINGS_GROUPS, runtimeOverrides.groups);
+
+  const requestUrl = useMemo(() => {
+    const params = buildSettingsGroupsParams({
+      context: effectiveContext,
+      groups: effectiveGroups,
+    });
+    const qs = new URLSearchParams(params).toString();
+    return qs ? `/settings/groups?${qs}` : '/settings/groups (no filters)';
+  }, [effectiveContext, effectiveGroups]);
+
+  // Fetch every dynamic settings group from the backend. New groups registered
+  // in config/settings/*.php appear here without touching this file.
+  // The context and whitelist come from `constants/settings.ts` — edit those
+  // values to control which groups this page shows. Runtime overrides via
+  // ?context=...&groups=...&nofilter=1 are also supported.
+  const { data: groupsData, isFetching } = useQuery({
+    queryKey: ['settings', 'groups', 'site', effectiveContext.join(','), effectiveGroups.join(',')],
+    staleTime: 0,
+    gcTime: 0,
+    queryFn: async () => {
+      // eslint-disable-next-line no-console
+      console.log('[SiteSettings] requesting', requestUrl);
+      const res = await api.get('/settings/groups', {
+        params: buildSettingsGroupsParams({
+          context: effectiveContext,
+          groups: effectiveGroups,
+        }),
+      });
+      const raw = (res.data?.data ?? {}) as Record<string, { label: string; description: string; icon: string; sort_order: number; field_count: number }>;
+      // eslint-disable-next-line no-console
+      console.log('[SiteSettings] backend returned', Object.keys(raw).length, 'groups:', Object.keys(raw));
+      const filtered = filterGroupsByWhitelist(raw, effectiveGroups);
+      // eslint-disable-next-line no-console
+      console.log('[SiteSettings] after whitelist:', Object.keys(filtered).length, 'groups:', Object.keys(filtered));
+      return filtered;
+    },
+  });
+
+  const dynamicSections = groupsData
+    ? Object.entries(groupsData)
+        .filter(([key]) => !HARDCODED_SECTION_IDS.includes(key))
+        .sort(([, a], [, b]) => a.sort_order - b.sort_order)
+        .map(([key, group]) => ({
+          id: key,
+          name: group.label,
+          icon: Squares2X2Icon,
+          description: group.description,
+        }))
+    : [];
+
+  const sections = [
+    { id: 'brand', name: 'Brand Identity', icon: PhotoIcon, description: 'Name, logo & description' },
+    { id: 'contact', name: 'Contact Info', icon: PhoneIcon, description: 'Phone, email & address' },
+    { id: 'hours', name: 'Business Hours', icon: ClockIcon, description: 'Opening hours & timezone' },
+    { id: 'theme', name: 'Theme', icon: PaintBrushIcon, description: 'Colors & typography' },
+    { id: 'social', name: 'Social Media', icon: LinkIcon, description: 'Platform URLs' },
+    { id: 'seo', name: 'SEO', icon: MagnifyingGlassIcon, description: 'Meta tags & search' },
+    { id: 'features', name: 'Features', icon: CogIcon, description: 'Toggle features on/off' },
+    ...dynamicSections,
+  ];
+
   useEffect(() => {
     const hash = window.location.hash.replace('#', '');
-    const validSections = ['brand', 'contact', 'hours', 'theme', 'social', 'seo', 'features'];
+    // Recompute the valid sections list whenever dynamic sections load so
+    // /settings/site#android_app (or any future group) can deep-link directly.
+    const validSections = sections.map((s) => s.id);
     if (hash && validSections.includes(hash)) {
       setActiveSection(hash);
     }
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [groupsData]);
 
   const handleSectionChange = (sectionId: string) => {
     setActiveSection(sectionId);
@@ -186,16 +275,6 @@ const SiteSettings: React.FC = () => {
     const formData = collectFormData();
     updateSiteConfigMutation.mutate(formData);
   };
-
-  const sections = [
-    { id: 'brand', name: 'Brand Identity', icon: PhotoIcon, description: 'Name, logo & description' },
-    { id: 'contact', name: 'Contact Info', icon: PhoneIcon, description: 'Phone, email & address' },
-    { id: 'hours', name: 'Business Hours', icon: ClockIcon, description: 'Opening hours & timezone' },
-    { id: 'theme', name: 'Theme', icon: PaintBrushIcon, description: 'Colors & typography' },
-    { id: 'social', name: 'Social Media', icon: LinkIcon, description: 'Platform URLs' },
-    { id: 'seo', name: 'SEO', icon: MagnifyingGlassIcon, description: 'Meta tags & search' },
-    { id: 'features', name: 'Features', icon: CogIcon, description: 'Toggle features on/off' },
-  ];
 
   // ── Section Renderers ──────────────────────────────────────────
 
@@ -631,11 +710,56 @@ const SiteSettings: React.FC = () => {
       case 'social': return renderSocialSection();
       case 'seo': return renderSEOSection();
       case 'features': return renderFeaturesSection();
-      default: return renderBrandSection();
+      default:
+        // Anything not in the hardcoded list is a backend-managed settings
+        // group (e.g. android_app, modules). Render it with the generic
+        // DynamicSettings renderer using the metadata fetched from the API.
+        if (dynamicSections.some((s) => s.id === activeSection)) {
+          const group = groupsData?.[activeSection];
+          return (
+            <Card>
+              <CardContent className="p-6">
+                <DynamicSettings
+                  group={activeSection}
+                  title={group?.label ?? activeSection}
+                  description={group?.description}
+                />
+              </CardContent>
+            </Card>
+          );
+        }
+        return renderBrandSection();
     }
   };
 
   return (
+    <div className="space-y-4">
+      {/* Debug indicator — remove once filter behavior is verified */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 text-xs text-blue-900 flex flex-wrap items-center gap-x-4 gap-y-1">
+        <span className="inline-flex items-center gap-1 font-semibold">
+          Filter debug
+        </span>
+        <span>
+          Request: <code className="bg-white px-1 rounded">{requestUrl}</code>
+        </span>
+        <span>
+          Whitelist ({effectiveGroups.length}):{' '}
+          <code className="bg-white px-1 rounded">
+            {effectiveGroups.length === 0 ? '∅ (show all)' : effectiveGroups.join(', ')}
+          </code>
+        </span>
+        <span>
+          Context ({effectiveContext.length}):{' '}
+          <code className="bg-white px-1 rounded">
+            {effectiveContext.length === 0 ? '∅ (all)' : effectiveContext.join(', ')}
+          </code>
+        </span>
+        <span>
+          Rendering: <code className="bg-white px-1 rounded">{sections.length} sections ({dynamicSections.length} dynamic)</code>
+          {isFetching && <span className="ml-1 text-blue-600">(refetching…)</span>}
+        </span>
+      </div>
+
     <div className="flex gap-6">
       {/* Compact Left Sidebar Navigation */}
       <div className="w-52 flex-shrink-0">
@@ -710,6 +834,7 @@ const SiteSettings: React.FC = () => {
           </div>
         </div>
       </form>
+    </div>
     </div>
   );
 };

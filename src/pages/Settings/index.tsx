@@ -1,8 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Loader2, AlertTriangle, ChevronRightIcon, Settings as SettingsIcon } from 'lucide-react';
+import { Loader2, AlertTriangle, ChevronRightIcon, Settings as SettingsIcon, Info } from 'lucide-react';
 import { api } from '../../api/axios';
 import DynamicSettings from '../../components/settings/DynamicSettings';
+import {
+  buildSettingsGroupsParams,
+  filterGroupsByWhitelist,
+  readRuntimeOverrides,
+  applyRuntimeOverride,
+  MAIN_SETTINGS_PAGE_CONTEXT,
+  SETTINGS_GROUPS,
+} from '../../constants/settings';
 
 interface SettingsGroup {
   label: string;
@@ -15,12 +23,51 @@ interface SettingsGroup {
 const Settings: React.FC = () => {
   const [activeSection, setActiveSection] = useState<string>('');
 
-  // Fetch available settings groups from backend
-  const { data: groupsData, isLoading, error } = useQuery({
-    queryKey: ['settings', 'groups'],
+  // Read runtime overrides from the URL — useful for debugging the filter
+  // without editing the constants file. e.g. /settings?groups=android_app
+  const overrides = useMemo(() => readRuntimeOverrides(), []);
+  const effectiveContext = overrides.noFilter
+    ? ([] as readonly string[])
+    : applyRuntimeOverride(MAIN_SETTINGS_PAGE_CONTEXT, overrides.context);
+  const effectiveGroups = overrides.noFilter
+    ? ([] as readonly string[])
+    : applyRuntimeOverride(SETTINGS_GROUPS, overrides.groups);
+
+  const requestUrl = useMemo(() => {
+    const params = buildSettingsGroupsParams({
+      context: effectiveContext,
+      groups: effectiveGroups,
+    });
+    const qs = new URLSearchParams(params).toString();
+    return qs ? `/settings/groups?${qs}` : '/settings/groups (no filters)';
+  }, [effectiveContext, effectiveGroups]);
+
+  // Fetch available settings groups from backend.
+  // The context list and whitelist come from `constants/settings.ts` — edit
+  // those values to control which groups this page shows. They can also be
+  // overridden at runtime via ?context=...&groups=...&nofilter=1
+  const { data: groupsData, isLoading, error, isFetching } = useQuery({
+    queryKey: ['settings', 'groups', 'main', effectiveContext.join(','), effectiveGroups.join(',')],
+    staleTime: 0,
+    gcTime: 0,
     queryFn: async () => {
-      const response = await api.get('/settings/groups');
-      return response.data.data as Record<string, SettingsGroup>;
+      // eslint-disable-next-line no-console
+      console.log('[Settings] requesting', requestUrl);
+      const response = await api.get('/settings/groups', {
+        params: buildSettingsGroupsParams({
+          context: effectiveContext,
+          groups: effectiveGroups,
+        }),
+      });
+      const data = response.data.data as Record<string, SettingsGroup>;
+      // eslint-disable-next-line no-console
+      console.log('[Settings] backend returned', Object.keys(data).length, 'groups:', Object.keys(data));
+      // Apply frontend whitelist so changing SETTINGS_GROUPS in code instantly
+      // narrows what renders, even if the backend returns more.
+      const filtered = filterGroupsByWhitelist(data, effectiveGroups);
+      // eslint-disable-next-line no-console
+      console.log('[Settings] after whitelist:', Object.keys(filtered).length, 'groups:', Object.keys(filtered));
+      return filtered;
     },
   });
 
@@ -91,6 +138,33 @@ const Settings: React.FC = () => {
   const currentGroup = groupsData[activeSection];
 
   return (
+    <div className="space-y-4">
+      {/* Debug indicator — remove once filter behavior is verified */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 text-xs text-blue-900 flex flex-wrap items-center gap-x-4 gap-y-1">
+        <span className="inline-flex items-center gap-1 font-semibold">
+          <Info className="h-3 w-3" /> Filter debug
+        </span>
+        <span>
+          Request: <code className="bg-white px-1 rounded">{requestUrl}</code>
+        </span>
+        <span>
+          Whitelist ({effectiveGroups.length}):{' '}
+          <code className="bg-white px-1 rounded">
+            {effectiveGroups.length === 0 ? '∅ (show all)' : effectiveGroups.join(', ')}
+          </code>
+        </span>
+        <span>
+          Context ({effectiveContext.length}):{' '}
+          <code className="bg-white px-1 rounded">
+            {effectiveContext.length === 0 ? '∅ (all)' : effectiveContext.join(', ')}
+          </code>
+        </span>
+        <span>
+          Rendering: <code className="bg-white px-1 rounded">{sortedGroups.length} groups</code>
+          {isFetching && <span className="ml-1 text-blue-600">(refetching…)</span>}
+        </span>
+      </div>
+
     <div className="flex gap-6">
       {/* Left Sidebar Navigation */}
       <div className="w-64 flex-shrink-0">
@@ -156,6 +230,7 @@ const Settings: React.FC = () => {
           </div>
         </div>
       </div>
+    </div>
     </div>
   );
 };
