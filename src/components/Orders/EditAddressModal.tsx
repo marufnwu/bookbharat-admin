@@ -8,13 +8,16 @@ import type { UpdateAddressRequest } from '../../types/orderEnhancements';
 interface Address {
   first_name: string;
   last_name: string;
-  address_1: string;
-  address_2?: string;
+  address_line_1: string;
+  address_line_2?: string;
+  house_number?: string;
+  landmark?: string;
   city: string;
   state: string;
   postal_code: string;
   country: string;
   phone: string;
+  whatsapp_number?: string;
 }
 
 interface EditAddressModalProps {
@@ -34,13 +37,16 @@ const EditAddressModal: React.FC<EditAddressModalProps> = ({
   const [formData, setFormData] = useState<UpdateAddressRequest>({
     first_name: currentAddress.first_name || '',
     last_name: currentAddress.last_name || '',
-    address_1: currentAddress.address_1 || '',
-    address_2: currentAddress.address_2 || '',
+    address_line_1: currentAddress.address_line_1 || '',
+    address_line_2: currentAddress.address_line_2 || '',
+    house_number: currentAddress.house_number || '',
+    landmark: currentAddress.landmark || '',
     city: currentAddress.city || '',
     state: currentAddress.state || '',
     postal_code: currentAddress.postal_code || '',
     country: currentAddress.country || '',
     phone: currentAddress.phone || '',
+    whatsapp_number: currentAddress.whatsapp_number || '',
   });
 
   const updateMutation = useMutation({
@@ -125,8 +131,8 @@ const EditAddressModal: React.FC<EditAddressModalProps> = ({
               </label>
               <input
                 type="text"
-                name="address_1"
-                value={formData.address_1}
+                name="address_line_1"
+                value={formData.address_line_1}
                 onChange={handleChange}
                 required
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
@@ -140,8 +146,36 @@ const EditAddressModal: React.FC<EditAddressModalProps> = ({
               </label>
               <input
                 type="text"
-                name="address_2"
-                value={formData.address_2}
+                name="address_line_2"
+                value={formData.address_line_2}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            {/* House Number */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                House / Flat Number
+              </label>
+              <input
+                type="text"
+                name="house_number"
+                value={formData.house_number}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            {/* Landmark */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Landmark
+              </label>
+              <input
+                type="text"
+                name="landmark"
+                value={formData.landmark}
                 onChange={handleChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
               />
@@ -208,7 +242,7 @@ const EditAddressModal: React.FC<EditAddressModalProps> = ({
             </div>
 
             {/* Phone */}
-            <div className="col-span-2">
+            <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Phone <span className="text-red-500">*</span>
               </label>
@@ -218,6 +252,20 @@ const EditAddressModal: React.FC<EditAddressModalProps> = ({
                 value={formData.phone}
                 onChange={handleChange}
                 required
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            {/* WhatsApp Number */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                WhatsApp Number
+              </label>
+              <input
+                type="tel"
+                name="whatsapp_number"
+                value={formData.whatsapp_number}
+                onChange={handleChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
               />
             </div>

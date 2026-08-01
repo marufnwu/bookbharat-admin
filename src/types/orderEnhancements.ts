@@ -61,13 +61,16 @@ export interface PartialRefundRequest {
 export interface UpdateAddressRequest {
   first_name: string;
   last_name: string;
-  address_1: string;
-  address_2?: string;
+  address_line_1: string;
+  address_line_2?: string;
+  house_number?: string;
+  landmark?: string;
   city: string;
   state: string;
   postal_code: string;
   country: string;
   phone: string;
+  whatsapp_number?: string;
 }
 
 export interface AddInternalNoteRequest {
