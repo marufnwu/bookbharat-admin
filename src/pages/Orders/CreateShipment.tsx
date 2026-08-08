@@ -385,7 +385,10 @@ const CreateShipment: React.FC = () => {
 
     const payload = {
       order_id: orderId,
-      carrier_id: selectedCarrier.carrier_id,
+      // Send the carrier_code so the backend can resolve via the registry
+      // even if no DB row exists yet (e.g., a newly added provider before
+      // its first admin save). Falls back to carrier_id if available.
+      carrier_id: selectedCarrier.carrier_id ?? selectedCarrier.carrier_code,
       service_code: selectedCarrier.service_code,
       warehouse_id: selectedWarehouse,
       shipping_cost: selectedCarrier.total_charge,
