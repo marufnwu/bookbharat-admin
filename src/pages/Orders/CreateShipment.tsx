@@ -52,21 +52,22 @@ interface WarehouseOption {
 }
 
 interface CarrierRate {
-  carrier_id: number;
+  carrier_id: number | null;          // null for config-only carriers without a DB row
   carrier_code: string;
   carrier_name: string;
   carrier_logo: string;
   service_code: string;
   service_name: string;
-  base_charge: number;
-  fuel_surcharge: number;
-  gst: number;
-  cod_charge: number;
-  insurance_charge: number;
-  other_charges: number;
-  total_charge: number;
-  original_charge?: number;
-  discount?: number;
+  has_live_rate?: boolean;            // false when the carrier has no quote API
+  base_charge: number | null;
+  fuel_surcharge: number | null;
+  gst: number | null;
+  cod_charge: number | null;
+  insurance_charge: number | null;
+  other_charges: number | null;
+  total_charge: number | null;
+  original_charge?: number | null;
+  discount?: number | null;
   delivery_days: number;
   expected_delivery_date: string;
   features: string[];
@@ -331,6 +332,15 @@ const CreateShipment: React.FC = () => {
     }).format(amount);
   };
 
+  // Carrier prices may be null/0 when the carrier doesn't expose a live
+  // rate API (e.g. Shadowfax). Render N/A in that case instead of "₹0".
+  const formatCarrierPrice = (amount: number | null | undefined) => {
+    if (amount == null || amount === 0) {
+      return { display: "N/A", muted: true };
+    }
+    return { display: formatCurrency(amount), muted: false };
+  };
+
   // Filter and sort carriers
   const getFilteredCarriers = () => {
     if (!ratesData?.rates) return [];
@@ -338,16 +348,17 @@ const CreateShipment: React.FC = () => {
 
     // Apply preset filters
     if (filterPreset === "budget") {
-      carriers = carriers.sort((a, b) => a.total_charge - b.total_charge);
+      carriers = carriers.sort((a, b) => (a.total_charge ?? Infinity) - (b.total_charge ?? Infinity));
     } else if (filterPreset === "fast") {
       carriers = carriers.sort((a, b) => a.delivery_days - b.delivery_days);
     } else if (filterPreset === "premium") {
       carriers = carriers.filter((c) => c.rating >= 4.0 && c.success_rate >= 95);
     }
 
-    // Apply sorting
+    // Apply sorting. Null/0 total_charge means the carrier has no live rate —
+    // sort those to the bottom of price-sorted lists.
     if (sortBy === "price") {
-      carriers.sort((a, b) => a.total_charge - b.total_charge);
+      carriers.sort((a, b) => (a.total_charge ?? Infinity) - (b.total_charge ?? Infinity));
     } else if (sortBy === "time") {
       carriers.sort((a, b) => a.delivery_days - b.delivery_days);
     } else if (sortBy === "rating") {
@@ -391,7 +402,10 @@ const CreateShipment: React.FC = () => {
       carrier_id: selectedCarrier.carrier_id ?? selectedCarrier.carrier_code,
       service_code: selectedCarrier.service_code,
       warehouse_id: selectedWarehouse,
-      shipping_cost: selectedCarrier.total_charge,
+      // Send null explicitly when the carrier has no live rate — backend
+      // will use the rate card or set 0. Avoids sending the literal string
+      // "N/A" or 0 as a real cost.
+      shipping_cost: selectedCarrier.total_charge ?? null,
       weight: currentWeight,
       length: currentLength,
       width: currentWidth,
@@ -969,7 +983,7 @@ const CreateShipment: React.FC = () => {
                 </div>
                 <div className="flex items-center gap-4">
                   <div className="text-center">
-                    <p className="text-2xl font-bold">{formatCurrency(recommended.total_charge)}</p>
+                    <p className="text-2xl font-bold">{formatCarrierPrice(recommended.total_charge).display}</p>
                     <p className="text-xs text-white/80">{recommended.delivery_days} days</p>
                   </div>
                   <button
@@ -1021,7 +1035,9 @@ const CreateShipment: React.FC = () => {
                   {/* Price & Delivery */}
                   <div className="flex items-center justify-between sm:justify-end gap-4 sm:gap-6">
                     <div className="text-left sm:text-right">
-                      <p className="text-lg font-bold text-gray-900">{formatCurrency(carrier.total_charge)}</p>
+                      <p className={`text-lg font-bold ${formatCarrierPrice(carrier.total_charge).muted ? 'text-gray-400' : 'text-gray-900'}`}>
+                        {formatCarrierPrice(carrier.total_charge).display}
+                      </p>
                       {carrier.has_discount && (
                         <p className="text-xs text-green-600">Save {formatCurrency(carrier.discount || 0)}</p>
                       )}
@@ -1085,7 +1101,9 @@ const CreateShipment: React.FC = () => {
                   <p className="text-sm text-gray-600">{selectedCarrier.service_name}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-lg font-bold text-blue-600">{formatCurrency(selectedCarrier.total_charge)}</p>
+                  <p className={`text-lg font-bold ${formatCarrierPrice(selectedCarrier.total_charge).muted ? 'text-gray-400' : 'text-blue-600'}`}>
+                    {formatCarrierPrice(selectedCarrier.total_charge).display}
+                  </p>
                   <p className="text-xs text-gray-500">{selectedCarrier.delivery_days} days</p>
                 </div>
               </div>
