@@ -33,13 +33,14 @@ import {
   ChevronDown,
   Warehouse,
   Plus,
+  PlusCircle,
   Trash2,
   Download,
   Copy
 } from 'lucide-react';
 
 interface CarrierConfig {
-  id: number;
+  id: number | null;  // null when carrier is in config but has no DB row yet
   code: string;
   name: string;
   display_name?: string;
@@ -160,17 +161,32 @@ const CarrierConfiguration: React.FC = () => {
     }
   });
 
-  // Sync carriers from config
-  const syncCarriersMutation = useMutation({
-    mutationFn: async () => {
-      return api.post('/shipping/multi-carrier/sync-from-config');
+  // Initialize a carrier (create DB row from config)
+  const initializeCarrierMutation = useMutation({
+    mutationFn: async ({ carrierCode, isActive }: { carrierCode: string; isActive?: boolean }) => {
+      return api.post(`/shipping/multi-carrier/carriers/${carrierCode}/initialize`,
+        isActive === undefined ? {} : { is_active: isActive });
+    },
+    onSuccess: (response, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['carriers'] });
+      toast.success(`Carrier ${variables.carrierCode} initialized successfully`);
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to initialize carrier');
+    }
+  });
+
+  // Delete carrier (DB row only — the carrier stays in config)
+  const deleteCarrierMutation = useMutation({
+    mutationFn: async (carrierId: number) => {
+      return api.delete(`/shipping/multi-carrier/carriers/${carrierId}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['carriers'] });
-      toast.success('Carriers synced from configuration successfully');
+      toast.success('Carrier deleted successfully');
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Failed to sync carriers');
+      toast.error(error.response?.data?.message || 'Failed to delete carrier');
     }
   });
 
@@ -254,8 +270,16 @@ const CarrierConfiguration: React.FC = () => {
     setTestingCarrier(null);
   };
 
-  const handleSyncCarriers = () => {
-    syncCarriersMutation.mutate();
+  const handleInitializeCarrier = (carrierCode: string) => {
+    if (window.confirm(`Initialize ${carrierCode} carrier in the database?`)) {
+      initializeCarrierMutation.mutate({ carrierCode });
+    }
+  };
+
+  const handleDeleteCarrier = (carrierId: number, carrierName: string) => {
+    if (window.confirm(`Delete ${carrierName} from the database? The carrier will still be available from config but admin overrides will be removed.`)) {
+      deleteCarrierMutation.mutate(carrierId);
+    }
   };
 
   const handleEditCredentials = (carrier: CarrierConfig) => {
@@ -265,7 +289,8 @@ const CarrierConfiguration: React.FC = () => {
   };
 
   const handleSaveCredentials = (credentials: any) => {
-    if (editingCarrier) {
+    // The Configure modal is only opened on rows that have a DB id.
+    if (editingCarrier && editingCarrier.id !== null) {
       updateCredentialsMutation.mutate({
         carrierId: editingCarrier.id,
         credentials
@@ -274,7 +299,7 @@ const CarrierConfiguration: React.FC = () => {
   };
 
   const handleValidateCredentials = (credentials: any) => {
-    if (editingCarrier) {
+    if (editingCarrier && editingCarrier.id !== null) {
       setValidatingCredentials(true);
       setValidationResult(null);
       validateCredentialsMutation.mutate({
@@ -357,18 +382,9 @@ const CarrierConfiguration: React.FC = () => {
         <div>
           <h2 className="text-xl font-semibold text-gray-900">Carrier Configuration</h2>
           <p className="mt-1 text-sm text-gray-600">
-            Manage shipping carrier settings. Carriers are configured in the system config file.
+            Manage shipping carrier credentials and toggles. Each carrier registered in the system
+            can be initialized into the database and updated from here.
           </p>
-        </div>
-        <div className="flex space-x-3">
-          <button
-            onClick={handleSyncCarriers}
-            disabled={syncCarriersMutation.isPending}
-            className="flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
-          >
-            <RefreshCw className={`h-4 w-4 mr-2 ${syncCarriersMutation.isPending ? 'animate-spin' : ''}`} />
-            Sync from Config
-          </button>
         </div>
       </div>
 
@@ -377,10 +393,11 @@ const CarrierConfiguration: React.FC = () => {
         <div className="flex">
           <Info className="h-5 w-5 text-blue-400 mt-0.5" />
           <div className="ml-3">
-            <h3 className="text-sm font-medium text-blue-800">Configuration Note</h3>
+            <h3 className="text-sm font-medium text-blue-800">How it works</h3>
             <p className="mt-1 text-sm text-blue-700">
-              Carrier configurations are managed through the system config file and environment variables.
-              Use the toggle to enable/disable carriers and set primary carrier for automatic selection.
+              Each carrier with an adapter registered in the system appears in the list.
+              If a carrier has no database row, click <strong>Initialize</strong> on its card to create one.
+              Once initialized, you can edit credentials, toggle active state, set primary, or delete the row.
             </p>
           </div>
         </div>
@@ -469,49 +486,80 @@ const CarrierConfiguration: React.FC = () => {
 
                 {/* Actions */}
                 <div className="flex items-center space-x-2">
-                  <button
-                    onClick={() => handleTestConnection(carrier.id)}
-                    disabled={testingCarrier === carrier.id}
-                    className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50"
-                    title="Test Connection"
-                  >
-                    <TestTube className={`h-5 w-5 ${testingCarrier === carrier.id ? 'animate-pulse' : ''}`} />
-                  </button>
+                  {(() => {
+                    // Narrow carrier.id to a number for the existing-row branch —
+                    // TS doesn't narrow inside the JSX fragment below.
+                    if (carrier.id == null) {
+                      return (
+                        <button
+                          onClick={() => handleInitializeCarrier(carrier.code)}
+                          disabled={initializeCarrierMutation.isPending}
+                          className="px-3 py-1.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors flex items-center disabled:opacity-50"
+                          title="Initialize carrier (create DB row)"
+                        >
+                          <PlusCircle className="h-4 w-4 mr-1" />
+                          Initialize
+                        </button>
+                      );
+                    }
+                    const carrierId: number = carrier.id;
+                    return (
+                      <>
+                        <button
+                          onClick={() => handleTestConnection(carrierId)}
+                          disabled={testingCarrier === carrierId}
+                          className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50"
+                          title="Test Connection"
+                        >
+                          <TestTube className={`h-5 w-5 ${testingCarrier === carrierId ? 'animate-pulse' : ''}`} />
+                        </button>
 
-                  {!carrier.is_primary && carrier.is_active && (
-                    <button
-                      onClick={() => handleSetPrimary(carrier.id)}
-                      className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                      title="Set as Primary"
-                    >
-                      <Star className="h-5 w-5" />
-                    </button>
-                  )}
+                        {!carrier.is_primary && carrier.is_active && (
+                          <button
+                            onClick={() => handleSetPrimary(carrierId)}
+                            className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            title="Set as Primary"
+                          >
+                            <Star className="h-5 w-5" />
+                          </button>
+                        )}
 
-                  <button
-                    onClick={() => handleToggleCarrier(carrier.id)}
-                    className={`p-2 rounded-lg transition-colors ${
-                      carrier.is_active
-                        ? 'text-green-600 hover:text-green-700 hover:bg-green-50'
-                        : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'
-                    }`}
-                    title={carrier.is_active ? 'Disable Carrier' : 'Enable Carrier'}
-                  >
-                    {carrier.is_active ? (
-                      <ToggleRight className="h-5 w-5" />
-                    ) : (
-                      <ToggleLeft className="h-5 w-5" />
-                    )}
-                  </button>
+                        <button
+                          onClick={() => handleToggleCarrier(carrierId)}
+                          className={`p-2 rounded-lg transition-colors ${
+                            carrier.is_active
+                              ? 'text-green-600 hover:text-green-700 hover:bg-green-50'
+                              : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'
+                          }`}
+                          title={carrier.is_active ? 'Disable Carrier' : 'Enable Carrier'}
+                        >
+                          {carrier.is_active ? (
+                            <ToggleRight className="h-5 w-5" />
+                          ) : (
+                            <ToggleLeft className="h-5 w-5" />
+                          )}
+                        </button>
 
-                  <button
-                    onClick={() => handleEditCredentials(carrier)}
-                    className="px-3 py-1.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors flex items-center"
-                    title="Configure Carrier"
-                  >
-                    <Settings className="h-4 w-4 mr-1" />
-                    Configure
-                  </button>
+                        <button
+                          onClick={() => handleEditCredentials(carrier)}
+                          className="px-3 py-1.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors flex items-center"
+                          title="Configure Carrier"
+                        >
+                          <Settings className="h-4 w-4 mr-1" />
+                          Configure
+                        </button>
+
+                        <button
+                          onClick={() => handleDeleteCarrier(carrierId, carrier.display_name || carrier.code)}
+                          disabled={deleteCarrierMutation.isPending}
+                          className="p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                          title="Delete carrier (removes admin overrides; carrier stays in config)"
+                        >
+                          <Trash2 className="h-5 w-5" />
+                        </button>
+                      </>
+                    );
+                  })()}
 
                   <button
                     onClick={() => setExpandedCarrier(expandedCarrier === carrier.id ? null : carrier.id)}
@@ -657,7 +705,6 @@ const CarrierConfiguration: React.FC = () => {
                     <p className="text-xs text-gray-600">
                       <Info className="h-3 w-3 inline mr-1" />
                       Carrier credentials can be edited here. Webhook URLs and other system settings are developer-configured.
-                      Use "Sync from Config" after updating the configuration files.
                     </p>
                   </div>
                 </div>
@@ -673,17 +720,8 @@ const CarrierConfiguration: React.FC = () => {
           <Truck className="mx-auto h-12 w-12 text-gray-400" />
           <h3 className="mt-2 text-sm font-medium text-gray-900">No carriers configured</h3>
           <p className="mt-1 text-sm text-gray-500">
-            Configure carriers in the system config file and sync them here.
+            Each carrier registered in the system will appear here. Initialize one to start managing credentials.
           </p>
-          <div className="mt-6">
-            <button
-              onClick={handleSyncCarriers}
-              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
-            >
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Sync from Config
-            </button>
-          </div>
         </div>
       )}
 
