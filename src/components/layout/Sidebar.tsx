@@ -15,14 +15,16 @@ import {
   Sparkles,
   Layers,
   FileText,
+  Percent,
+  Receipt,
+  Wallet,
+  BarChart3,
   Navigation,
   Layout,
   Shield,
   Server,
   CreditCard,
-  BarChart3,
   DollarSign,
-  Receipt,
   Image,
   Tag,
   Newspaper,
@@ -41,8 +43,9 @@ import {
   Globe,
   Gift,
   LucideIcon,
-  Lock,
   Calendar,
+  Clock,
+  LayoutDashboard,
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 
@@ -66,7 +69,7 @@ const navigation: NavigationItem[] = [
       { name: 'Orders', href: '/orders', icon: ShoppingCart },
       { name: 'Create Shipment', href: '/orders/create-shipment', icon: Truck },
       { name: 'Active Carts', href: '/active-carts', icon: ShoppingCart },
-      { name: 'Abandoned Carts', href: '/marketing/abandoned-carts', icon: LogOut },
+      { name: 'Abandoned Carts', href: '/marketing/abandoned-carts', icon: ShoppingCart },
     ],
   },
 
@@ -113,6 +116,32 @@ const navigation: NavigationItem[] = [
       { name: 'Product Collections', href: '/marketing/collections', icon: Layers },
       { name: 'Analytics', href: '/marketing/analytics', icon: BarChart3 },
       { name: 'Settings', href: '/marketing/settings', icon: Settings },
+    ],
+  },
+
+  // Affiliates — separated top-level section so operators can manage the
+  // referral program without scrolling through Marketing. Reuses `Share2`
+  // which was previously imported but unused.
+  {
+    name: 'Affiliates',
+    href: '/affiliates',
+    icon: Share2,
+    children: [
+      { name: 'Overview',     href: '/affiliates/overview',         icon: LayoutDashboard },
+      { name: 'All Affiliates', href: '/affiliates',                 icon: Users },
+      { name: 'Commission Rules', href: '/affiliates/commission-rules', icon: Percent },
+      { name: 'Commissions',  href: '/affiliates/commissions',      icon: Receipt },
+      { name: 'Hold Queue',   href: '/affiliates/commission-holds', icon: AlertTriangle },
+      { name: 'Payouts',      href: '/affiliates/payouts',          icon: Wallet },
+      { name: 'Clawbacks',    href: '/affiliates/clawbacks',        icon: Receipt },
+      { name: 'Links',        href: '/affiliates/links',            icon: Share2 },
+      { name: 'Orders',       href: '/affiliates/orders',           icon: ShoppingCart },
+      { name: 'Analytics',    href: '/affiliates/analytics',        icon: BarChart3 },
+      { name: 'Reports',      href: '/affiliates/reports',          icon: BarChart3 },
+      { name: 'Audit Log',    href: '/affiliates/audit-log',        icon: Activity },
+      { name: 'Scheduled Jobs', href: '/affiliates/scheduled-jobs', icon: Clock },
+      { name: 'Product Settings', href: '/affiliates/product-settings', icon: Settings },
+      { name: 'Settings', href: '/affiliates/settings', icon: Settings },
     ],
   },
 
@@ -212,21 +241,33 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const location = useLocation();
   const [expandedItems, setExpandedItems] = React.useState<string[]>([]);
 
-  // Auto-expand parent items if we're on a child route
-  React.useEffect(() => {
-    navigation.forEach((item) => {
-      if (item.children) {
-        const hasActiveChild = item.children.some((child) => isCurrentPath(child.href));
-        if (hasActiveChild && !expandedItems.includes(item.name)) {
-          setExpandedItems((prev) => [...prev, item.name]);
-        }
-      }
-    });
+  // Pick the single most-specific leaf href that matches the current path.
+  // For /affiliates/commissions this returns '/affiliates/commissions'
+  // (beating '/affiliates'); for /affiliates/21 it falls back to '/affiliates'.
+  const activeHref = React.useMemo(() => {
+    const leaves: string[] = [];
+    const walk = (items: NavigationItem[]) =>
+      items.forEach((i) => {
+        if (i.children) walk(i.children);
+        else leaves.push(i.href);
+      });
+    walk(navigation);
+    const matches = leaves
+      .filter((h) => location.pathname === h || location.pathname.startsWith(h + '/'))
+      .sort((a, b) => b.length - a.length);
+    return matches[0] ?? null;
   }, [location.pathname]);
 
-  const isCurrentPath = (href: string) => {
-    return location.pathname === href || location.pathname.startsWith(href + '/');
-  };
+  const isCurrentPath = (href: string) => activeHref === href;
+
+  // Auto-expand only the groups that contain the active child;
+  // collapse everything else so the menu doesn't grow unbounded.
+  React.useEffect(() => {
+    const open = navigation
+      .filter((item) => item.children?.some((c) => isCurrentPath(c.href)))
+      .map((item) => item.name);
+    setExpandedItems(open);
+  }, [activeHref]);
 
   const toggleExpanded = (itemName: string) => {
     setExpandedItems((prev) =>
@@ -317,6 +358,7 @@ const SidebarNavItem: React.FC<SidebarNavItemProps> = ({ item, collapsed, isActi
         collapsed && 'justify-center'
       )}
       title={collapsed ? item.name : undefined}
+      aria-current={isActive ? 'page' : undefined}
     >
       <item.icon className="w-5 h-5 flex-shrink-0" />
       {!collapsed && (
@@ -393,6 +435,7 @@ const SidebarNavItemWithChildren: React.FC<SidebarNavItemWithChildrenProps> = ({
     <div>
       <button
         onClick={onToggle}
+        aria-expanded={expanded}
         className={cn(
           'flex items-center gap-3 w-full px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200',
           hasActiveChild

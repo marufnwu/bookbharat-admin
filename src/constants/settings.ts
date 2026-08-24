@@ -40,6 +40,7 @@ export const SETTINGS_GROUPS = [
   // 'tax',
   // 'modules',
   'android_app',
+  'affiliate',
   // 'company',
   // 'payment_flow',
 ] as const;

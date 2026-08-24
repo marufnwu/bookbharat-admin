@@ -36,6 +36,22 @@ import Categories from "./pages/Categories";
 import PublishersList from "./pages/Publishers/PublishersList";
 import Reviews from "./pages/Reviews";
 import Coupons from "./pages/Coupons";
+import AffiliateList from "./pages/Affiliates/AffiliateList";
+import AffiliateOverview from "./pages/Affiliates/AffiliateOverview";
+import AffiliateDetail from "./pages/Affiliates/AffiliateDetail";
+import CommissionRules from "./pages/Affiliates/CommissionRules";
+import Commissions from "./pages/Affiliates/Commissions";
+import Payouts from "./pages/Affiliates/Payouts";
+import AffiliateReports from "./pages/Affiliates/AffiliateReports";
+import CommissionHolds from "./pages/Affiliates/CommissionHolds";
+import Clawbacks from "./pages/Affiliates/Clawbacks";
+import AffiliateAnalytics from "./pages/Affiliates/AffiliateAnalytics";
+import AffiliateLinks from "./pages/Affiliates/AffiliateLinks";
+import AffiliateAuditLog from "./pages/Affiliates/AffiliateAuditLog";
+import ScheduledJobs from "./pages/Affiliates/ScheduledJobs";
+import ProductAffiliateSettings from "./pages/Affiliates/ProductAffiliateSettings";
+import AffiliateSettings from "./pages/Affiliates/AffiliateSettings";
+import AffiliateOrders from "./pages/Affiliates/AffiliateOrders";
 import AdminUsers from "./pages/AdminUsers";
 import AdminUserDetail from "./pages/AdminUsers/AdminUserDetail";
 import Profile from "./pages/Profile";
@@ -187,6 +203,24 @@ const App: React.FC = () => {
 
               {/* Coupons */}
               <Route path="coupons" element={<Coupons />} />
+
+{/* Affiliates */}
+      <Route path="affiliates" element={<AffiliateList />} />
+      <Route path="affiliates/overview" element={<AffiliateOverview />} />
+      <Route path="affiliates/commission-rules" element={<CommissionRules />} />
+              <Route path="affiliates/commissions" element={<Commissions />} />
+              <Route path="affiliates/commission-holds" element={<CommissionHolds />} />
+              <Route path="affiliates/payouts" element={<Payouts />} />
+              <Route path="affiliates/clawbacks" element={<Clawbacks />} />
+              <Route path="affiliates/links" element={<AffiliateLinks />} />
+              <Route path="affiliates/analytics" element={<AffiliateAnalytics />} />
+              <Route path="affiliates/reports" element={<AffiliateReports />} />
+              <Route path="affiliates/audit-log" element={<AffiliateAuditLog />} />
+              <Route path="affiliates/scheduled-jobs" element={<ScheduledJobs />} />
+              <Route path="affiliates/product-settings" element={<ProductAffiliateSettings />} />
+              <Route path="affiliates/settings" element={<AffiliateSettings />} />
+              <Route path="affiliates/orders" element={<AffiliateOrders />} />
+              <Route path="affiliates/:id" element={<AffiliateDetail />} />
 
               {/* Admin Users */}
               <Route path="users" element={<AdminUsers />} />

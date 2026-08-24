@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   User,
   Mail,
@@ -351,8 +351,11 @@ interface ReferralCardProps {
   order: any;
 }
 export const ReferralCard: React.FC<ReferralCardProps> = ({ order }) => {
-  if (!order.referral_details) return null;
-  const ref = order.referral_details;
+  // Legacy coupon-referral payload — absent on new affiliate-attributed
+  // orders, so every access below must be guarded.
+  const ref = order.referral_details ?? null;
+  const hasNew = !!order.affiliate_id;
+  if (!ref && !hasNew) return null;
   return (
     <Card className="animate-fade-in border-purple-200 bg-purple-50/40">
       <CardContent className="p-5">
@@ -361,27 +364,53 @@ export const ReferralCard: React.FC<ReferralCardProps> = ({ order }) => {
           iconBg="bg-purple-100"
           title="Referral"
         />
-        <div className="rounded-lg border border-purple-200 bg-white p-3 flex items-center justify-between mb-3 gap-2">
-          <span className="text-xs font-medium text-purple-700 uppercase tracking-wide">Code</span>
-          <span className="inline-flex items-center gap-1.5">
-            <span className="font-mono font-bold text-purple-900">{ref.code}</span>
-            <CopyButton
-              value={ref.code}
-              label="Referral code"
-              successMessage="Referral code copied"
-              size="xs"
-              ariaLabel="Copy referral code"
-            />
-          </span>
-        </div>
-        {ref.discount_amount > 0 && (
+        {ref && (
+          <div className="rounded-lg border border-purple-200 bg-white p-3 flex items-center justify-between mb-3 gap-2">
+            <span className="text-xs font-medium text-purple-700 uppercase tracking-wide">Code</span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="font-mono font-bold text-purple-900">{ref.code}</span>
+              <CopyButton
+                value={ref.code}
+                label="Referral code"
+                successMessage="Referral code copied"
+                size="xs"
+                ariaLabel="Copy referral code"
+              />
+            </span>
+          </div>
+        )}
+        {ref && ref.discount_amount > 0 && (
           <DetailRow
             label="Discount"
             value={<span className="font-semibold text-success-700">-{formatCurrency(ref.discount_amount)}</span>}
           />
         )}
-        {ref.discount_type && (
+        {ref && ref.discount_type && (
           <DetailRow label="Type" value={<span className="text-gray-600">{ref.discount_type}</span>} />
+        )}
+        {hasNew && (
+          <div className="mt-3 pt-3 border-t border-purple-200 text-sm">
+            <div className="text-xs text-purple-700 mb-1 font-medium uppercase tracking-wide">Affiliate</div>
+            <DetailRow
+              label="Affiliate"
+              value={
+                <Link
+                  to={`/affiliates/${order.affiliate_id}`}
+                  className="font-medium text-primary-600 hover:text-primary-700 hover:underline"
+                  title="Open affiliate profile"
+                >
+                  {order.affiliate_name || `#${order.affiliate_id}`}
+                </Link>
+              }
+            />
+            <DetailRow label="Source" value={<span className="capitalize">{order.attribution_source || '—'}</span>} />
+            <DetailRow label="Ref code" value={<span className="font-mono text-xs">{order.attribution_ref_code || '—'}</span>} />
+            {!!order.is_self_referral_blocked && (
+              <div className="mt-2 text-xs text-red-600 font-medium">
+                ⚠ Self-referral blocked — commission withheld
+              </div>
+            )}
+          </div>
         )}
       </CardContent>
     </Card>
