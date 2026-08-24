@@ -19,12 +19,16 @@ function unwrap<T>(res: { data: any }): T {
  * that visible so admins don't leak margin unknowingly.
  */
 const SOURCE_META: Record<string, { label: string; variant: 'success' | 'warning' | 'error' | 'info' | 'default' | 'primary' }> = {
-  product_rule:     { label: 'Product rule',      variant: 'info' },
-  custom_product:   { label: 'Custom rate',       variant: 'primary' },
-  category_rule:    { label: 'Category rule',     variant: 'success' },
-  default_rule:     { label: 'Default rule',      variant: 'default' },
-  no_rule:          { label: 'No rule — 0%',      variant: 'error' },
-  disabled:         { label: 'Disabled',          variant: 'error' },
+  product_rule:            { label: 'Product rule',      variant: 'info' },
+  custom_product:          { label: 'Custom rate',       variant: 'primary' },
+  category_rule:           { label: 'Category rule',     variant: 'success' },
+  default_rule:            { label: 'Default rule',      variant: 'default' },
+  no_rule:                 { label: 'No rule — 0%',      variant: 'error' },
+  disabled:                { label: 'Disabled',          variant: 'error' },
+  affiliate_override_coupon: { label: 'Override (coupon)', variant: 'primary' },
+  affiliate_override_link:   { label: 'Override (link)',   variant: 'primary' },
+  global_default_coupon:     { label: 'Default (coupon)',  variant: 'info' },
+  global_default_link:       { label: 'Default (link)',    variant: 'info' },
 };
 
 export default function ProductAffiliateSettings() {

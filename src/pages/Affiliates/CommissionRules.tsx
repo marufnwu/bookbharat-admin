@@ -25,6 +25,10 @@ const SOURCE_LABELS: Record<string, string> = {
   default_rule: 'default rule',
   no_rule: 'no rule — excluded',
   disabled: 'disabled',
+  affiliate_override_coupon: 'affiliate override (coupon)',
+  affiliate_override_link: 'affiliate override (link)',
+  global_default_coupon: 'global default (coupon)',
+  global_default_link: 'global default (link)',
 };
 
 export default function CommissionRules() {

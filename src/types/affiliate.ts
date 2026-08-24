@@ -39,6 +39,16 @@ export interface Affiliate {
   entity_type?: EntityType | null;
   gstin?: string | null;
   coupon?: AffiliateCoupon | null;
+  commission_rate_override_coupon?: number | null;
+  commission_rate_override_link?: number | null;
+  min_order_override_coupon?: number | null;
+  min_order_override_link?: number | null;
+  first_order_only_override_coupon?: boolean | null;
+  first_order_only_override_link?: boolean | null;
+  per_customer_limit_override_coupon?: number | null;
+  per_customer_limit_override_link?: number | null;
+  total_limit_override_coupon?: number | null;
+  total_limit_override_link?: number | null;
   approved_at?: string | null;
   approved_by?: number | null;
   admin_note?: string | null;

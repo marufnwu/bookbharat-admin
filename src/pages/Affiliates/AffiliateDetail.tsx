@@ -619,6 +619,115 @@ export default function AffiliateDetail() {
                   )}
                 </dl>
               </div>
+
+              <div>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  Commission overrides
+                </p>
+                <dl className="space-y-3 text-sm">
+                  {(['coupon', 'link'] as const).map((src) => {
+                    const v = src === 'coupon' ? a.commission_rate_override_coupon : a.commission_rate_override_link;
+                    return (
+                      <div key={src} className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <dt className="text-gray-500">
+                            {src === 'coupon' ? 'Coupon orders' : 'Link orders'}
+                          </dt>
+                          {v !== null && v !== undefined ? (
+                            <dd className="mt-0.5 flex items-center gap-2 text-gray-900">
+                              <span className="font-medium">{Number(v).toFixed(2)}%</span>
+                              <Badge variant="info" size="sm">Override ({src})</Badge>
+                            </dd>
+                          ) : (
+                            <dd className="mt-0.5 text-gray-500">Catalog rules</dd>
+                          )}
+                          <p className="mt-1 text-xs text-gray-500">
+                            Overrides catalog rules for this attribution source. Exclusions still give 0%.{' '}
+                            <Link to="/affiliates/commission-rules" className="text-primary-600 hover:underline">
+                              View catalog ladder →
+                            </Link>
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </dl>
+              </div>
+
+              <div>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  Commission gates
+                </p>
+                <dl className="space-y-3 text-sm">
+                  {([
+                    {
+                      src: 'coupon' as const,
+                      label: 'Coupon orders',
+                      min: a.min_order_override_coupon,
+                      minSet: a.min_order_override_coupon,
+                      firstOnly: a.first_order_only_override_coupon,
+                      perCust: a.per_customer_limit_override_coupon,
+                      total: a.total_limit_override_coupon,
+                    },
+                    {
+                      src: 'link' as const,
+                      label: 'Link orders',
+                      min: a.min_order_override_link,
+                      minSet: a.min_order_override_link,
+                      firstOnly: a.first_order_only_override_link,
+                      perCust: a.per_customer_limit_override_link,
+                      total: a.total_limit_override_link,
+                    },
+                  ]).map((g) => {
+                    const rows: Array<{ label: string; value: React.ReactNode }> = [];
+                    rows.push({
+                      label: 'Min order amount',
+                      value: g.min !== null && g.min !== undefined
+                        ? `INR ${Number(g.min).toLocaleString('en-IN')}`
+                        : <span className="text-gray-500">No minimum</span>,
+                    });
+                    rows.push({
+                      label: 'First-order-only',
+                      value: g.firstOnly === true
+                        ? <Badge variant="info" size="sm">Yes (override)</Badge>
+                        : g.firstOnly === false
+                          ? <span className="text-gray-500">No</span>
+                          : <span className="text-gray-500">Platform default</span>,
+                    });
+                    rows.push({
+                      label: 'Per-customer cap',
+                      value: g.perCust !== null && g.perCust !== undefined
+                        ? `${g.perCust} order${g.perCust === 1 ? '' : 's'}`
+                        : <span className="text-gray-500">Unlimited</span>,
+                    });
+                    rows.push({
+                      label: 'Total cap (lifetime)',
+                      value: g.total !== null && g.total !== undefined
+                        ? `${g.total} order${g.total === 1 ? '' : 's'}`
+                        : <span className="text-gray-500">Unlimited</span>,
+                    });
+                    const hasOverride = [g.minSet, g.firstOnly, g.perCust, g.total].some(
+                      (v) => v !== null && v !== undefined,
+                    );
+                    return (
+                      <div key={g.src} className="rounded-md border border-gray-100 p-3">
+                        <div className="mb-2 flex items-center justify-between">
+                          <h4 className="text-sm font-medium text-gray-900">{g.label}</h4>
+                          {hasOverride && <Badge variant="info" size="sm">Override ({g.src})</Badge>}
+                        </div>
+                        <dl className="grid grid-cols-2 gap-2 text-xs">
+                          {rows.map((r) => (
+                            <div key={r.label} className="flex justify-between gap-2">
+                              <dt className="text-gray-500">{r.label}</dt>
+                              <dd className="text-gray-900">{r.value}</dd>
+                            </div>
+                          ))}
+                        </dl>
+                      </div>
+                    );
+                  })}
+                </dl>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -1078,6 +1187,113 @@ export default function AffiliateDetail() {
               onChange={(e) => setEditForm({ ...editForm, admin_note: e.target.value })}
               rows={4}
             />
+            <div className="grid grid-cols-2 gap-4">
+              <Input
+                label="Coupon commission override %"
+                type="number"
+                step="0.01"
+                min={0}
+                max={100}
+                value={editForm.commission_rate_override_coupon ?? a.commission_rate_override_coupon ?? ''}
+                onChange={(e) => {
+                  const raw = e.target.value;
+                  setEditForm({
+                    ...editForm,
+                    commission_rate_override_coupon: raw === '' ? null : Number(raw),
+                  });
+                }}
+                helper="Applies to this affiliate's orders attributed via coupon. Leave blank to use catalog rules."
+              />
+              <Input
+                label="Link commission override %"
+                type="number"
+                step="0.01"
+                min={0}
+                max={100}
+                value={editForm.commission_rate_override_link ?? a.commission_rate_override_link ?? ''}
+                onChange={(e) => {
+                  const raw = e.target.value;
+                  setEditForm({
+                    ...editForm,
+                    commission_rate_override_link: raw === '' ? null : Number(raw),
+                  });
+                }}
+                helper="Applies to this affiliate's orders attributed via bare referral link."
+              />
+            </div>
+
+            <fieldset className="rounded-md border border-gray-200 p-4">
+              <legend className="px-2 text-sm font-medium text-gray-900">Commission gates</legend>
+              <p className="mb-3 text-xs text-gray-500">Per-source eligibility gates. Leave blank to inherit platform default (or OFF if unset).</p>
+              {(['coupon', 'link'] as const).map((src) => (
+                <div key={src} className="mb-4 last:mb-0">
+                  <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    {src === 'coupon' ? 'Coupon gates' : 'Link gates'}
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Input
+                      label="Min order (₹)"
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      value={editForm[`min_order_override_${src}` as const] ?? (a as any)[`min_order_override_${src}`] ?? ''}
+                      onChange={(e) => {
+                        const raw = e.target.value;
+                        setEditForm({ ...editForm, [`min_order_override_${src}`]: raw === '' ? null : Number(raw) });
+                      }}
+                    />
+                    <div>
+                      <label className="mb-1 block text-sm font-medium text-gray-700">
+                        First-order-only
+                      </label>
+                      <select
+                        value={
+                          editForm[`first_order_only_override_${src}` as const] === true
+                            ? 'yes'
+                            : editForm[`first_order_only_override_${src}` as const] === false
+                              ? 'no'
+                              : 'inherit'
+                        }
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          setEditForm({
+                            ...editForm,
+                            [`first_order_only_override_${src}`]: v === 'inherit' ? null : v === 'yes',
+                          });
+                        }}
+                        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-primary-500 focus:ring-primary-500"
+                      >
+                        <option value="inherit">Inherit platform default</option>
+                        <option value="yes">Yes — first order only</option>
+                        <option value="no">No — any order</option>
+                      </select>
+                    </div>
+                    <Input
+                      label="Per-customer cap (orders)"
+                      type="number"
+                      min={0}
+                      step="1"
+                      value={editForm[`per_customer_limit_override_${src}` as const] ?? (a as any)[`per_customer_limit_override_${src}`] ?? ''}
+                      onChange={(e) => {
+                        const raw = e.target.value;
+                        setEditForm({ ...editForm, [`per_customer_limit_override_${src}`]: raw === '' ? null : Number(raw) });
+                      }}
+                    />
+                    <Input
+                      label="Total cap (lifetime orders)"
+                      type="number"
+                      min={0}
+                      step="1"
+                      value={editForm[`total_limit_override_${src}` as const] ?? (a as any)[`total_limit_override_${src}`] ?? ''}
+                      onChange={(e) => {
+                        const raw = e.target.value;
+                        setEditForm({ ...editForm, [`total_limit_override_${src}`]: raw === '' ? null : Number(raw) });
+                      }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </fieldset>
           </div>
         </Modal>
       )}

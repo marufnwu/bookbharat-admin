@@ -410,6 +410,21 @@ export const ReferralCard: React.FC<ReferralCardProps> = ({ order }) => {
                 ⚠ Self-referral blocked — commission withheld
               </div>
             )}
+            {(() => {
+              const gate = (order as any)?.metadata?.commission_gate;
+              if (!gate) return null;
+              const labels: Record<string, string> = {
+                below_min_order: 'Below min order amount',
+                not_first_order: 'Not buyer\'s first order',
+                per_customer_limit: 'Per-customer limit reached',
+                total_limit: 'Affiliate total cap reached',
+              };
+              return (
+                <div className="mt-2 inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
+                  Commission gated: {labels[gate] ?? gate}
+                </div>
+              );
+            })()}
           </div>
         )}
       </CardContent>
