@@ -67,6 +67,7 @@ const navigation: NavigationItem[] = [
     icon: ShoppingCart,
     children: [
       { name: 'Orders', href: '/orders', icon: ShoppingCart },
+      { name: 'Order Settings', href: '/orders/settings', icon: Settings },
       { name: 'Create Shipment', href: '/orders/create-shipment', icon: Truck },
       { name: 'Active Carts', href: '/active-carts', icon: ShoppingCart },
       { name: 'Abandoned Carts', href: '/marketing/abandoned-carts', icon: ShoppingCart },

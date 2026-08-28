@@ -255,6 +255,10 @@ export default function AffiliateSettings() {
     setSaving(true);
     try {
       await api.put('/settings/affiliate', draft);
+      // Clear optimistically — do NOT rely on the refetch effect, because
+      // react-query's structural sharing keeps the identical payload by
+      // reference and would leave `draft` (and the dirty UI) stuck.
+      setDraft({});
       toast.success(`Saved ${dirtyCount} setting${dirtyCount === 1 ? '' : 's'}`);
       queryClient.invalidateQueries({ queryKey: ['affiliate-settings'] });
     } catch (e: any) {

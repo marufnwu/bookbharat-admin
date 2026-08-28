@@ -123,6 +123,7 @@ import WebhookLog from "./pages/Payments/WebhookLog";
 import PaymentSettings from "./pages/Settings/PaymentSettings";
 import TaxConfigurations from "./pages/Settings/TaxConfigurations";
 import OrderCharges from "./pages/Settings/OrderCharges";
+import OrderSettings from "./pages/Orders/OrderSettings";
 
 // Components
 import { ProtectedRoute } from "./components";
@@ -181,6 +182,7 @@ const App: React.FC = () => {
 
               {/* Orders */}
               <Route path="orders" element={<OrderList />} />
+              <Route path="orders/settings" element={<OrderSettings />} />
               <Route path="orders/create-shipment" element={<ManualShipment />} />
               <Route path="orders/:id" element={<OrderDetail />} />
               <Route
@@ -296,7 +298,7 @@ const App: React.FC = () => {
               <Route path="settings/site" element={<SiteSettings />} />
               <Route path="settings/payment" element={<PaymentSettings />} />
               <Route path="settings/taxes" element={<TaxConfigurations />} />
-              <Route path="settings/charges" element={<OrderCharges />} />
+              <Route path="settings/charges" element={<Navigate to="/orders/settings?tab=charges" replace />} />
               <Route path="settings/messaging-channels" element={<MessagingChannels />} />
               <Route path="settings/whatsapp-templates" element={<WhatsAppTemplates />} />
               <Route path="settings/ai-providers" element={<AiProvidersPage />} />
