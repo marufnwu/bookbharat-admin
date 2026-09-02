@@ -22,6 +22,9 @@ const EmailTemplates: React.FC = () => {
   const [showTestModal, setShowTestModal] = useState(false);
   const [testEmail, setTestEmail] = useState('');
   const [formData, setFormData] = useState<any>({});
+  // Sprint 5.2: filter scope. "affiliate" scopes to template keys starting with
+  // "affiliate_" (per contract §14).
+  const [scope, setScope] = useState<'all' | 'affiliate'>('all');
 
   // Fetch all email templates
   const { data: templatesData, isLoading } = useQuery({
@@ -42,6 +45,12 @@ const EmailTemplates: React.FC = () => {
     }
     return Array.isArray(grouped) ? grouped : [];
   }, [templatesData]);
+
+  // Filtered view based on the scope dropdown.
+  const visibleTemplates = useMemo(() => {
+    if (scope === 'all') return templates;
+    return templates.filter((t: any) => (t.key ?? t.name ?? '').toLowerCase().startsWith('affiliate_'));
+  }, [templates, scope]);
 
   // Update template mutation
   const updateTemplateMutation = useMutation({
@@ -176,6 +185,16 @@ const EmailTemplates: React.FC = () => {
 
       {/* Templates List */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
+        <div className="px-4 py-3 border-b border-gray-200 flex items-center gap-3">
+          <label className="text-sm font-medium text-gray-700" htmlFor="tmpl-scope">Scope</label>
+          <select id="tmpl-scope" value={scope} onChange={(e) => setScope(e.target.value as any)} className="rounded-md border border-gray-300 bg-white px-2 py-1 text-sm">
+            <option value="all">All templates</option>
+            <option value="affiliate">Affiliate only (keys starting with <code>affiliate_</code>)</option>
+          </select>
+          {scope === 'affiliate' && (
+            <span className="text-xs text-muted-foreground">{visibleTemplates.length} of {templates.length} shown</span>
+          )}
+        </div>
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
@@ -198,7 +217,7 @@ const EmailTemplates: React.FC = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {templates.map((template: any) => (
+              {visibleTemplates.map((template: any) => (
                 <tr key={template.id}>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">

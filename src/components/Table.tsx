@@ -11,6 +11,8 @@ function Table<T extends Record<string, any>>({
   pagination,
   onSort,
   rowClassName,
+  onRowClick,
+  emptyMessage,
 }: TableProps<T>) {
   const [sortConfig, setSortConfig] = React.useState<{
     key: string;
@@ -59,7 +61,9 @@ function Table<T extends Record<string, any>>({
                 <th
                   key={String(column.key)}
                   scope="col"
-                  className={`px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider ${
+                  className={`px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider ${
+                    column.align === 'right' ? 'text-right' : column.align === 'center' ? 'text-center' : 'text-left'
+                  } ${
                     column.sortable ? 'cursor-pointer hover:bg-gray-100' : ''
                   }`}
                   onClick={() => column.sortable && handleSort(String(column.key))}
@@ -79,17 +83,23 @@ function Table<T extends Record<string, any>>({
                   colSpan={columns.length}
                   className="px-6 py-12 text-center text-sm text-gray-500"
                 >
-                  No data available
+                  {emptyMessage || 'No data available'}
                 </td>
               </tr>
             ) : (
               data.map((row, index) => (
-                <tr key={index} className={`hover:bg-gray-50 ${rowClassName ? rowClassName(row, index) : ''}`}>
+                <tr
+                  key={index}
+                  className={`hover:bg-gray-50 ${onRowClick ? 'cursor-pointer' : ''} ${rowClassName ? rowClassName(row, index) : ''}`}
+                  onClick={onRowClick ? () => onRowClick(row) : undefined}
+                >
                   {columns.map((column) => (
                     <td
                       key={String(column.key)}
                       className={`px-6 py-4 text-sm text-gray-900 ${
                         column.wrap ? '' : 'whitespace-nowrap'
+                      } ${
+                        column.align === 'right' ? 'text-right' : column.align === 'center' ? 'text-center' : 'text-left'
                       }`}
                     >
                       {column.render
