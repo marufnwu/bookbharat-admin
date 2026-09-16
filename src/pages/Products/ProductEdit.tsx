@@ -74,6 +74,10 @@ interface ProductForm {
   publication_date?: string;
   is_featured: boolean;
   is_active: boolean;
+  // Affiliate override
+  affiliate_enabled?: boolean;
+  commission_type?: 'default' | 'category' | 'product';
+  custom_commission_rate?: number | null;
   // Unified shipping config
   shipping_config: {
     zones?: Record<string, { shipping: number | null; cod: number | null }>;
@@ -230,6 +234,9 @@ const ProductEdit: React.FC = () => {
     video_url: '',
     is_featured: false,
     is_active: true,
+    affiliate_enabled: true,
+    commission_type: 'default',
+    custom_commission_rate: undefined,
     shipping_config: {
       zones: {
         A: { shipping: 0, cod: 0 },
@@ -311,6 +318,9 @@ const ProductEdit: React.FC = () => {
         publication_date: p.publication_date || '',
         is_featured: p.is_featured || false,
         is_active: p.is_active !== false,
+        affiliate_enabled: p.affiliate_enabled !== false,
+        commission_type: p.commission_type || 'default',
+        custom_commission_rate: p.custom_commission_rate,
         shipping_config: normalizeShippingConfig(p.shipping_config),
         meta_title: p.meta_title || '',
         meta_description: p.meta_description || '',
@@ -1164,6 +1174,32 @@ const ProductEdit: React.FC = () => {
                       />
                       <span className="text-sm font-medium text-gray-700">Active</span>
                     </label>
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'basic' && (
+                <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="md:col-span-3 bg-white p-4 rounded-lg border border-gray-200">
+                    <h3 className="text-sm font-semibold text-gray-800 mb-3">Affiliate</h3>
+                    <label className="flex items-center mb-3 text-sm">
+                      <input type="checkbox" name="affiliate_enabled" checked={!!formData.affiliate_enabled} onChange={handleInputChange} className="mr-2" />
+                      <span>Affiliate enabled (off = excluded from commissions)</span>
+                    </label>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-sm font-medium text-gray-700">Commission type</label>
+                        <select name="commission_type" value={formData.commission_type} onChange={handleInputChange} className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+                          <option value="default">Use default/category rules</option>
+                          <option value="custom">Custom rate</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-700">Custom commission rate (%)</label>
+                        <input type="number" step="0.01" name="custom_commission_rate" value={formData.custom_commission_rate ?? ''} onChange={handleInputChange} className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Only used when commission_type = custom" />
+                      </div>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-2">Affiliate rules resolve in order: product rule -&gt; custom rate -&gt; category rule -&gt; default rule.</p>
                   </div>
                 </div>
               )}

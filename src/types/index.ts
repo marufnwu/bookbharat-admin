@@ -382,11 +382,17 @@ export interface Customer {
 
 // Table Types
 export interface TableColumn<T = any> {
-  key: keyof T | 'actions' | 'rating' | 'select' | 'stock' | 'seo';
+  /** Column key. `keyof T` for data columns; sentinel strings (e.g. `_actions`, `_select`)
+   *  are allowed for non-data columns like action buttons or row selectors. */
+  key: keyof T | 'actions' | 'rating' | 'select' | 'stock' | 'seo' | (string & {});
   title: React.ReactNode;
   sortable?: boolean;
   render?: (value: any, record: T) => React.ReactNode;
   wrap?: boolean; // Allow text wrapping in this column
+  align?: 'left' | 'right' | 'center';
+  width?: string | number;
+  className?: string;
+  headerClassName?: string;
 }
 
 export interface TableProps<T = any> {
@@ -401,6 +407,8 @@ export interface TableProps<T = any> {
   };
   onSort?: (key: string, direction: 'asc' | 'desc') => void;
   rowClassName?: (record: T, index: number) => string;
+  onRowClick?: (record: T) => void;
+  emptyMessage?: React.ReactNode;
 }
 
 // Form Types

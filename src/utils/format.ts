@@ -1,6 +1,8 @@
 // Shared formatting helpers for analytics pages.
 // Before this lived inline in every page; consolidating avoids divergence
-// and dodges mojibake (`'â‚¹0'`) from prior cp1252 re-saves.
+// and dodges the mojibake (U+00E2 U+201A U+00B9 instead of U+20B9) produced by
+// prior cp1252 re-saves. Deliberately no literal mojibake bytes in this file so
+// repo-wide byte scans stay clean.
 
 export const INR = '\u20B9'; // U+20B9 Indian Rupee Sign — single source of truth.
 

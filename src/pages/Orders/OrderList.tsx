@@ -1041,6 +1041,37 @@ const OrderList: React.FC = () => {
       ),
     },
     {
+      key: 'affiliate' as any,
+      title: 'Affiliate',
+      render: (_: any, record: Order) => {
+        if (!(record as any).affiliate_id) {
+          return <span className="text-gray-300">—</span>;
+        }
+        return (
+          <span className="inline-flex items-center gap-1.5">
+            <Link
+              to={`/affiliates/${(record as any).affiliate_id}`}
+              className="inline-flex items-center gap-1 rounded-full bg-purple-50 border border-purple-200 px-2 py-0.5 text-xs font-medium text-purple-700 hover:bg-purple-100"
+              title={`Referred via ${((record as any).attribution_source || 'affiliate')}${
+                (record as any).attribution_ref_code ? ` (${(record as any).attribution_ref_code})` : ''
+              }`}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {(record as any).affiliate_name || `#${(record as any).affiliate_id}`}
+            </Link>
+            {!!(record as any).is_self_referral_blocked && (
+              <span
+                className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-red-100 text-[10px] font-bold text-red-600 cursor-help"
+                title="Self-referral blocked — commission withheld"
+              >
+                ⚠
+              </span>
+            )}
+          </span>
+        );
+      },
+    },
+    {
       key: 'total_amount' as const,
       title: 'Total',
       sortable: true,

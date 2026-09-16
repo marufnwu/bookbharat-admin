@@ -18,6 +18,8 @@ export type { StepperStep } from './Stepper';
 export { default as Banner, Callout, type BannerTone } from './Banner';
 export { default as AddressBlock } from './AddressBlock';
 export { CourierLogo, CourierLogoList } from './CourierLogo';
+export { default as TablePagination, type TablePaginationProps, type PaginationMeta } from './TablePagination';
+export { default as DateRangeFilter, type DateRangeFilterProps } from './DateRangeFilter';
 
 // Feature Components
 export { default as CategoryPicker } from './CategoryPicker';

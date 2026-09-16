@@ -36,6 +36,8 @@ interface Coupon {
     get_quantity: number;
     product_id: number | null;
   };
+  /** Bound to a specific affiliate — null = platform-wide coupon. */
+  affiliate_id?: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -521,7 +523,7 @@ const Coupons: React.FC = () => {
                     <tr key={coupon.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div>
-                          <p className="font-mono font-semibold text-gray-900">{coupon.code}</p>
+                          <p className="font-mono font-semibold text-gray-900 flex items-center gap-2">{coupon.code}{coupon.affiliate_id ? <span className="inline-flex items-center rounded-full bg-amber-500 text-white px-2 py-0.5 text-xs font-medium">Affiliate</span> : null}</p>
                           <p className="text-sm font-medium text-gray-700">{coupon.name}</p>
                           {coupon.description && (
                             <p className="text-xs text-gray-500">{coupon.description}</p>

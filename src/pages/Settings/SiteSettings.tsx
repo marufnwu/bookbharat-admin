@@ -533,6 +533,15 @@ const SiteSettings: React.FC = () => {
             <h3 className="text-base font-semibold text-gray-900">Color Scheme</h3>
           </div>
           <p className="text-sm text-gray-500 mb-5">Brand colors used across the storefront</p>
+          {/*
+            Brand colors are code-owned and intentionally read-only here.
+            They live in the storefront repo (tailwind.config.ts +
+            src/app/globals.css design tokens). Editing them from this screen
+            used to write theme.*_color to site_configurations, which the
+            storefront then applied at runtime as CSS custom properties —
+            silently overriding the shipped palette. The inputs below are
+            display-only so the current brand values stay discoverable.
+          */}
           <div className="space-y-4">
             {[
               { name: 'theme.primary_color', label: 'Primary', value: siteConfig.theme?.primary_color },
@@ -544,26 +553,28 @@ const SiteSettings: React.FC = () => {
                   <label className="block text-sm font-medium text-gray-700">{color.label}</label>
                 </div>
                 <div className="flex items-center space-x-2 flex-1">
-                  <input
-                    type="color"
-                    name={color.name}
-                    className="h-9 w-12 border border-gray-300 rounded-md cursor-pointer"
-                    defaultValue={color.value}
-                    onChange={(e) => {
-                      const textInput = e.target.nextElementSibling as HTMLInputElement;
-                      if (textInput) textInput.value = e.target.value;
-                    }}
+                  <span
+                    aria-hidden="true"
+                    className="h-9 w-12 border border-gray-300 rounded-md"
+                    style={{ backgroundColor: color.value || '#ffffff' }}
                   />
                   <input
                     type="text"
-                    className="flex-1 px-2 py-1.5 border border-gray-300 rounded-md text-sm"
-                    defaultValue={color.value}
+                    className="flex-1 px-2 py-1.5 border border-gray-200 rounded-md text-sm bg-gray-50 text-gray-500"
+                    value={color.value || ''}
                     readOnly
+                    disabled
+                    aria-label={`${color.label} color (read-only)`}
                   />
                 </div>
               </div>
             ))}
           </div>
+          <p className="mt-5 text-xs text-gray-500 border-t border-gray-200 pt-3">
+            Brand colors are locked in the storefront code. To change them, edit{' '}
+            <code className="text-xs">tailwind.config.ts</code> and{' '}
+            <code className="text-xs">src/app/globals.css</code> in the frontend repo.
+          </p>
         </CardContent>
       </Card>
 
@@ -571,7 +582,7 @@ const SiteSettings: React.FC = () => {
         <CardContent className="p-6">
           <div className="flex items-center gap-2 mb-1">
             <PaintBrushIcon className="h-5 w-5 text-blue-500" />
-            <h3 className="text-base font-semibold text-gray-900">Typography & Layout</h3>
+            <h3 className="text-base font-semibold text-gray-900">Typography &amp; Layout</h3>
           </div>
           <p className="text-sm text-gray-500 mb-5">Font and overall page layout</p>
           <div className="space-y-4">

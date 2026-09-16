@@ -22,8 +22,14 @@ const buttonSizes = {
   'icon-lg': 'h-12 w-12 p-0 rounded-lg flex items-center justify-center',
 };
 
-export type ButtonVariant = keyof typeof buttonVariants;
+export type ButtonVariant = keyof typeof buttonVariants | 'destructive' | 'default';
 export type ButtonSize = keyof typeof buttonSizes;
+
+// Normalize legacy aliases used by some pages: "destructive" → "danger", "default" → "primary".
+const VARIANT_ALIAS: Record<string, ButtonVariant> = {
+  destructive: 'danger',
+  default: 'primary',
+};
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant;
@@ -39,7 +45,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   (
     {
       className,
-      variant = 'primary',
+      variant: rawVariant = 'primary',
       size = 'md',
       loading = false,
       leftIcon,
@@ -51,6 +57,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     },
     ref
   ) => {
+    const variant = (VARIANT_ALIAS[rawVariant] ?? rawVariant) as keyof typeof buttonVariants;
     return (
       <button
         className={cn(

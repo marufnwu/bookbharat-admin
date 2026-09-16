@@ -15,9 +15,42 @@ interface SettingField {
   is_editable: boolean;
   is_public: boolean;
   sort_order: number;
-  visible_when: string | null;
-  visible_when_value: any;
+  /** Visibility predicate. Accepts:
+   *  - a string field key (must match the field's current value),
+   *  - `{ all: [key, key, ...] }` (logical AND — every key must match),
+   *  - `{ any: [key, key, ...] }` (logical OR — at least one must match).
+   *  When present, the field is shown only when the predicate holds.
+   *  Legacy fields using `visible_when` + `visible_when_value` are still
+   *  honored as a deprecated alias. */
+  depends_on?: string | { all: string[] } | { any: string[] } | null;
+  visible_when?: string | null;
+  visible_when_value?: any;
+  /** When true, fields are disabled instead of hidden when their depends_on
+   *  predicate fails. Defaults to false. */
+  disable_when_hidden?: boolean;
   in_db: boolean;
+}
+
+/**
+ * Evaluate the `depends_on` predicate for a field against the current values map.
+ * Supports:
+ *  - string shorthand: matches `values[key]` truthy
+ *  - { all: [k1, k2] }: every key must be truthy
+ *  - { any: [k1, k2] }: at least one key truthy
+ *  - legacy `visible_when` + `visible_when_value` pair (back-compat)
+ */
+function evaluateDependsOn(field: SettingField, values: Record<string, any>): boolean {
+  // New predicate form
+  if (field.depends_on) {
+    if (typeof field.depends_on === "string") return Boolean(values[field.depends_on]);
+    if ("all" in field.depends_on) return field.depends_on.all.every((k) => Boolean(values[k]));
+    if ("any" in field.depends_on) return field.depends_on.any.some((k) => Boolean(values[k]));
+  }
+  // Legacy alias
+  if (field.visible_when) {
+    return values[field.visible_when] === field.visible_when_value;
+  }
+  return true;
 }
 
 interface DynamicSettingsProps {
@@ -154,8 +187,17 @@ const DynamicSettings: React.FC<DynamicSettingsProps> = ({ group, title, descrip
       {/* Settings Fields */}
       <div className="space-y-4">
         {sortedFields.map(([key, field]) => {
-          // Check visibility conditions
-          if (field.visible_when && values[field.visible_when] !== field.visible_when_value) {
+          // Visibility predicate (depends_on preferred; visible_when is a legacy alias)
+          if (!evaluateDependsOn(field, values)) {
+            if (field.disable_when_hidden) {
+              // Render disabled instead of hidden
+              return (
+                <div key={key} className="opacity-50 pointer-events-none">
+                  {/* render pass-through: the parent field row is still drawn but inert */}
+                  {null}
+                </div>
+              );
+            }
             return null;
           }
 
