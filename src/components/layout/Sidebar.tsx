@@ -57,6 +57,14 @@ interface NavigationItem {
   badge?: string | number;
 }
 
+const hasActiveDescendant = (
+  item: NavigationItem,
+  isCurrentPath: (href: string) => boolean
+): boolean =>
+  item.children?.some((child) =>
+    child.children ? hasActiveDescendant(child, isCurrentPath) : isCurrentPath(child.href)
+  ) ?? false;
+
 const navigation: NavigationItem[] = [
   { name: 'Dashboard', href: '/dashboard', icon: Home },
 
@@ -231,12 +239,14 @@ const navigation: NavigationItem[] = [
 interface SidebarProps {
   collapsed?: boolean;
   onLogout: () => void;
+  onNavigate?: () => void;
   className?: string;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
   collapsed = false,
   onLogout,
+  onNavigate,
   className,
 }) => {
   const location = useLocation();
@@ -265,7 +275,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   // collapse everything else so the menu doesn't grow unbounded.
   React.useEffect(() => {
     const open = navigation
-      .filter((item) => item.children?.some((c) => isCurrentPath(c.href)))
+      .filter((item) => hasActiveDescendant(item, (href) => activeHref === href))
       .map((item) => item.name);
     setExpandedItems(open);
   }, [activeHref]);
@@ -288,7 +298,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     >
       {/* Logo */}
       <div className="h-16 flex items-center px-4 border-b border-gray-100 flex-shrink-0">
-        <Link to="/dashboard" className="flex items-center gap-3">
+        <Link to="/dashboard" onClick={onNavigate} className="flex items-center gap-3">
           <div className="w-10 h-10 bg-primary-600 rounded-xl flex items-center justify-center shadow-sm">
             <span className="text-white font-bold text-lg">BB</span>
           </div>
@@ -310,12 +320,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   expanded={isExpanded(item.name)}
                   onToggle={() => toggleExpanded(item.name)}
                   isCurrentPath={isCurrentPath}
+                  onNavigate={onNavigate}
                 />
               ) : (
                 <SidebarNavItem
                   item={item}
                   collapsed={collapsed}
                   isActive={isCurrentPath(item.href)}
+                  onNavigate={onNavigate}
                 />
               )}
             </li>
@@ -345,12 +357,14 @@ interface SidebarNavItemProps {
   item: NavigationItem;
   collapsed: boolean;
   isActive: boolean;
+  onNavigate?: () => void;
 }
 
-const SidebarNavItem: React.FC<SidebarNavItemProps> = ({ item, collapsed, isActive }) => {
+const SidebarNavItem: React.FC<SidebarNavItemProps> = ({ item, collapsed, isActive, onNavigate }) => {
   return (
     <Link
       to={item.href}
+      onClick={onNavigate}
       className={cn(
         'flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200',
         isActive
@@ -383,6 +397,7 @@ interface SidebarNavItemWithChildrenProps {
   expanded: boolean;
   onToggle: () => void;
   isCurrentPath: (href: string) => boolean;
+  onNavigate?: () => void;
 }
 
 const SidebarNavItemWithChildren: React.FC<SidebarNavItemWithChildrenProps> = ({
@@ -391,8 +406,9 @@ const SidebarNavItemWithChildren: React.FC<SidebarNavItemWithChildrenProps> = ({
   expanded,
   onToggle,
   isCurrentPath,
+  onNavigate,
 }) => {
-  const hasActiveChild = item.children?.some((child) => isCurrentPath(child.href));
+  const hasActiveChild = hasActiveDescendant(item, isCurrentPath);
 
   // On collapsed mode, show first-level children as tooltip or popover
   if (collapsed) {
@@ -416,12 +432,14 @@ const SidebarNavItemWithChildren: React.FC<SidebarNavItemWithChildrenProps> = ({
             <Link
               key={child.name}
               to={child.href}
+              onClick={onNavigate}
               className={cn(
                 'flex items-center gap-2 px-3 py-2 text-sm rounded-md mx-1',
                 isCurrentPath(child.href)
                   ? 'bg-primary-50 text-primary-700 font-medium'
                   : 'text-gray-600 hover:bg-gray-50'
               )}
+              aria-current={isCurrentPath(child.href) ? 'page' : undefined}
             >
               <child.icon className="w-4 h-4" />
               {child.name}
@@ -459,16 +477,18 @@ const SidebarNavItemWithChildren: React.FC<SidebarNavItemWithChildrenProps> = ({
             <li key={child.name}>
               {child.children ? (
                 // Nested children (e.g., Migration)
-                <NestedNavItem item={child} isCurrentPath={isCurrentPath} />
+                <NestedNavItem item={child} isCurrentPath={isCurrentPath} onNavigate={onNavigate} />
               ) : (
                 <Link
                   to={child.href}
+                  onClick={onNavigate}
                   className={cn(
                     'flex items-center gap-2 px-3 py-2 text-sm rounded-lg transition-colors',
                     isCurrentPath(child.href)
                       ? 'bg-primary-50 text-primary-700 font-medium'
                       : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                   )}
+                  aria-current={isCurrentPath(child.href) ? 'page' : undefined}
                 >
                   <child.icon className="w-4 h-4" />
                   {child.name}
@@ -486,10 +506,17 @@ const SidebarNavItemWithChildren: React.FC<SidebarNavItemWithChildrenProps> = ({
 interface NestedNavItemProps {
   item: NavigationItem;
   isCurrentPath: (href: string) => boolean;
+  onNavigate?: () => void;
 }
 
-const NestedNavItem: React.FC<NestedNavItemProps> = ({ item, isCurrentPath }) => {
-  const [expanded, setExpanded] = React.useState(false);
+const NestedNavItem: React.FC<NestedNavItemProps> = ({ item, isCurrentPath, onNavigate }) => {
+  const { pathname } = useLocation();
+  const hasActiveChild = hasActiveDescendant(item, isCurrentPath);
+  const [expanded, setExpanded] = React.useState(hasActiveChild);
+
+  React.useEffect(() => {
+    setExpanded(hasActiveChild);
+  }, [hasActiveChild, pathname]);
 
   if (!item.children) return null;
 
@@ -497,9 +524,10 @@ const NestedNavItem: React.FC<NestedNavItemProps> = ({ item, isCurrentPath }) =>
     <div>
       <button
         onClick={() => setExpanded(!expanded)}
+        aria-expanded={expanded}
         className={cn(
           'flex items-center gap-2 w-full px-3 py-2 text-sm rounded-lg transition-colors',
-          item.children.some((c) => isCurrentPath(c.href))
+          hasActiveChild
             ? 'text-primary-700'
             : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
         )}
@@ -514,18 +542,24 @@ const NestedNavItem: React.FC<NestedNavItemProps> = ({ item, isCurrentPath }) =>
         <ul className="mt-1 ml-2 space-y-1">
           {item.children.map((child) => (
             <li key={child.name}>
-              <Link
-                to={child.href}
-                className={cn(
-                  'flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg transition-colors',
-                  isCurrentPath(child.href)
-                    ? 'text-primary-700 font-medium'
-                    : 'text-gray-500 hover:text-gray-900'
-                )}
-              >
-                <child.icon className="w-3 h-3" />
-                {child.name}
-              </Link>
+              {child.children ? (
+                <NestedNavItem item={child} isCurrentPath={isCurrentPath} onNavigate={onNavigate} />
+              ) : (
+                <Link
+                  to={child.href}
+                  onClick={onNavigate}
+                  className={cn(
+                    'flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg transition-colors',
+                    isCurrentPath(child.href)
+                      ? 'text-primary-700 font-medium'
+                      : 'text-gray-500 hover:text-gray-900'
+                  )}
+                  aria-current={isCurrentPath(child.href) ? 'page' : undefined}
+                >
+                  <child.icon className="w-3 h-3" />
+                  {child.name}
+                </Link>
+              )}
             </li>
           ))}
         </ul>

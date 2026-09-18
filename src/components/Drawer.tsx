@@ -213,7 +213,7 @@ export const MobileNavDrawer: React.FC<MobileNavDrawerProps> = ({
 }) => {
   return (
     <Transition appear show={open} as={React.Fragment}>
-      <Dialog as="div" className="relative z-50 md:hidden" onClose={onClose}>
+      <Dialog as="div" className="relative z-50 lg:hidden" onClose={onClose}>
         {/* Backdrop */}
         <Transition.Child
           as={React.Fragment}
@@ -239,7 +239,7 @@ export const MobileNavDrawer: React.FC<MobileNavDrawerProps> = ({
               leaveFrom="translate-x-0"
               leaveTo="-translate-x-full"
             >
-              <Dialog.Panel className="fixed inset-y-0 left-0 w-80 max-w-[85vw] bg-white shadow-xl flex flex-col">
+              <Dialog.Panel className="fixed inset-y-0 left-0 w-64 max-w-[85vw] bg-white shadow-xl flex flex-col pb-[env(safe-area-inset-bottom)]">
                 {/* Header */}
                 <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
                   {title && (
@@ -250,6 +250,7 @@ export const MobileNavDrawer: React.FC<MobileNavDrawerProps> = ({
                   <button
                     type="button"
                     onClick={onClose}
+                    aria-label="Close navigation"
                     className="p-2 text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 rounded-lg transition-colors"
                   >
                     <XMarkIcon className="h-5 w-5" />
@@ -257,7 +258,7 @@ export const MobileNavDrawer: React.FC<MobileNavDrawerProps> = ({
                 </div>
 
                 {/* Content */}
-                <div className="flex-1 overflow-y-auto">{children}</div>
+                <div className="flex-1 min-h-0 overflow-hidden">{children}</div>
               </Dialog.Panel>
             </Transition.Child>
           </div>

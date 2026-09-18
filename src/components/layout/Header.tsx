@@ -23,6 +23,7 @@ interface BreadcrumbItem {
 
 interface HeaderProps {
   onMenuClick: () => void;
+  menuOpen?: boolean;
   onToggleSidebar?: () => void;
   sidebarCollapsed?: boolean;
   userName?: string;
@@ -32,6 +33,7 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({
   onMenuClick,
+  menuOpen = false,
   onToggleSidebar,
   sidebarCollapsed = false,
   userName = 'Admin',
@@ -78,6 +80,9 @@ export const Header: React.FC<HeaderProps> = ({
         <button
           type="button"
           onClick={onMenuClick}
+          aria-label="Open navigation"
+          aria-expanded={menuOpen}
+          aria-haspopup="dialog"
           className="lg:hidden p-2 -ml-2 text-gray-500 hover:text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
         >
           <MenuIcon className="w-6 h-6" />
