@@ -35,6 +35,7 @@ import {
 } from '@/components';
 import Table from '@/components/Table';
 import { CommissionStatusBadge } from './StatBadge';
+import { AffiliatePageHelp } from './AffiliatePageHelp';
 import { cn } from '@/utils/cn';
 
 const fmt = (n: unknown): string => {
@@ -123,10 +124,13 @@ export default function AffiliateOverview() {
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900">Overview</h1>
+          <h1 className="text-2xl font-semibold text-gray-900">Affiliate Dashboard</h1>
           <p className="mt-1 text-sm text-gray-600">
-            Affiliate program health, payouts, and trending activity
+            How much you owe, what's coming, and who's selling
           </p>
+          <div className="mt-3">
+            <AffiliatePageHelp page="dashboard" />
+          </div>
         </div>
         <div className="flex items-center gap-1 self-start rounded-lg border border-gray-200 bg-white p-1 sm:self-auto">
           {[7, 30, 90].map((d) => (
@@ -146,31 +150,26 @@ export default function AffiliateOverview() {
         </div>
       </div>
 
-      {/* MONEY ROW */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      {/* MONEY ROW — plain labels. "Lifetime" removed: it mixed paid +
+          unpaid and caused double-count confusion. */}
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
         <StatCard
-          title="Outstanding liability"
+          title="To pay now"
           value={fmt(liability?.outstanding_liability)}
           icon={<WalletIcon className="h-6 w-6" />}
           iconBgColor="bg-amber-100 text-amber-600"
         />
         <StatCard
-          title="Pending commissions"
+          title="Coming up"
           value={fmt(liability?.pending)}
           icon={<ClockIcon className="h-6 w-6" />}
           iconBgColor="bg-blue-100 text-blue-600"
         />
         <StatCard
-          title="Paid to date"
+          title="Paid till date"
           value={fmt(liability?.paid)}
           icon={<CheckCircleIcon className="h-6 w-6" />}
           iconBgColor="bg-emerald-100 text-emerald-600"
-        />
-        <StatCard
-          title="Lifetime commission"
-          value={fmt(liability?.total)}
-          icon={<CurrencyRupeeIcon className="h-6 w-6" />}
-          iconBgColor="bg-violet-100 text-violet-600"
         />
       </div>
 
@@ -178,28 +177,28 @@ export default function AffiliateOverview() {
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <OpsTile
           to="/affiliates"
-          label="Pending approvals"
+          label="New applications"
           value={fmtInt(pendingApprovalsCount)}
           tone={pendingApprovalsCount > 0 ? 'warning' : 'muted'}
           icon={<ExclamationTriangleIcon className="h-4 w-4" />}
         />
         <OpsTile
           to="/affiliates/payouts"
-          label="Requested payouts"
+          label="Payouts waiting"
           value={fmtInt(requestedPayoutsCount)}
           tone={requestedPayoutsCount > 0 ? 'warning' : 'muted'}
           icon={<WalletIcon className="h-4 w-4" />}
         />
         <OpsTile
           to="/affiliates/commission-holds"
-          label="Unresolved holds"
+          label="Needs review"
           value={fmtInt(holdsCount)}
           tone={holdsCount > 0 ? 'danger' : 'muted'}
           icon={<ExclamationTriangleIcon className="h-4 w-4" />}
         />
         <OpsTile
           to="/affiliates/clawbacks"
-          label="Pending clawbacks"
+          label="Money to take back"
           value={fmt(clawbacksAmount)}
           tone={clawbacksAmount > 0 ? 'danger' : 'muted'}
           icon={<ReceiptPercentIcon className="h-4 w-4" />}

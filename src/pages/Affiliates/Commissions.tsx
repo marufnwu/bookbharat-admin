@@ -6,6 +6,7 @@ import { Card, Button, Badge, LoadingSpinner, EmptyState, TablePagination } from
 import { DateRangeFilter } from '@/components/DateRangeFilter';
 import Table from '@/components/Table';
 import { CommissionStatusBadge } from './StatBadge';
+import { AffiliatePageHelp } from './AffiliatePageHelp';
 import { ReasonModal } from './ReasonModal';
 import { CommissionDetailModal } from './CommissionDetailModal';
 import { cn } from '@/utils/cn';
@@ -13,13 +14,15 @@ import { useCan } from '@/hooks/useCan';
 import { toast } from '@/utils/toast';
 import type { CommissionStatus, AffiliateCommission } from '@/types/affiliate';
 
+// Plain tab: "Needs review" = fraud/cap/admin holds. Resolved inline here;
+// the Advanced → Needs Review page shows the same queue with reasons.
 const TABS: { key: CommissionStatus | 'all'; label: string }[] = [
   { key: 'all', label: 'All' },
-  { key: 'pending', label: 'Pending' },
+  { key: 'pending', label: 'Waiting approval' },
   { key: 'approved', label: 'Approved' },
   { key: 'paid', label: 'Paid' },
-  { key: 'reversed', label: 'Reversed' },
-  { key: 'on_hold', label: 'On Hold' },
+  { key: 'reversed', label: 'Taken back' },
+  { key: 'on_hold', label: 'Needs review' },
 ];
 
 export default function Commissions() {
@@ -109,8 +112,11 @@ export default function Commissions() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900">Commissions</h1>
-          <p className="mt-1 text-sm text-gray-600">Review and manage affiliate commissions</p>
+          <h1 className="text-2xl font-semibold text-gray-900">Affiliate Earnings</h1>
+          <p className="mt-1 text-sm text-gray-600">What each affiliate earned per order — approve to make it payable</p>
+          <div className="mt-3">
+            <AffiliatePageHelp page="earnings" />
+          </div>
         </div>
         <div className="flex items-center gap-2">
           {rows.length > 0 && canManage && (

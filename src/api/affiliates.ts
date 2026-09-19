@@ -45,6 +45,42 @@ export interface AffiliateCouponUpdate {
   excluded_categories?: number[];
 }
 
+export interface MoneyPreviewGate {
+  value: number | boolean | null;
+  which: 'personal' | 'program' | 'off';
+}
+
+export interface MoneyPreviewSource {
+  override: number | null;
+  source_default: number | null;
+  level: 'personal' | 'program' | 'varies-by-product';
+  rate: number | null;
+  gates: {
+    min_order: MoneyPreviewGate;
+    first_order_only: MoneyPreviewGate;
+    per_customer_limit: MoneyPreviewGate;
+    total_limit: MoneyPreviewGate;
+  };
+  resolved_rate?: number;
+  rate_source?: string;
+  reason?: string;
+}
+
+export interface MoneyPreview {
+  order_total: number;
+  buyer: {
+    code: string;
+    discount_value: number;
+    maximum_discount_amount: number | null;
+    minimum_order_amount: number;
+    is_active: boolean;
+    valid_now: boolean;
+    first_order_only: boolean;
+    example_discount: number;
+  } | null;
+  earning: Record<'coupon' | 'link', MoneyPreviewSource>;
+}
+
 export interface AffiliateCouponDetail extends AffiliateCouponUpdate {
   id: number;
   code: string;
@@ -135,6 +171,25 @@ export const affiliatesApi = {
 
   getTrends: (id: number) =>
     api.get(`/affiliates/${id}/trends`).then(unwrap<any>),
+
+  moneyPreview: (id: number, params: { order_total?: number; product_id?: number } = {}) =>
+    api.get(`/affiliates/${id}/money-preview`, { params }).then(unwrap<MoneyPreview>),
+
+  moneyMeta: () =>
+    api.get('/affiliate-money-meta').then(unwrap<import('@/pages/Affiliates/moneyTruth').MoneyMeta>),
+
+  programRates: () =>
+    api.get('/settings/affiliate').then((res) => {
+      const body = res.data;
+      if (body?.success === false) throw new Error(body.message || 'API error');
+      const g = body?.data ?? {};
+      const pick = (k: string) => (g?.[k]?.value ?? null);
+      return {
+        coupon_default: pick('coupon_default_commission_rate'),
+        link_default: pick('link_default_commission_rate'),
+        default_rule_hint: null as null,
+      };
+    }),
 
   sendEmail: (id: number, subject: string, body: string) =>
     api.post(`/affiliates/${id}/send-email`, { subject, body }).then(unwrap<null>),
@@ -285,8 +340,11 @@ export const affiliatesApi = {
   simulateRule: (params: { product_id?: number; category_id?: number }) =>
     api.get('/commission-rules/simulate', { params }).then(unwrap<any>),
 
-  resolveRates: (product_ids: number[]) =>
-    api.get('/commission-rules/resolve', { params: { product_ids: product_ids.join(',') } })
+  // resolveBulk = same engine the order system uses. `source` selects
+  // which side to evaluate (coupon vs link can pay different rates);
+  // `affiliate_id` applies that affiliate's personal overrides.
+  resolveRates: (product_ids: number[], source?: 'coupon' | 'link', affiliate_id?: number) =>
+    api.get('/commission-rules/resolve', { params: { product_ids: product_ids.join(','), ...(source ? { source } : {}), ...(affiliate_id ? { affiliate_id } : {}) } })
       .then(unwrap<{ resolutions: Array<{ product_id: number; rate: number; rate_source: string }> }>),
 
   // Pickers for the commission-rule builder

@@ -1,8 +1,17 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { affiliatesApi } from '@/api/affiliates';
+import { AffiliatePageHelp } from './AffiliatePageHelp';
 import { Card, CardContent, Button, Badge } from '@/components';
 import { toast } from '@/utils/toast';
 import { useState } from 'react';
+
+// Plain-language automation names. Backend command strings unchanged.
+const JOB_LABELS: Record<string, string> = {
+  'affiliate:approve-commissions': 'Approve earnings after return period (daily)',
+  'affiliate:reconcile-commissions': 'Fix missed earnings (daily)',
+  'affiliate:send-report': 'Email weekly report (weekly)',
+  'affiliate:detect-coupon-leaks': 'Find leaked coupons (weekly)',
+};
 
 export default function ScheduledJobs() {
   const queryClient = useQueryClient();
@@ -31,9 +40,12 @@ export default function ScheduledJobs() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-gray-900">Scheduled Jobs</h1>
-        <p className="mt-1 text-sm text-gray-600">Monitor and manually trigger affiliate cron jobs</p>
-      </div>
+          <h1 className="text-2xl font-semibold text-gray-900">Automations</h1>
+          <p className="mt-1 text-sm text-gray-600">Background tasks that run daily — approve earnings, fix misses, find leaked coupons</p>
+          <div className="mt-3">
+            <AffiliatePageHelp page="automations" />
+          </div>
+        </div>
 
       {isLoading ? (
         <div className="flex justify-center items-center h-64">
@@ -46,7 +58,8 @@ export default function ScheduledJobs() {
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900 font-mono">{job.command}</h3>
+                    <h3 className="text-lg font-semibold text-gray-900">{JOB_LABELS[job.command] ?? job.command}</h3>
+                    <p className="font-mono text-xs text-gray-400">{job.command}</p>
                     <div className="flex items-center gap-4 mt-2 text-sm">
                       <div>
                         <span className="text-gray-500">Last run: </span>

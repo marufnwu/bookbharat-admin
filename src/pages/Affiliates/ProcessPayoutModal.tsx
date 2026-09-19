@@ -128,8 +128,20 @@ export function ProcessPayoutModal({ open, payout, onClose, onProcessed }: Props
           type="number"
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
-          helper="Defaults to requested amount. Adjust if you paid a different amount."
+          helper="Adjust only if you paid a different amount — tax and net are recalculated on save."
         />
+        {(() => {
+          const parsed = parseFloat(amount);
+          const gross = Number.isFinite(parsed) ? parsed : Number(payout.amount_requested) || 0;
+          const differs = Math.abs(gross - (Number(payout.amount_requested) || 0)) > 0.005;
+          // Rough preview (5% individuals) — exact tax is computed server-side.
+          const estTds = Math.round(gross * 0.05 * 100) / 100;
+          return differs ? (
+            <p className="text-xs text-amber-700">
+              You changed the amount to {fmt(gross)}. Estimated tax ≈ {fmt(estTds)}, net ≈ {fmt(gross - estTds)}. Exact numbers are computed on save.
+            </p>
+          ) : null;
+        })()}
       </div>
     </Modal>
   );

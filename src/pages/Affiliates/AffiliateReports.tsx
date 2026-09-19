@@ -4,6 +4,7 @@ import { ArrowDownTrayIcon } from '@heroicons/react/24/outline';
 import { Card, CardContent, Button } from '@/components';
 import Table from '@/components/Table';
 import { affiliatesApi, downloadCsv } from '@/api/affiliates';
+import { AffiliatePageHelp } from './AffiliatePageHelp';
 import { useCan } from '@/hooks/useCan';
 import { toast } from '@/utils/toast';
 
@@ -90,6 +91,9 @@ export default function AffiliateReports() {
         <div>
           <h1 className="text-2xl font-semibold text-gray-900">Affiliate Reports</h1>
           <p className="mt-1 text-sm text-gray-600">Performance metrics and financial reports</p>
+          <div className="mt-3">
+            <AffiliatePageHelp page="reports" />
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={exportCsv}>

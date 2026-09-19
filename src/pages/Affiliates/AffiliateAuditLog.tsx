@@ -3,14 +3,15 @@ import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { affiliatesApi } from '@/api/affiliates';
 import { Card, Button, Badge, LoadingSpinner, EmptyState, TablePagination } from '@/components';
 import Table from '@/components/Table';
+import { AffiliatePageHelp } from './AffiliatePageHelp';
 import { DateRangeFilter } from '@/components/DateRangeFilter';
 import { ClipboardDocumentListIcon } from '@heroicons/react/24/outline';
 import { cn } from '@/utils/cn';
 
 const ENTITY_TABS = [
   { key: 'all', label: 'All' },
-  { key: 'affiliate', label: 'Affiliates' },
-  { key: 'commission', label: 'Commissions' },
+  { key: 'affiliate', label: 'People' },
+  { key: 'commission', label: 'Earnings' },
   { key: 'payout', label: 'Payouts' },
   { key: 'commission_rule', label: 'Rules' },
 ];
@@ -57,9 +58,12 @@ export default function AffiliateAuditLog() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-gray-900">Audit Log</h1>
-        <p className="mt-1 text-sm text-gray-600">Track all affiliate-related admin actions</p>
-      </div>
+          <h1 className="text-2xl font-semibold text-gray-900">Activity</h1>
+          <p className="mt-1 text-sm text-gray-600">Who changed what in the affiliate program</p>
+          <div className="mt-3">
+            <AffiliatePageHelp page="activity" />
+          </div>
+        </div>
 
       <div className="flex gap-2 flex-wrap">
         {ENTITY_TABS.map((t) => (

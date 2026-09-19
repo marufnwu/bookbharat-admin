@@ -4,17 +4,14 @@ import { affiliatesApi } from '@/api/affiliates';
 import { Card, Button, Badge, LoadingSpinner, EmptyState, TablePagination } from '@/components';
 import Table from '@/components/Table';
 import { ReasonModal } from './ReasonModal';
+import { AffiliatePageHelp } from './AffiliatePageHelp';
+import { HoldReasonBadge } from './StatBadge';
+import { useMoneyMeta, holdReasonLabel } from './moneyTruth';
 import { cn } from '@/utils/cn';
 import { toast } from '@/utils/toast';
 import { ShieldExclamationIcon } from '@heroicons/react/24/outline';
 
-const REASON_TABS = [
-  { key: 'all', label: 'All' },
-  { key: 'self_referral', label: 'Self Referral' },
-  { key: 'refund_ratio', label: 'Refund Ratio' },
-  { key: 'cap_exceeded', label: 'Cap Exceeded' },
-  { key: 'admin_hold', label: 'Admin Hold' },
-];
+const REASON_KEYS = ['self_referral', 'refund_ratio', 'cap_exceeded', 'admin_hold'];
 
 export default function CommissionHolds() {
   const [tab, setTab] = useState('all');
@@ -33,6 +30,8 @@ export default function CommissionHolds() {
 
   const rows = data?.items ?? [];
   const meta = data?.meta;
+  // Single source: reason tabs + badges from backend money-meta.
+  const { data: moneyMeta } = useMoneyMeta();
 
   async function handleResolve(reason: string) {
     if (!resolving) return;
@@ -50,12 +49,15 @@ export default function CommissionHolds() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-gray-900">Commission Holds</h1>
-        <p className="mt-1 text-sm text-gray-600">Review and resolve fraud-flagged or manually held commissions</p>
+        <h1 className="text-2xl font-semibold text-gray-900">Needs Review</h1>
+        <p className="mt-1 text-sm text-gray-600">Earnings paused for a check — approve to release, reject to cancel. Find this under Affiliates → Earnings → Needs review too.</p>
+        <div className="mt-3">
+          <AffiliatePageHelp page="holds" />
+        </div>
       </div>
 
       <div className="flex gap-2 flex-wrap">
-        {REASON_TABS.map((t) => (
+        {[{ key: 'all', label: 'All' }, ...REASON_KEYS.map((k) => ({ key: k, label: holdReasonLabel(moneyMeta, k) }))].map((t) => (
           <button
             key={t.key}
             onClick={() => { setTab(t.key); setPage(1); }}
@@ -91,7 +93,7 @@ export default function CommissionHolds() {
               { key: 'affiliate_name', title: 'Affiliate', render: (_: any, h: any) => <span className="font-medium text-gray-900">{h.commission?.affiliate?.full_name ?? '—'}</span> },
               { key: 'order_number', title: 'Order #', render: (_: any, h: any) => <span className="font-mono text-xs">{h.commission?.order_number ?? '—'}</span> },
               { key: 'amount', title: 'Amount', render: (_: any, h: any) => { const n = Number(h.commission?.amount); return Number.isFinite(n) ? 'INR ' + n.toLocaleString('en-IN') : '—'; }, align: 'right' as const },
-              { key: 'reason_code', title: 'Reason', render: (_: any, h: any) => <Badge variant={h.reason_code === 'self_referral' ? 'error' : h.reason_code === 'refund_ratio' ? 'warning' : 'info'} size="sm">{h.reason_code?.replace('_', ' ')}</Badge> },
+              { key: 'reason_code', title: 'Why paused', render: (_: any, h: any) => <HoldReasonBadge reason={h.reason_code} /> },
               { key: 'reason_detail', title: 'Details', render: (_: any, h: any) => <span className="text-xs text-gray-500 max-w-[200px] truncate block" title={h.reason_detail}>{h.reason_detail ?? '—'}</span> },
               { key: 'created_at', title: 'Flagged', render: (_: any, h: any) => new Date(h.created_at).toLocaleDateString('en-IN') },
               {

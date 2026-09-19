@@ -44,6 +44,8 @@ import {
 import { Textarea } from '@/components/Input';
 import Table from '@/components/Table';
 import { CommissionStatusBadge, AffiliateStatusBadge, PayoutStatusBadge } from './StatBadge';
+import { AffiliatePageHelp } from './AffiliatePageHelp';
+import { BuyerGetsLine, AffiliateEarnsLine, MoneyExample } from './AffiliateMoneyLines';
 import { ReasonModal } from './ReasonModal';
 import { EmailComposerModal } from './EmailComposerModal';
 import { EditCouponModal } from './EditCouponModal';
@@ -80,6 +82,95 @@ const maskAccount = (s?: string | null): string => {
   if (!s || s.length < 5) return s ?? '—';
   return `****${s.slice(-4)}`;
 };
+
+// Plain-language money summary + one-click controls. Same backend APIs
+// as the raw override/coupon/suspend buttons — only labels change.
+function MoneyRulesCard({
+  affiliate: a,
+  canManage,
+  onChanged,
+}: {
+  affiliate: Affiliate;
+  canManage: boolean;
+  onChanged: () => void;
+}) {
+  const [busy, setBusy] = useState<'earnings' | 'discount' | null>(null);
+
+  async function stopEarnings() {
+    // eslint-disable-next-line no-restricted-globals
+    if (!confirm('Stop all future earnings for this affiliate? Past earnings stay.')) return;
+    setBusy('earnings');
+    try {
+      await affiliatesApi.updateAffiliate(a.id, {
+        commission_rate_override_coupon: 0,
+        commission_rate_override_link: 0,
+      });
+      toast.success('Future earnings stopped');
+      onChanged();
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message || 'Failed');
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function stopDiscount() {
+    if (!a.coupon) return;
+    // eslint-disable-next-line no-restricted-globals
+    if (!confirm(`Turn OFF buyer discount for coupon ${a.coupon.code}? Buyers pay full price.`)) return;
+    setBusy('discount');
+    try {
+      // Backend requires discount_value; resend current values with is_active off.
+      await affiliatesApi.updateCoupon(a.id, {
+        discount_value: Number(a.coupon.discount_value) || 0,
+        is_active: false,
+      });
+      toast.success('Buyer discount turned OFF');
+      onChanged();
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message || 'Failed');
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  return (
+    <div className="rounded-md border border-gray-100 bg-gray-50/60 p-3">
+      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
+        Money rules
+      </p>
+      <dl className="space-y-1.5 text-sm">
+        <div className="flex items-start justify-between gap-2">
+          <dt className="shrink-0 text-gray-500">Buyer gets</dt>
+          <dd className="text-right"><BuyerGetsLine coupon={a.coupon} /></dd>
+        </div>
+        <div className="flex items-start justify-between gap-2">
+          <dt className="shrink-0 text-gray-500">Earns · coupon orders</dt>
+          <dd className="text-right"><AffiliateEarnsLine affiliate={a} source="coupon" affiliateName={a.full_name} /></dd>
+        </div>
+        <div className="flex items-start justify-between gap-2">
+          <dt className="shrink-0 text-gray-500">Earns · link orders</dt>
+          <dd className="text-right"><AffiliateEarnsLine affiliate={a} source="link" affiliateName={a.full_name} /></dd>
+        </div>
+      </dl>
+      <div className="mt-3">
+        <MoneyExample affiliateId={a.id} affiliateName={a.full_name} />
+      </div>
+      {canManage && a.status === 'active' && (
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Button size="sm" variant="outline" onClick={stopEarnings} disabled={busy !== null} loading={busy === 'earnings'}>
+            Stop earnings
+          </Button>
+          {a.coupon?.is_active && (
+            <Button size="sm" variant="outline" onClick={stopDiscount} disabled={busy !== null} loading={busy === 'discount'}>
+              Stop buyer discount
+            </Button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function initials(name: string): string {
   return name
@@ -308,6 +399,7 @@ export default function AffiliateDetail() {
 
   return (
     <div className="space-y-6">
+      <AffiliatePageHelp page="detail" />
       {/* HEADER */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex items-start gap-4">
@@ -620,41 +712,27 @@ export default function AffiliateDetail() {
                 </dl>
               </div>
 
-              <div>
-                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Commission overrides
-                </p>
-                <dl className="space-y-3 text-sm">
-                  {(['coupon', 'link'] as const).map((src) => {
-                    const v = src === 'coupon' ? a.commission_rate_override_coupon : a.commission_rate_override_link;
-                    return (
-                      <div key={src} className="flex items-start justify-between gap-2">
-                        <div className="min-w-0">
-                          <dt className="text-gray-500">
-                            {src === 'coupon' ? 'Coupon orders' : 'Link orders'}
-                          </dt>
-                          {v !== null && v !== undefined ? (
-                            <dd className="mt-0.5 flex items-center gap-2 text-gray-900">
-                              <span className="font-medium">{Number(v).toFixed(2)}%</span>
-                              <Badge variant="info" size="sm">Override ({src})</Badge>
-                            </dd>
-                          ) : (
-                            <dd className="mt-0.5 text-gray-500">Catalog rules</dd>
-                          )}
-                          <p className="mt-1 text-xs text-gray-500">
-                            Overrides catalog rules for this attribution source. Exclusions still give 0%.{' '}
-                            <Link to="/affiliates/commission-rules" className="text-primary-600 hover:underline">
-                              View catalog ladder →
-                            </Link>
-                          </p>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </dl>
-              </div>
+              <MoneyRulesCard
+                affiliate={a}
+                canManage={canManage}
+                onChanged={refetch}
+              />
 
-              <div>
+              <details className="rounded-md border border-gray-100 p-3">
+                <summary className="cursor-pointer text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  Earning limits (advanced)
+                </summary>
+                <p className="mt-1 text-xs text-gray-500">
+                  When an order qualifies for earning. Leave blank to use program defaults.
+                </p>
+                <p className="mt-2 text-xs text-gray-500">
+                  Personal earning rates are above in Money rules. Catalog ladder:{' '}
+                  <Link to="/affiliates/commission-rules" className="text-primary-600 hover:underline">
+                    Earning Rules →
+                  </Link>
+                </p>
+
+              <div className="mt-3">
                 <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
                   Commission gates
                 </p>
@@ -728,6 +806,7 @@ export default function AffiliateDetail() {
                   })}
                 </dl>
               </div>
+              </details>
             </div>
           </CardContent>
         </Card>
@@ -741,15 +820,15 @@ export default function AffiliateDetail() {
               {couponStatus === 'expired' && <Badge variant="warning" size="sm">Expired</Badge>}
               {couponStatus === 'none' && <Badge variant="outline" size="sm">None</Badge>}
             </div>
-            {coupon ? (
+              {coupon ? (
               <div className="space-y-2 text-sm">
                 <div className="flex items-center justify-between">
                   <span className="text-gray-500">Code</span>
                   <CopyableText value={coupon.code} label="Copy code" />
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-500">Discount</span>
-                  <span className="font-medium text-gray-900">{coupon.discount_value}%</span>
+                <div className="flex items-start justify-between gap-2">
+                  <span className="shrink-0 text-gray-500">Buyer gets</span>
+                  <span className="text-right"><BuyerGetsLine coupon={coupon} /></span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-gray-500">Expires</span>
@@ -1155,6 +1234,9 @@ export default function AffiliateDetail() {
           }
         >
           <div className="space-y-4">
+            <p className="rounded-md bg-gray-50 px-3 py-2 text-xs text-gray-600">
+              Set 0% to stop future earnings. Leave blank to use program rates. Past earnings are not changed.
+            </p>
             <Input
               label="Full name"
               value={editForm.full_name ?? a.full_name ?? ''}
@@ -1189,7 +1271,7 @@ export default function AffiliateDetail() {
             />
             <div className="grid grid-cols-2 gap-4">
               <Input
-                label="Coupon commission override %"
+                label="Affiliate earns — coupon orders (%)"
                 type="number"
                 step="0.01"
                 min={0}
@@ -1202,10 +1284,10 @@ export default function AffiliateDetail() {
                     commission_rate_override_coupon: raw === '' ? null : Number(raw),
                   });
                 }}
-                helper="Applies to this affiliate's orders attributed via coupon. Leave blank to use catalog rules."
+                helper="0 stops earnings. Blank = program rates."
               />
               <Input
-                label="Link commission override %"
+                label="Affiliate earns — link orders (%)"
                 type="number"
                 step="0.01"
                 min={0}
@@ -1218,13 +1300,13 @@ export default function AffiliateDetail() {
                     commission_rate_override_link: raw === '' ? null : Number(raw),
                   });
                 }}
-                helper="Applies to this affiliate's orders attributed via bare referral link."
+                helper="0 stops earnings. Blank = program rates."
               />
             </div>
 
             <fieldset className="rounded-md border border-gray-200 p-4">
-              <legend className="px-2 text-sm font-medium text-gray-900">Commission gates</legend>
-              <p className="mb-3 text-xs text-gray-500">Per-source eligibility gates. Leave blank to inherit platform default (or OFF if unset).</p>
+              <legend className="px-2 text-sm font-medium text-gray-900">Earning limits</legend>
+              <p className="mb-3 text-xs text-gray-500">When an order counts for earning. Blank = program defaults.</p>
               {(['coupon', 'link'] as const).map((src) => (
                 <div key={src} className="mb-4 last:mb-0">
                   <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
