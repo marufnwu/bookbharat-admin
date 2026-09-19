@@ -56,8 +56,9 @@ interface FieldMeta {
 type GroupData = Record<string, FieldMeta> | undefined;
 
 const SECTION_TITLES: Record<string, string> = {
-  // Program (5) — absorbs old Applications card
+  // Program (6) — absorbs old Applications card
   program_enabled: 'Program',
+  affiliate_coupons_enabled: 'Program',
   registration_enabled: 'Program',
   new_affiliate_auto_approve: 'Program',
   reapply_lock_days: 'Program',
@@ -122,7 +123,7 @@ interface SectionMeta {
 const SECTION_META: Record<string, SectionMeta> = {
   Program: {
     icon: AdjustmentsHorizontalIcon,
-    description: 'Whether the program operates and who can join',
+    description: 'Whether the program operates and who can join. Pausing coupons keeps codes saved — only usage stops.',
   },
   Attribution: {
     icon: CursorArrowRaysIcon,
@@ -334,15 +335,15 @@ export default function AffiliateSettings() {
   const activeMeta = SECTION_META[activeSection] ?? FALLBACK_SECTION_META;
   const ActiveIcon = activeMeta.icon;
 
-  // Live money preview for the Commission section (computed inline below
+  // Live money preview for the Earning section (computed inline below
   // the hooks so no hook sits after the early returns).
-  const previewBase = activeSection === 'Commission' && server
+  const previewBase = activeSection === 'Earning' && server
     ? String('commission_base' in draft ? draft.commission_base : server?.commission_base?.value ?? 'post_discount')
     : null;
-  const previewCouponRate = activeSection === 'Commission' && server
+  const previewCouponRate = activeSection === 'Earning' && server
     ? Number('coupon_default_commission_rate' in draft ? draft.coupon_default_commission_rate : server?.coupon_default_commission_rate?.value ?? 0) || 0
     : 0;
-  const previewBuyerOff = activeSection === 'Commission' && server
+  const previewBuyerOff = activeSection === 'Earning' && server
     ? Number('coupon_discount' in draft ? draft.coupon_discount : server?.coupon_discount?.value ?? 0) || 0
     : 0;
 

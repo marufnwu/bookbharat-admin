@@ -95,6 +95,13 @@ function MoneyRulesCard({
   onChanged: () => void;
 }) {
   const [busy, setBusy] = useState<'earnings' | 'discount' | null>(null);
+  // Global coupon pause state (codes stay saved, only usage stops).
+  const { data: pausePreview } = useQuery({
+    queryKey: ['affiliate-money-preview-flag', a.id],
+    queryFn: () => affiliatesApi.moneyPreview(a.id, { order_total: 1000 }),
+    staleTime: 60_000,
+  });
+  const couponsPaused = pausePreview?.coupons_enabled === false;
 
   async function stopEarnings() {
     // eslint-disable-next-line no-restricted-globals
@@ -139,10 +146,15 @@ function MoneyRulesCard({
       <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
         Money rules
       </p>
+      {couponsPaused && (
+        <p className="mb-2 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800">
+          Coupons paused globally — code saved, usage blocked. Turn on in Settings → Program.
+        </p>
+      )}
       <dl className="space-y-1.5 text-sm">
         <div className="flex items-start justify-between gap-2">
           <dt className="shrink-0 text-gray-500">Buyer gets</dt>
-          <dd className="text-right"><BuyerGetsLine coupon={a.coupon} /></dd>
+          <dd className="text-right"><BuyerGetsLine coupon={a.coupon} couponsPaused={couponsPaused} /></dd>
         </div>
         <div className="flex items-start justify-between gap-2">
           <dt className="shrink-0 text-gray-500">Earns · coupon orders</dt>
@@ -363,6 +375,17 @@ export default function AffiliateDetail() {
         };
       });
   }, [activity, affiliateId]);
+
+  // Page-level pause flag (codes stay saved, only usage stops) — shared
+  // by the coupon card below. MoneyRulesCard runs its own identical query.
+  // NOTE: before the early returns — hooks must run in the same order.
+  const { data: pagePausePreview } = useQuery({
+    queryKey: ['affiliate-money-preview-flag-page', affiliateId],
+    queryFn: () => affiliatesApi.moneyPreview(affiliateId, { order_total: 1000 }),
+    enabled: !!affiliateId,
+    staleTime: 60_000,
+  });
+  const couponsPaused = pagePausePreview?.coupons_enabled === false;
 
   if (isLoading || !data) return <PageSkeleton type="detail" />;
   if (!data.affiliate) {
@@ -828,7 +851,7 @@ export default function AffiliateDetail() {
                 </div>
                 <div className="flex items-start justify-between gap-2">
                   <span className="shrink-0 text-gray-500">Buyer gets</span>
-                  <span className="text-right"><BuyerGetsLine coupon={coupon} /></span>
+                  <span className="text-right"><BuyerGetsLine coupon={coupon} couponsPaused={couponsPaused} /></span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-gray-500">Expires</span>

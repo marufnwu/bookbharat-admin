@@ -68,6 +68,7 @@ export interface MoneyPreviewSource {
 
 export interface MoneyPreview {
   order_total: number;
+  coupons_enabled?: boolean;
   buyer: {
     code: string;
     discount_value: number;

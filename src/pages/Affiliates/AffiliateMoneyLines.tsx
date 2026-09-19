@@ -6,7 +6,7 @@ import type { Affiliate } from '@/types/affiliate';
 import { inr, workedExample, useMoneyMeta, rateSourceWhy } from './moneyTruth';
 
 /** Buyer side as static configured text. */
-export function BuyerGetsLine({ coupon }: { coupon: Affiliate['coupon'] }) {
+export function BuyerGetsLine({ coupon, couponsPaused }: { coupon: Affiliate['coupon']; couponsPaused?: boolean }) {
   if (!coupon) return <span className="text-gray-400">No coupon — buyers get no discount from this affiliate</span>;
   const parts = [`${coupon.discount_value}% off`];
   if (coupon.maximum_discount_amount != null && Number(coupon.maximum_discount_amount) > 0) {
@@ -15,7 +15,9 @@ export function BuyerGetsLine({ coupon }: { coupon: Affiliate['coupon'] }) {
   if (coupon.minimum_order_amount != null && Number(coupon.minimum_order_amount) > 0) {
     parts.push(`min order ${inr(coupon.minimum_order_amount)}`);
   }
-  parts.push(coupon.is_active ? 'Active' : 'OFF');
+  // Global pause ≠ coupon deleted: code stays saved, usage blocked.
+  if (couponsPaused) parts.push('Paused globally');
+  else parts.push(coupon.is_active ? 'Active' : 'OFF');
   return <span className="font-medium text-gray-900">{parts.join(' · ')}</span>;
 }
 
@@ -101,6 +103,24 @@ export function MoneyExample({ affiliateId, affiliateName }: { affiliateId: numb
 function MoneyExampleBody({ preview, name }: { preview: MoneyPreview; name: string }) {
   const { data: meta } = useMoneyMeta();
   const total = preview.order_total;
+  // Master switch OFF: codes still exist (created at approval), but
+  // usage is blocked — buyer pays full, coupon earning is zero until the
+  // flag is turned back on. No backfill needed. Link side unaffected.
+  if (preview.coupons_enabled === false) {
+    return (
+      <div className="space-y-1 text-gray-800">
+        <p>
+          Buyer pays <strong>{inr(total)}</strong> (coupon code exists but usage is paused)
+        </p>
+        <p>
+          {name} earns <strong>{inr(0)}</strong> on coupon orders while paused
+        </p>
+        <p className="text-xs text-amber-700">
+          Affiliate coupons are paused — codes stay saved. Turn them on in Settings → Program to re-enable instantly.
+        </p>
+      </div>
+    );
+  }
   const discount = preview.buyer?.is_active ? preview.buyer.example_discount : 0;
   // Single source: workedExample() mirrors backend MoneyTruth::workedExample().
   const rate = preview.earning.coupon.rate;
