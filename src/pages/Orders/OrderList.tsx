@@ -18,6 +18,7 @@ import {
   ArrowPathIcon,
   PaperAirplaneIcon,
   PaperAirplaneIcon as WhatsAppIcon,
+  CubeIcon,
 } from '@heroicons/react/24/outline';
 import { ordersApi } from '../../api';
 import { Table, Button, Badge, LoadingSpinner, StatusBadge, Modal } from '../../components';
@@ -56,6 +57,61 @@ const getCustomerName = (order: Order | null | undefined): string => {
   }
 
   return 'N/A';
+};
+
+// Extract product thumbnail info from an order's items.
+// Returns the first product image URL and the total number of line items.
+// Falls back to `order_items_count` (present in the admin list payload via
+// withCount) so the +N badge still shows when the items relation itself
+// isn't in the payload.
+const getOrderProductThumbnails = (order: Order | null | undefined): { imageUrl: string | null; itemCount: number } => {
+  if (!order) return { imageUrl: null, itemCount: 0 };
+
+  const items = (order as any)?.order_items || order.items || [];
+  const countFromMeta = Number((order as any)?.order_items_count ?? 0);
+  const itemCount = Math.max(
+    items.length,
+    Number.isFinite(countFromMeta) ? countFromMeta : 0,
+  );
+
+  const firstImage = items.find(
+    (item: any) => item?.product?.image_url || item?.product?.images?.[0]?.image_url,
+  );
+  const imageUrl = firstImage?.product?.image_url || firstImage?.product?.images?.[0]?.image_url || null;
+
+  return { imageUrl, itemCount };
+};
+
+// Thumbnail shown in the order list (desktop table + mobile cards): first
+// product image, or a placeholder box when no image is available. A +N badge
+// is always overlaid when the order has more than one line item.
+const OrderProductThumb: React.FC<{ order: Order; sizeClass?: string }> = ({
+  order,
+  sizeClass = 'h-10 w-10',
+}) => {
+  const { imageUrl, itemCount } = getOrderProductThumbnails(order);
+  return (
+    <div className="relative inline-block flex-shrink-0">
+      {imageUrl ? (
+        <img
+          src={imageUrl}
+          alt="Product"
+          className={`${sizeClass} rounded-lg object-cover bg-gray-100 border border-gray-200`}
+        />
+      ) : (
+        <div
+          className={`${sizeClass} rounded-lg bg-gray-100 border border-gray-200 flex items-center justify-center text-gray-400`}
+        >
+          <CubeIcon className="h-5 w-5" />
+        </div>
+      )}
+      {itemCount > 1 && (
+        <span className="absolute -top-1 -right-1 flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-blue-600 px-1 text-[10px] font-bold text-white">
+          +{itemCount - 1}
+        </span>
+      )}
+    </div>
+  );
 };
 
 // WhatsApp Send Modal Component
@@ -1013,6 +1069,13 @@ const OrderList: React.FC = () => {
       ),
     },
     {
+      key: 'product' as const,
+      title: 'Product',
+      render: (_: any, record: Order) => (
+        <OrderProductThumb order={record} />
+      ),
+    },
+    {
       key: 'order_number' as const,
       title: 'Order #',
       sortable: true,
@@ -1398,23 +1461,26 @@ const OrderList: React.FC = () => {
               className={`bg-white rounded-lg shadow p-4 ${getRowClassName(order, index) ?? ''}`}
             >
               <div className="flex items-start justify-between gap-3 mb-2">
-                <div className="min-w-0 flex-1">
-                  <button
-                    className="font-semibold text-blue-600 hover:text-blue-800 hover:underline truncate text-left"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      if (e.ctrlKey || e.metaKey) {
-                        window.open(`/orders/${order.id}`, '_blank');
-                      } else {
-                        setQuickViewOrderId(order.id);
-                      }
-                    }}
-                  >
-                    #{order.order_number}
-                  </button>
-                  <div className="text-sm text-gray-600 mt-0.5 truncate">
-                    {getCustomerName(order)}
+                <div className="flex items-start gap-3 min-w-0 flex-1">
+                  <OrderProductThumb order={order} sizeClass="h-12 w-12" />
+                  <div className="min-w-0 flex-1">
+                    <button
+                      className="font-semibold text-blue-600 hover:text-blue-800 hover:underline truncate text-left"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (e.ctrlKey || e.metaKey) {
+                          window.open(`/orders/${order.id}`, '_blank');
+                        } else {
+                          setQuickViewOrderId(order.id);
+                        }
+                      }}
+                    >
+                      #{order.order_number}
+                    </button>
+                    <div className="text-sm text-gray-600 mt-0.5 truncate">
+                      {getCustomerName(order)}
+                    </div>
                   </div>
                 </div>
                 <InlineStatusDropdown
