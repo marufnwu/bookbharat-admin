@@ -205,30 +205,50 @@ export const OrderQuickView: React.FC<OrderQuickViewProps> = ({
               Items ({(order as any).items?.length || (order as any).order_items?.length || 0})
             </h4>
             <div className="space-y-2 max-h-48 overflow-y-auto">
-              {((order as any).items || (order as any).order_items || []).map((item: any, idx: number) => (
-                <div key={idx} className="flex items-center gap-3 py-2">
-                  {item.product?.image || item.image ? (
-                    <img
-                      src={item.product?.image || item.image}
-                      alt={item.product?.name || item.name}
-                      className="w-10 h-10 object-cover rounded border border-gray-100"
-                    />
-                  ) : (
-                    <div className="w-10 h-10 bg-gray-100 rounded flex items-center justify-center text-gray-400 text-xs">
-                      N/A
+              {((order as any).items || (order as any).order_items || []).map((item: any, idx: number) => {
+                const itemImageUrl =
+                  item?.product?.image_url ||
+                  item?.product?.images?.[0]?.image_url ||
+                  item?.product?.image ||
+                  item?.image ||
+                  null;
+                const itemName =
+                  item?.product?.name ||
+                  item?.display_name ||
+                  item?.product_name ||
+                  item?.name ||
+                  'Product';
+                const unitPrice = Number(
+                  item?.unit_price ?? item?.price_at_purchase ?? item?.price ?? 0,
+                );
+                const lineTotal = Number(
+                  item?.total_price ?? item?.total ?? (unitPrice * Number(item?.quantity ?? 0)),
+                );
+                return (
+                  <div key={idx} className="flex items-center gap-3 py-2">
+                    {itemImageUrl ? (
+                      <img
+                        src={itemImageUrl}
+                        alt={itemName}
+                        className="w-10 h-10 object-cover rounded border border-gray-100"
+                      />
+                    ) : (
+                      <div className="w-10 h-10 bg-gray-100 rounded flex items-center justify-center text-gray-400 text-xs">
+                        N/A
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">
+                        {itemName}
+                      </p>
+                      <p className="text-xs text-gray-500">Qty: {item.quantity}</p>
                     </div>
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">
-                      {item.product?.name || item.name}
+                    <p className="text-sm font-medium text-gray-700">
+                      {formatCurrency(lineTotal)}
                     </p>
-                    <p className="text-xs text-gray-500">Qty: {item.quantity}</p>
                   </div>
-                  <p className="text-sm font-medium text-gray-700">
-                    {formatCurrency(item.price * item.quantity)}
-                  </p>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
