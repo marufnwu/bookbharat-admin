@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { affiliatesApi } from '@/api/affiliates';
+import { AffiliatePageHelp } from './AffiliatePageHelp';
 import { Card, Button, Input, LoadingSpinner, EmptyState, TablePagination } from '@/components';
 import Table from '@/components/Table';
 import { LinkIcon } from '@heroicons/react/24/outline';
@@ -21,9 +22,12 @@ export default function AffiliateLinks() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-gray-900">Affiliate Links</h1>
-        <p className="mt-1 text-sm text-gray-600">All referral links across affiliates</p>
-      </div>
+          <h1 className="text-2xl font-semibold text-gray-900">Referral Links</h1>
+          <p className="mt-1 text-sm text-gray-600">Links affiliates share — see clicks, orders, and conversion per link</p>
+          <div className="mt-3">
+            <AffiliatePageHelp page="links" />
+          </div>
+        </div>
 
       <div className="bg-white p-4 rounded-lg shadow">
         <div className="flex-1 max-w-md">

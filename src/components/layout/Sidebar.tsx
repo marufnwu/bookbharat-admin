@@ -128,29 +128,37 @@ const navigation: NavigationItem[] = [
     ],
   },
 
-  // Affiliates — separated top-level section so operators can manage the
-  // referral program without scrolling through Marketing. Reuses `Share2`
-  // which was previously imported but unused.
+  // Affiliates — plain-language primary items for non-technical admins,
+  // plus a collapsed Advanced group for operational screens. Labels use
+  // money terms (earnings, payouts, take-back) instead of engine terms
+  // (holds, clawbacks, attribution).
   {
     name: 'Affiliates',
     href: '/affiliates',
     icon: Share2,
     children: [
-      { name: 'Overview',     href: '/affiliates/overview',         icon: LayoutDashboard },
-      { name: 'All Affiliates', href: '/affiliates',                 icon: Users },
-      { name: 'Commission Rules', href: '/affiliates/commission-rules', icon: Percent },
-      { name: 'Commissions',  href: '/affiliates/commissions',      icon: Receipt },
-      { name: 'Hold Queue',   href: '/affiliates/commission-holds', icon: AlertTriangle },
-      { name: 'Payouts',      href: '/affiliates/payouts',          icon: Wallet },
-      { name: 'Clawbacks',    href: '/affiliates/clawbacks',        icon: Receipt },
-      { name: 'Links',        href: '/affiliates/links',            icon: Share2 },
-      { name: 'Orders',       href: '/affiliates/orders',           icon: ShoppingCart },
-      { name: 'Analytics',    href: '/affiliates/analytics',        icon: BarChart3 },
-      { name: 'Reports',      href: '/affiliates/reports',          icon: BarChart3 },
-      { name: 'Audit Log',    href: '/affiliates/audit-log',        icon: Activity },
-      { name: 'Scheduled Jobs', href: '/affiliates/scheduled-jobs', icon: Clock },
-      { name: 'Product Settings', href: '/affiliates/product-settings', icon: Settings },
-      { name: 'Settings', href: '/affiliates/settings', icon: Settings },
+      { name: 'Dashboard',      href: '/affiliates/overview',         icon: LayoutDashboard },
+      { name: 'Affiliates',     href: '/affiliates',                 icon: Users },
+      { name: 'Earning Rules',  href: '/affiliates/commission-rules', icon: Percent },
+      { name: 'Earnings',       href: '/affiliates/commissions',      icon: Receipt },
+      { name: 'Payouts',        href: '/affiliates/payouts',          icon: Wallet },
+      { name: 'Settings',       href: '/affiliates/settings',         icon: Settings },
+      {
+        name: 'Advanced',
+        href: '/affiliates/advanced',
+        icon: Wrench,
+        children: [
+          { name: 'Needs Review',   href: '/affiliates/commission-holds', icon: AlertTriangle },
+          { name: 'Money To Take Back', href: '/affiliates/clawbacks',   icon: Receipt },
+          { name: 'Referral Orders', href: '/affiliates/orders',         icon: ShoppingCart },
+          { name: 'Referral Links', href: '/affiliates/links',           icon: Share2 },
+          { name: 'Product Rates',  href: '/affiliates/product-settings', icon: Tag },
+          { name: 'Insights',       href: '/affiliates/analytics',        icon: BarChart3 },
+          { name: 'Reports',        href: '/affiliates/reports',          icon: BarChart3 },
+          { name: 'Activity',       href: '/affiliates/audit-log',        icon: Activity },
+          { name: 'Automations',    href: '/affiliates/scheduled-jobs',   icon: Clock },
+        ],
+      },
     ],
   },
 

@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import api from '@/api/axios';
 import { affiliatesApi } from '@/api/affiliates';
+import { AffiliatePageHelp } from './AffiliatePageHelp';
+import { useMoneyMeta, rateSourceLabel } from './moneyTruth';
 import { Card, Button, Input, Badge } from '@/components';
 import Table from '@/components/Table';
 import { toast } from '@/utils/toast';
@@ -14,26 +16,29 @@ function unwrap<T>(res: { data: any }): T {
 
 /**
  * Transparency layer: shows the EFFECTIVE commission rate per product and
- * WHICH source won the resolution hierarchy. Inputs (toggle, custom rate)
- * can be silently overridden by higher-priority rules — this column makes
- * that visible so admins don't leak margin unknowingly.
+ * WHICH source won the resolution hierarchy. Labels come from the single
+ * source (money-meta); variants stay local (presentational only).
  */
-const SOURCE_META: Record<string, { label: string; variant: 'success' | 'warning' | 'error' | 'info' | 'default' | 'primary' }> = {
-  product_rule:            { label: 'Product rule',      variant: 'info' },
-  custom_product:          { label: 'Custom rate',       variant: 'primary' },
-  category_rule:           { label: 'Category rule',     variant: 'success' },
-  default_rule:            { label: 'Default rule',      variant: 'default' },
-  no_rule:                 { label: 'No rule — 0%',      variant: 'error' },
-  disabled:                { label: 'Disabled',          variant: 'error' },
-  affiliate_override_coupon: { label: 'Override (coupon)', variant: 'primary' },
-  affiliate_override_link:   { label: 'Override (link)',   variant: 'primary' },
-  global_default_coupon:     { label: 'Default (coupon)',  variant: 'info' },
-  global_default_link:       { label: 'Default (link)',    variant: 'info' },
-};
+function sourceVariant(source: string): 'success' | 'warning' | 'error' | 'info' | 'default' | 'primary' {
+  if (source === 'disabled' || source === 'no_rule') return 'error';
+  if (source.startsWith('affiliate_override') || source === 'custom_product') return 'primary';
+  if (source === 'category_rule') return 'success';
+  return 'info';
+}
 
 export default function ProductAffiliateSettings() {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
+  // Coupon vs link side matters: same product can earn different rates.
+  const [source, setSource] = useState<'coupon' | 'link'>('coupon');
+  // Optional affiliate: applies their personal overrides to the column.
+  const [affiliateId, setAffiliateId] = useState('');
+  const [affiliates, setAffiliates] = useState<{ id: number; full_name: string; code: string }[]>([]);
+  useEffect(() => {
+    affiliatesApi.list({ per_page: 100 }).then((r) => {
+      setAffiliates((r.items ?? []).map((a: any) => ({ id: a.id, full_name: a.full_name, code: a.code })));
+    }).catch(() => {});
+  }, []);
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['product-affiliate-settings', search, page],
@@ -47,13 +52,14 @@ export default function ProductAffiliateSettings() {
 
   const rows = data?.items ?? [];
 
-  // Resolve effective rates for the current page's products
+  // Resolve effective rates for the current page's products, for the
+  // selected order type (coupon vs link can pay different rates).
   const [rates, setRates] = useState<Record<number, { rate: number; rate_source: string }>>({});
   useEffect(() => {
     const ids = rows.map((r: any) => r.id).filter(Boolean);
     if (ids.length === 0) return;
     let cancelled = false;
-    affiliatesApi.resolveRates(ids)
+    affiliatesApi.resolveRates(ids, source === 'coupon' ? 'coupon' : undefined, affiliateId ? Number(affiliateId) : undefined)
       .then((res) => {
         if (cancelled) return;
         const map: Record<number, { rate: number; rate_source: string }> = {};
@@ -62,7 +68,8 @@ export default function ProductAffiliateSettings() {
       })
       .catch(() => { /* column falls back to '—' on failure */ });
     return () => { cancelled = true; };
-  }, [JSON.stringify(rows.map((r: any) => r.id))]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(rows.map((r: any) => r.id)), source, affiliateId]);
 
   async function toggleAffiliate(productId: number, enabled: boolean) {
     try {
@@ -74,29 +81,62 @@ export default function ProductAffiliateSettings() {
     }
   }
 
+  // Single source: rate labels from backend money-meta.
+  const { data: moneyMeta } = useMoneyMeta();
+
   function renderEffective(r: any) {
     const info = rates[r.id];
     if (!info) return <span className="text-gray-400 text-xs">…</span>;
-    const meta = SOURCE_META[info.rate_source] ?? { label: info.rate_source, variant: 'default' as const };
     const danger = info.rate_source === 'disabled' || info.rate <= 0;
     return (
       <div className="flex items-center justify-end gap-2">
         <span className={danger ? 'font-semibold text-red-600' : 'font-semibold text-gray-900'}>
           {info.rate}%
         </span>
-        <Badge variant={meta.variant} size="sm">{meta.label}</Badge>
+        <Badge variant={sourceVariant(info.rate_source)} size="sm">{rateSourceLabel(moneyMeta, info.rate_source)}</Badge>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-gray-900">Product Affiliate Settings</h1>
-        <p className="mt-1 text-sm text-gray-600">
-          Effective rates show what affiliates actually earn after rule priority:
-          product rule → custom rate → category rule → default rule → settings.
-        </p>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold text-gray-900">Product Earning Rates</h1>
+          <p className="mt-1 text-sm text-gray-600">
+            Earning order: blocked products → personal rate → order-type rate → product rule →
+            personal product rate → category rule → default rule → no earning.
+          </p>
+          <div className="mt-3">
+            <AffiliatePageHelp page="product-rates" />
+          </div>
+        </div>
+        <div className="flex flex-wrap items-end gap-3">
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">Order came from</label>
+            <select
+              value={source}
+              onChange={(e) => setSource(e.target.value as 'coupon' | 'link')}
+              className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm"
+            >
+              <option value="coupon">Coupon order</option>
+              <option value="link">Link order</option>
+            </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">For affiliate (optional)</label>
+            <select
+              value={affiliateId}
+              onChange={(e) => setAffiliateId(e.target.value)}
+              className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm"
+            >
+              <option value="">Program rates</option>
+              {affiliates.map((a) => (
+                <option key={a.id} value={a.id}>{a.full_name} ({a.code})</option>
+              ))}
+            </select>
+          </div>
+        </div>
       </div>
 
       <Card className="p-4 border-l-4 border-l-error-500 bg-error-50/40">

@@ -3,6 +3,7 @@ import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { affiliatesApi } from '@/api/affiliates';
 import { Card, Button, Badge, LoadingSpinner, EmptyState, TablePagination } from '@/components';
+import { AffiliatePageHelp } from './AffiliatePageHelp';
 import Table from '@/components/Table';
 import { cn } from '@/utils/cn';
 
@@ -42,8 +43,11 @@ export default function Clawbacks() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-gray-900">Clawbacks</h1>
-        <p className="mt-1 text-sm text-gray-600">Commission adjustments from refunds and reversals</p>
+        <h1 className="text-2xl font-semibold text-gray-900">Money To Take Back</h1>
+        <p className="mt-1 text-sm text-gray-600">Refund dues — already subtracted from the affiliate's next payout automatically</p>
+        <div className="mt-3">
+          <AffiliatePageHelp page="clawbacks" />
+        </div>
       </div>
 
       {tab === 'pending' && (

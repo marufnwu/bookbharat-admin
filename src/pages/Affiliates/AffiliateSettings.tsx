@@ -10,6 +10,8 @@ import {
 } from '@/components';
 import { Select, Textarea } from '@/components/Input';
 import { toast } from '@/utils/toast';
+import { AffiliatePageHelp } from './AffiliatePageHelp';
+import { useMoneyMeta, settingLabel, workedExample, inr } from './moneyTruth';
 import {
   AdjustmentsHorizontalIcon,
   CursorArrowRaysIcon,
@@ -54,8 +56,9 @@ interface FieldMeta {
 type GroupData = Record<string, FieldMeta> | undefined;
 
 const SECTION_TITLES: Record<string, string> = {
-  // Program (5) — absorbs old Applications card
+  // Program (6) — absorbs old Applications card
   program_enabled: 'Program',
+  affiliate_coupons_enabled: 'Program',
   registration_enabled: 'Program',
   new_affiliate_auto_approve: 'Program',
   reapply_lock_days: 'Program',
@@ -68,24 +71,21 @@ const SECTION_TITLES: Record<string, string> = {
   attribution_priority: 'Attribution',
   click_archive_days: 'Attribution',
 
-  // Commission (4)
-  commission_base: 'Commission',
-  coupon_default_commission_rate: 'Commission',
-  link_default_commission_rate: 'Commission',
-  commission_max_per_order: 'Commission',
-
-  // Commission Eligibility (8)
-  min_order_for_commission_coupon: 'Commission Eligibility',
-  min_order_for_commission_link: 'Commission Eligibility',
-  first_order_only_commission_coupon: 'Commission Eligibility',
-  first_order_only_commission_link: 'Commission Eligibility',
-  commission_per_customer_limit_coupon: 'Commission Eligibility',
-  commission_per_customer_limit_link: 'Commission Eligibility',
-  total_commission_limit_coupon: 'Commission Eligibility',
-  total_commission_limit_link: 'Commission Eligibility',
-
-  // Commission Lifecycle (1)
-  return_period_days: 'Commission Lifecycle',
+  // Earning (13): one matrix — rates + gates + safety. Coupon orders |
+  // link orders side by side instead of 13 scattered rows.
+  commission_base: 'Earning',
+  coupon_default_commission_rate: 'Earning',
+  link_default_commission_rate: 'Earning',
+  commission_max_per_order: 'Earning',
+  min_order_for_commission_coupon: 'Earning',
+  min_order_for_commission_link: 'Earning',
+  first_order_only_commission_coupon: 'Earning',
+  first_order_only_commission_link: 'Earning',
+  commission_per_customer_limit_coupon: 'Earning',
+  commission_per_customer_limit_link: 'Earning',
+  total_commission_limit_coupon: 'Earning',
+  total_commission_limit_link: 'Earning',
+  return_period_days: 'Earning',
 
   // Coupons (5)
   coupon_discount: 'Coupons',
@@ -123,23 +123,15 @@ interface SectionMeta {
 const SECTION_META: Record<string, SectionMeta> = {
   Program: {
     icon: AdjustmentsHorizontalIcon,
-    description: 'Whether the program operates and who can join',
+    description: 'Whether the program operates and who can join. Pausing coupons keeps codes saved — only usage stops.',
   },
   Attribution: {
     icon: CursorArrowRaysIcon,
     description: 'Who gets credit when an order happens',
   },
-  Commission: {
+  Earning: {
     icon: ReceiptPercentIcon,
-    description: 'How much affiliates earn',
-  },
-  'Commission Eligibility': {
-    icon: ShieldCheckIcon,
-    description: 'When an attributed order qualifies for commission',
-  },
-  'Commission Lifecycle': {
-    icon: ArrowPathIcon,
-    description: 'How long commissions stay pending before approval',
+    description: 'How much affiliates earn and which orders count — coupon vs link side by side',
   },
   Coupons: {
     icon: TicketIcon,
@@ -168,17 +160,32 @@ const FALLBACK_SECTION_META: SectionMeta = {
   description: '',
 };
 
+// Single source: labels + presets come from moneyTruth (backend-owned
+// money-meta). No per-page copies — backend MoneyTruth::meta() is the
+// authority. Fallbacks below only render before meta loads.
+// Sections shown in simple mode. Everything else hides behind
+// "Show advanced" — still functional, just not visible by default.
+const SIMPLE_SECTIONS = ['Program', 'Earning', 'Coupons', 'Payouts', 'Tax & KYC'];
+
 const SECTION_ORDER = [
   'Program',
   'Attribution',
-  'Commission',
-  'Commission Eligibility',
-  'Commission Lifecycle',
+  'Earning',
   'Coupons',
   'Payouts',
   'Tax & KYC',
   'Fraud & Risk',
   'Terms',
+];
+
+// Earning matrix rows: label + the two settings keys (coupon | link).
+// Rendered as one table instead of 13 scattered rows.
+const EARNING_MATRIX: { label: string; coupon: string; link: string }[] = [
+  { label: 'Affiliate earns', coupon: 'coupon_default_commission_rate', link: 'link_default_commission_rate' },
+  { label: 'Min order to earn', coupon: 'min_order_for_commission_coupon', link: 'min_order_for_commission_link' },
+  { label: 'First order only', coupon: 'first_order_only_commission_coupon', link: 'first_order_only_commission_link' },
+  { label: 'Max orders per buyer', coupon: 'commission_per_customer_limit_coupon', link: 'commission_per_customer_limit_link' },
+  { label: 'Max lifetime orders', coupon: 'total_commission_limit_coupon', link: 'total_commission_limit_link' },
 ];
 
 type Adornment = 'percent' | 'currency';
@@ -220,6 +227,9 @@ export default function AffiliateSettings() {
   const [draft, setDraft] = useState<Record<string, any>>({});
   const [saving, setSaving] = useState(false);
   const [activeSection, setActiveSection] = useState<string>('Program');
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  // Single source: labels/presets/hierarchy from backend money-meta.
+  const { data: moneyMeta } = useMoneyMeta();
 
   const {
     data: server,
@@ -285,8 +295,11 @@ export default function AffiliateSettings() {
   const orderedSections = useMemo(() => {
     const known = SECTION_ORDER.filter((s) => grouped[s]);
     const unknown = Object.keys(grouped).filter((s) => !SECTION_ORDER.includes(s));
-    return [...known, ...unknown];
-  }, [grouped]);
+    const all = [...known, ...unknown];
+    // Simple mode hides the technical sections. Advanced toggle reveals them.
+    if (!showAdvanced) return all.filter((s) => SIMPLE_SECTIONS.includes(s));
+    return all;
+  }, [grouped, showAdvanced]);
 
   // Default the active tab to the first available section (once data arrives)
   useEffect(() => {
@@ -322,6 +335,18 @@ export default function AffiliateSettings() {
   const activeMeta = SECTION_META[activeSection] ?? FALLBACK_SECTION_META;
   const ActiveIcon = activeMeta.icon;
 
+  // Live money preview for the Earning section (computed inline below
+  // the hooks so no hook sits after the early returns).
+  const previewBase = activeSection === 'Earning' && server
+    ? String('commission_base' in draft ? draft.commission_base : server?.commission_base?.value ?? 'post_discount')
+    : null;
+  const previewCouponRate = activeSection === 'Earning' && server
+    ? Number('coupon_default_commission_rate' in draft ? draft.coupon_default_commission_rate : server?.coupon_default_commission_rate?.value ?? 0) || 0
+    : 0;
+  const previewBuyerOff = activeSection === 'Earning' && server
+    ? Number('coupon_discount' in draft ? draft.coupon_discount : server?.coupon_discount?.value ?? 0) || 0
+    : 0;
+
   return (
     <div className="w-full space-y-6 pb-20">
       {/* Page header */}
@@ -331,6 +356,9 @@ export default function AffiliateSettings() {
           <p className="mt-1 text-sm text-gray-600">
             Configure the affiliate lifecycle — from click through commission to payout.
           </p>
+          <div className="mt-3">
+            <AffiliatePageHelp page="settings" />
+          </div>
         </div>
         <div className="flex flex-shrink-0 items-center gap-2">
           {dirtyCount > 0 && (
@@ -351,7 +379,15 @@ export default function AffiliateSettings() {
           className="lg:w-60 lg:flex-shrink-0 lg:sticky lg:top-4"
         >
           <div className="flex gap-1 overflow-x-auto pb-2 lg:flex-col lg:gap-1 lg:overflow-visible lg:pb-0">
-            {orderedSections.map((section) => {
+            <button
+            type="button"
+            onClick={() => setShowAdvanced((v) => !v)}
+            className="mb-1 flex w-full items-center justify-between rounded-lg border border-dashed border-gray-300 px-3 py-2 text-xs font-medium text-gray-500 hover:border-gray-400 hover:text-gray-700"
+          >
+            {showAdvanced ? 'Hide advanced' : 'Show advanced'}
+            <span className="text-gray-400">{showAdvanced ? '▲' : '▼'}</span>
+          </button>
+          {orderedSections.map((section) => {
               const Icon = (SECTION_META[section] ?? FALLBACK_SECTION_META).icon;
               const dirtyHere = dirtyBySection[section] ?? 0;
               const isActive = section === activeSection;
@@ -383,7 +419,42 @@ export default function AffiliateSettings() {
 
         {/* Active section panel */}
         <div className="min-w-0 flex-1">
-          {activeSection === 'Commission' && <PrecedenceBanner />}
+          {activeSection === 'Earning' && previewBase !== null && (
+            <>
+              <EarningPresets
+                presets={moneyMeta?.earning_presets}
+                onPick={(c, l) => { update('coupon_default_commission_rate', c); update('link_default_commission_rate', l); }}
+              />
+              {(() => {
+                const order = 1000;
+                const linkRate = activeSection === 'Earning' && server
+                  ? Number('link_default_commission_rate' in draft ? draft.link_default_commission_rate : server?.link_default_commission_rate?.value ?? 0) || 0
+                  : 0;
+                const exC = workedExample(order, previewBuyerOff, null, previewCouponRate, previewBase);
+                const exL = workedExample(order, 0, null, linkRate, previewBase);
+                return (
+                  <div className="mb-4 space-y-1 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs text-emerald-900">
+                    <p>
+                      Coupon order: buyer pays {inr(exC.buyerPays)}, affiliate earns {inr(exC.earning)} ({previewCouponRate}%), you keep {inr(exC.youKeep)}.
+                    </p>
+                    <p>
+                      Link order: buyer pays {inr(exL.buyerPays)}, affiliate earns {inr(exL.earning)} ({linkRate}%), you keep {inr(exL.youKeep)}.
+                    </p>
+                  </div>
+                );
+              })()}
+              <PrecedenceBanner hierarchy={moneyMeta?.hierarchy} />
+              <EarningMatrix
+                grouped={grouped}
+                getVal={getVal}
+                update={update}
+                isDirty={isDirty}
+                isDisabled={(k) => isDependsOnDisabled(k, getVal, server, draft)}
+                parentOf={(k) => parentLabel(k, server, draft)}
+                labels={moneyMeta?.setting_labels}
+              />
+            </>
+          )}
           <Card>
             <div className="flex items-center gap-3 border-b border-gray-100 px-6 py-4">
               <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-primary-50 text-primary-600">
@@ -404,14 +475,26 @@ export default function AffiliateSettings() {
               </div>
             </div>
 
-            {activeFields.length === 0 ? (
+            {activeSection === 'Earning' ? (
+              <EarningSafetyCard
+                grouped={grouped}
+                getVal={getVal}
+                update={update}
+                isDirty={isDirty}
+                isDisabled={(k) => isDependsOnDisabled(k, getVal, server, draft)}
+                parentOf={(k) => parentLabel(k, server, draft)}
+                labels={moneyMeta?.setting_labels}
+              />
+            ) : activeFields.length === 0 ? (
               <CardContent className="py-12 text-center text-sm text-gray-500">
                 No settings in this section.
               </CardContent>
             ) : (
               <CardContent className="px-0 pb-0">
                 <div className="divide-y divide-gray-100">
-                  {activeFields.map(({ key, meta }) =>
+                  {activeFields
+                    .filter(({ key }) => !(activeSection === 'Earning' && EARNING_MATRIX.some((r) => r.coupon === key || r.link === key)))
+                    .map(({ key, meta }) =>
                     meta.type === 'textarea' ? (
                       <TextareaBlock
                         key={key}
@@ -432,6 +515,7 @@ export default function AffiliateSettings() {
                         dirty={isDirty(key)}
                         disabled={isDependsOnDisabled(key, getVal, server, draft)}
                         parentLabel={parentLabel(key, server, draft)}
+                        plainLabel={moneyMeta?.setting_labels?.[key] ?? meta.label ?? key}
                       />
                     ),
                   )}
@@ -473,15 +557,21 @@ export default function AffiliateSettings() {
   );
 }
 
-function PrecedenceBanner() {
+function PrecedenceBanner({ hierarchy }: { hierarchy?: { key: string; label: string; why: string }[] }) {
+  const steps = hierarchy && hierarchy.length > 0
+    ? hierarchy.map((h) => h.label)
+    : ['Switched off', 'Excluded (0% rule)', 'Personal rate', 'Program rate', 'Product rule', 'Custom product rate', 'Category rule', 'Default rule', 'No rate — earns 0%'];
   return (
     <div className="mb-4 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-xs text-gray-700">
-      <p className="font-medium text-gray-900">Rate resolution order</p>
-      <p className="mt-1 leading-relaxed">
-        exclusions → per-affiliate source override → source global default (above) → product rule → product custom rate →
-        category rule → default rule → none. Credit between coupon and link follows{' '}
-        <span className="font-medium">Attribution priority</span> in the Attribution section.
-        Per-affiliate overrides are configured on each affiliate profile.
+      <p className="font-medium text-gray-900">Who wins? First match in this order:</p>
+      <ol className="mt-1 list-decimal space-y-0.5 pl-4 leading-relaxed">
+        {steps.map((s) => (
+          <li key={s}>{s}</li>
+        ))}
+      </ol>
+      <p className="mt-1">
+        The source default (step 4) beats product/category/default rules below it.
+        Per-affiliate rates live on each affiliate profile.
       </p>
     </div>
   );
@@ -511,6 +601,203 @@ function parentLabel(
   return server?.[parent]?.label ?? parent;
 }
 
+/**
+ * Earning matrix: rates + gates as one coupon|link table. Each blank cell
+ * shows its inherited meaning (Blank = OFF / Blank = program default).
+ * Same settings keys, same save path — presentational only.
+ */
+function EarningMatrix({ grouped, getVal, update, isDirty, isDisabled, parentOf, labels }: {
+  grouped: Record<string, { key: string; meta: FieldMeta }[]>;
+  getVal: (k: string) => any;
+  update: (k: string, v: any) => void;
+  isDirty: (k: string) => boolean;
+  isDisabled: (k: string) => boolean;
+  parentOf: (k: string) => string;
+  labels?: Record<string, string>;
+}) {
+  const all = grouped['Earning'] ?? [];
+  const byKey: Record<string, FieldMeta> = {};
+  all.forEach(({ key, meta }) => { byKey[key] = meta; });
+
+  const blankHint = (key: string): string => {
+    const v = getVal(key);
+    if (v !== '' && v !== null && v !== undefined) return '';
+    if (key === 'coupon_default_commission_rate' || key === 'link_default_commission_rate') {
+      return 'Blank = catalog rules decide';
+    }
+    return 'Blank = OFF';
+  };
+
+  return (
+    <Card className="mb-4">
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[520px] text-sm">
+          <thead>
+            <tr className="border-b border-gray-100 text-left text-xs text-gray-500">
+              <th className="px-4 py-2 font-medium">Rule</th>
+              <th className="px-4 py-2 font-medium">Coupon orders</th>
+              <th className="px-4 py-2 font-medium">Link orders</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {EARNING_MATRIX.map((row) => (
+              <tr key={row.label}>
+                <td className="px-4 py-2 text-gray-700">{row.label}</td>
+                {([row.coupon, row.link] as const).map((k) => {
+                  const meta = byKey[k];
+                  if (!meta) return <td key={k} className="px-4 py-2 text-gray-400">—</td>;
+                  return (
+                    <td key={k} className="px-4 py-2">
+                      <MatrixCell
+                        fieldKey={k}
+                        meta={meta}
+                        value={getVal(k)}
+                        onChange={(v) => update(k, v)}
+                        dirty={isDirty(k)}
+                        disabled={isDisabled(k)}
+                        parentLabel={parentOf(k)}
+                        hint={blankHint(k)}
+                      />
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="px-4 py-2 text-xs text-gray-500">
+        Personal rates on an affiliate profile beat everything here. Program rates here beat product, category and default rules.
+      </p>
+    </Card>
+  );
+}
+
+function MatrixCell({ fieldKey, meta, value, onChange, dirty, disabled, parentLabel, hint }: {
+  fieldKey: string;
+  meta: FieldMeta;
+  value: any;
+  onChange: (v: any) => void;
+  dirty: boolean;
+  disabled: boolean;
+  parentLabel: string;
+  hint: string;
+}) {
+  // Reuse SettingRow's editors in compact form.
+  if (meta.type === 'switch') {
+    const checked = value === true || value === 1 || value === '1' || value === 'true';
+    return (
+      <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-gray-700">
+        <input
+          type="checkbox"
+          className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+          checked={checked}
+          disabled={disabled}
+          onChange={(e) => onChange(e.target.checked)}
+        />
+        <span>{checked ? 'Yes' : 'No'}</span>
+        {dirty && <span className="h-2 w-2 rounded-full bg-amber-500" title="Unsaved" />}
+      </label>
+    );
+  }
+  const adornment = FIELD_ADORNMENT[fieldKey];
+  return (
+    <span>
+      <span className="inline-flex max-w-[160px] items-center rounded-md border border-gray-300 px-2 py-1 focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500">
+        {adornment === 'currency' && <span className="mr-1 text-gray-400">₹</span>}
+        <input
+          type="number"
+          value={value ?? ''}
+          min={meta.min ?? undefined}
+          max={meta.max ?? undefined}
+          disabled={disabled}
+          placeholder="—"
+          onChange={(e) => {
+            const raw = e.target.value;
+            onChange(raw === '' ? '' : Number(raw));
+          }}
+          className="w-full bg-transparent text-sm outline-none"
+        />
+        {adornment === 'percent' && <span className="ml-1 text-gray-400">%</span>}
+      </span>
+      {dirty && <span className="ml-1 inline-block h-2 w-2 rounded-full bg-amber-500" title="Unsaved" />}
+      {hint && (value === '' || value === null || value === undefined) && (
+        <span className="ml-1 text-xs text-gray-400">{hint}</span>
+      )}
+      {parentLabel && <span className="ml-1 block text-xs text-gray-400">{parentLabel}</span>}
+    </span>
+  );
+}
+
+/**
+ * Safety row below the matrix: earning base, per-order fraud cap, return
+ * cover days. Small, separate from the rate matrix.
+ */
+function EarningSafetyCard({ grouped, getVal, update, isDirty, isDisabled, parentOf, labels }: {
+  grouped: Record<string, { key: string; meta: FieldMeta }[]>;
+  getVal: (k: string) => any;
+  update: (k: string, v: any) => void;
+  isDirty: (k: string) => boolean;
+  isDisabled: (k: string) => boolean;
+  parentOf: (k: string) => string;
+  labels?: Record<string, string>;
+}) {
+  const keys = ['commission_base', 'commission_max_per_order', 'return_period_days'];
+  const all = grouped['Earning'] ?? [];
+  const items = all.filter(({ key }) => keys.includes(key));
+  if (items.length === 0) return null;
+  return (
+    <Card className="mb-4">
+      <p className="border-b border-gray-100 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
+        Safety — base, fraud cap, return cover
+      </p>
+      <div className="divide-y divide-gray-100">
+        {items.map(({ key, meta }) => (
+          <SettingRow
+            key={key}
+            fieldKey={key}
+            meta={meta}
+            value={getVal(key)}
+            onChange={(v) => update(key, v)}
+            dirty={isDirty(key)}
+            disabled={isDisabled(key)}
+            parentLabel={parentOf(key)}
+            plainLabel={labels?.[key] ?? meta.label ?? key}
+          />
+        ))}
+      </div>
+    </Card>
+  );
+}
+
+function EarningPresets({ presets, onPick }: {
+  presets?: { label: string; coupon: number; link: number }[];
+  onPick: (coupon: number, link: number) => void;
+}) {
+  const list = presets && presets.length > 0 ? presets : [
+    { label: 'Paused', coupon: 0, link: 0 },
+    { label: 'Low cost', coupon: 3, link: 3 },
+    { label: 'Standard', coupon: 5, link: 8 },
+    { label: 'Growth', coupon: 10, link: 10 },
+  ];
+  return (
+    <div className="mb-4 flex flex-wrap items-center gap-2">
+      <span className="text-xs font-medium text-gray-500">Quick earning:</span>
+      {list.map((p) => (
+        <button
+          key={p.label}
+          type="button"
+          onClick={() => onPick(p.coupon, p.link)}
+          title={`Coupon ${p.coupon}%, Link ${p.link}%`}
+          className="rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-gray-700 hover:border-primary-400 hover:text-primary-700"
+        >
+          {p.label} · {p.coupon}%/{p.link}%
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function SettingRow({
   fieldKey,
   meta,
@@ -519,6 +806,7 @@ function SettingRow({
   dirty,
   disabled,
   parentLabel,
+  plainLabel,
 }: {
   fieldKey: string;
   meta: FieldMeta;
@@ -527,8 +815,9 @@ function SettingRow({
   dirty: boolean;
   disabled: boolean;
   parentLabel: string;
+  plainLabel: string;
 }) {
-  const label = meta.label ?? '';
+  const label = plainLabel || meta.label || '';
   const description = meta.description;
 
   let control: React.ReactNode;

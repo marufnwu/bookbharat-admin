@@ -1,5 +1,19 @@
+import { useQuery } from '@tanstack/react-query';
 import { Badge } from '@/components';
+import { affiliatesApi } from '@/api/affiliates';
 import type { AffiliateStatus, CommissionStatus, PayoutStatus } from '@/types/affiliate';
+import type { MoneyMeta } from './moneyTruth';
+
+// Single source: commission/hold labels from backend money-meta.
+// Hook reads the cached meta (fetched once per session by moneyTruth).
+function useMetaLabels(): MoneyMeta | undefined {
+  const { data } = useQuery({
+    queryKey: ['affiliate-money-meta'],
+    queryFn: () => affiliatesApi.moneyMeta(),
+    staleTime: 10 * 60_000,
+  });
+  return data as MoneyMeta | undefined;
+}
 
 function affiliateVariant(s: AffiliateStatus): 'success' | 'warning' | 'error' {
   switch (s) {
@@ -41,7 +55,16 @@ export function AffiliateStatusBadge({ status }: { status: AffiliateStatus }) {
 }
 
 export function CommissionStatusBadge({ status }: { status: CommissionStatus }) {
-  return <Badge variant={commissionVariant(status)} size="sm">{status.replace('_', ' ')}</Badge>;
+  const meta = useMetaLabels();
+  const label = meta?.commission_status?.[status] ?? status.replace('_', ' ');
+  return <Badge variant={commissionVariant(status)} size="sm">{label}</Badge>;
+}
+
+export function HoldReasonBadge({ reason }: { reason: string }) {
+  const meta = useMetaLabels();
+  const label = meta?.hold_reasons?.[reason] ?? reason.replace('_', ' ');
+  const variant = reason === 'self_referral' ? 'error' : reason === 'refund_ratio' ? 'warning' : 'info';
+  return <Badge variant={variant} size="sm">{label}</Badge>;
 }
 
 export function PayoutStatusBadge({ status }: { status: PayoutStatus }) {

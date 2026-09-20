@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { affiliatesApi } from '@/api/affiliates';
+import { AffiliatePageHelp } from './AffiliatePageHelp';
 import { Card, CardContent, Button, LoadingSpinner, StatCard } from '@/components';
 import Table from '@/components/Table';
 import { CurrencyRupeeIcon, ShoppingBagIcon, ChartBarIcon, CursorArrowRaysIcon } from '@heroicons/react/24/outline';
@@ -46,8 +47,11 @@ export default function AffiliateAnalytics() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900">Affiliate Analytics</h1>
-          <p className="mt-1 text-sm text-gray-600">Click trends, conversion funnels, and top performers</p>
+          <h1 className="text-2xl font-semibold text-gray-900">Insights</h1>
+          <p className="mt-1 text-sm text-gray-600">Which links and products bring orders — same numbers as Reports, shown as charts</p>
+          <div className="mt-3">
+            <AffiliatePageHelp page="insights" />
+          </div>
         </div>
         <div className="flex gap-2">
           {[7, 30, 90].map((d) => (

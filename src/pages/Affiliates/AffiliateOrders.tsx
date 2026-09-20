@@ -5,6 +5,7 @@ import { affiliatesApi } from '@/api/affiliates';
 import { Card, Button, Input, Badge, LoadingSpinner, EmptyState, TablePagination } from '@/components';
 import Table from '@/components/Table';
 import { DateRangeFilter } from '@/components/DateRangeFilter';
+import { AffiliatePageHelp } from './AffiliatePageHelp';
 import { cn } from '@/utils/cn';
 
 const SOURCE_TABS = [
@@ -47,9 +48,12 @@ export default function AffiliateOrders() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-gray-900">Affiliate Orders</h1>
-        <p className="mt-1 text-sm text-gray-600">
-          Orders attributed to affiliate referrals
+          <h1 className="text-2xl font-semibold text-gray-900">Referral Orders</h1>
+          <div className="mt-3">
+            <AffiliatePageHelp page="orders" />
+          </div>
+          <p className="mt-1 text-sm text-gray-600">
+            Orders that came from an affiliate's coupon or link
           {meta && (
             <span className="ml-2 text-gray-500">
               · {meta.total?.toLocaleString() ?? '—'} matching current filters
@@ -78,7 +82,7 @@ export default function AffiliateOrders() {
             onChange={(e) => { setBlockedOnly(e.target.checked); setPage(1); }}
             className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
           />
-          Self-referral blocked only
+          Own purchases only
         </label>
       </div>
 

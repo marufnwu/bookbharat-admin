@@ -11,9 +11,11 @@ import {
   UsersIcon,
 } from '@heroicons/react/24/outline';
 import { affiliatesApi, downloadCsv, sanitizeCsvCell } from '@/api/affiliates';
+import api from '@/api/axios';
 import { Card, CardContent, Button, Input, Badge, LoadingSpinner, EmptyState, TablePagination } from '@/components';
 import Table from '@/components/Table';
 import { AffiliateStatusBadge } from './StatBadge';
+import { AffiliatePageHelp } from './AffiliatePageHelp';
 import { ReasonModal } from './ReasonModal';
 import { useCan } from '@/hooks/useCan';
 import { cn } from '@/utils/cn';
@@ -118,10 +120,47 @@ export default function AffiliateList() {
   const items = data?.items ?? [];
   const meta = data?.meta;
 
+  // Program defaults for the Earning column fallback (one fetch, no
+  // per-row calls). Blank default + blank override = "Varies by product".
+  const { data: programSettings } = useQuery({
+    queryKey: ['affiliate-settings-defaults'],
+    queryFn: () => api.get('/settings/affiliate').then((res) => res.data?.data),
+    staleTime: 5 * 60_000,
+  });
+  const programCoupon = programSettings?.coupon_default_commission_rate?.value;
+  const programLink = programSettings?.link_default_commission_rate?.value;
+
   const columns = [
     { key: 'full_name', title: 'Name', render: (_: any, a: Affiliate) => <span className="font-medium text-gray-900">{a.full_name}</span> },
     { key: 'email', title: 'Email' },
     { key: 'code', title: 'Code', render: (_: any, a: Affiliate) => <span className="font-mono text-xs">{a.code}</span> },
+    {
+      key: '_earning', title: 'Affiliate earns', render: (_: any, a: Affiliate) => {
+        const c = a.commission_rate_override_coupon ?? programCoupon;
+        const l = a.commission_rate_override_link ?? programLink;
+        const hasC = c !== null && c !== undefined && c !== '';
+        const hasL = l !== null && l !== undefined && l !== '';
+        const personal = a.commission_rate_override_coupon != null || a.commission_rate_override_link != null;
+        if (!hasC && !hasL) return <span className="text-xs text-gray-400">Varies by product</span>;
+        return (
+          <span className="text-xs font-medium text-gray-900" title={personal ? 'Personal rate for this affiliate' : 'Program rate'}>
+            {hasC ? `${c}%` : '—'} / {hasL ? `${l}%` : '—'}
+          </span>
+        );
+      },
+    },
+    {
+      key: '_buyer', title: 'Buyer gets', render: (_: any, a: Affiliate) => (
+        a.coupon?.is_active
+          ? <span className="text-xs font-medium text-gray-900">
+              {a.coupon.discount_value}% off
+              {a.coupon.maximum_discount_amount != null && Number(a.coupon.maximum_discount_amount) > 0
+                ? ` · max ₹${Number(a.coupon.maximum_discount_amount).toLocaleString('en-IN')}`
+                : ''}
+            </span>
+          : <span className="text-xs text-gray-400">No discount</span>
+      ),
+    },
     { key: 'status', title: 'Status', render: (_: any, a: Affiliate) => <AffiliateStatusBadge status={a.status} /> },
     {
       key: 'created_at',
@@ -136,6 +175,9 @@ export default function AffiliateList() {
         <div>
           <h1 className="text-2xl font-semibold text-gray-900">Affiliates</h1>
           <p className="mt-1 text-sm text-gray-600">Manage affiliate partners and their performance</p>
+          <div className="mt-3">
+            <AffiliatePageHelp page="affiliates" />
+          </div>
         </div>
         {items.length > 0 && canManage && (
           <Button variant="outline" size="sm" onClick={exportCsv}>

@@ -7,6 +7,7 @@ import { DateRangeFilter } from '@/components/DateRangeFilter';
 import Table from '@/components/Table';
 import { PayoutStatusBadge } from './StatBadge';
 import { ProcessPayoutModal } from './ProcessPayoutModal';
+import { AffiliatePageHelp } from './AffiliatePageHelp';
 import { BulkProcessPayoutModal } from './BulkProcessPayoutModal';
 import { ReasonModal } from './ReasonModal';
 import { cn } from '@/utils/cn';
@@ -14,12 +15,11 @@ import { useCan } from '@/hooks/useCan';
 import { toast } from '@/utils/toast';
 import type { AffiliatePayout, PayoutStatus } from '@/types/affiliate';
 
+// Only statuses the backend actually sets (Requested → Paid /
+// Rejected / Cancelled). Under Review / Processing / Failed never occur.
 const TABS: { key: PayoutStatus | 'all'; label: string }[] = [
-  { key: 'requested', label: 'Pending' },
-  { key: 'under_review', label: 'Under Review' },
-  { key: 'processing', label: 'Processing' },
-  { key: 'paid', label: 'Processed' },
-  { key: 'failed', label: 'Failed' },
+  { key: 'requested', label: 'Waiting' },
+  { key: 'paid', label: 'Paid' },
   { key: 'rejected', label: 'Rejected' },
   { key: 'cancelled', label: 'Cancelled' },
   { key: 'all', label: 'All' },
@@ -51,6 +51,12 @@ export default function Payouts() {
 
   const rows = data?.items ?? [];
   const meta = data?.meta;
+
+  const { data: clawbacks } = useQuery({
+    queryKey: ['payouts-dues'],
+    queryFn: () => affiliatesApi.listPendingClawbacks({ per_page: 1 }),
+  });
+  const duesTotal = Number(clawbacks?.total_pending ?? 0);
 
   async function handleReject(reason: string) {
     if (!rejecting) return;
@@ -97,6 +103,9 @@ export default function Payouts() {
         <div>
           <h1 className="text-2xl font-semibold text-gray-900">Payouts</h1>
           <p className="mt-1 text-sm text-gray-600">Process and manage affiliate payout requests</p>
+          <div className="mt-3 max-w-2xl">
+            <AffiliatePageHelp page="payouts" />
+          </div>
         </div>
         <div className="flex items-center gap-2">
           {rows.length > 0 && (
@@ -112,6 +121,16 @@ export default function Payouts() {
           )}
         </div>
       </div>
+
+      {duesTotal > 0 && (
+        <Card className="p-4 border-l-4 border-l-amber-500">
+          <p className="text-xs text-gray-500">Refund dues to deduct</p>
+          <p className="text-xl font-bold text-gray-900">{fmt(duesTotal)}</p>
+          <p className="text-xs text-gray-500 mt-1">
+            Taken back from future payouts automatically. See Advanced → Money To Take Back.
+          </p>
+        </Card>
+      )}
 
       <div className="flex gap-2 flex-wrap">
         {TABS.map((t) => (

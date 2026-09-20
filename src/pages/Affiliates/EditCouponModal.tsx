@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Modal, Button, Input, Select, Badge } from '@/components';
 import { affiliatesApi, type AffiliateCouponDetail } from '@/api/affiliates';
 import { toast } from '@/utils/toast';
+// Single source: buyer-discount math mirrors backend MoneyTruth::buyerDiscount().
+import { buyerDiscount, inr } from './moneyTruth';
 
 interface Props {
   open: boolean;
@@ -86,6 +89,26 @@ export function EditCouponModal({ open, affiliateId, coupon, onClose, onUpdated 
   const isExpired = expiresAt && new Date(expiresAt) < new Date();
   const expiredStyle = !isActive || isExpired;
 
+  // Program-wide coupon guardrails (cap shown as helper, not a surprise 422).
+  const { data: programSettings } = useQuery({
+    queryKey: ['coupon-guardrails'],
+    queryFn: () => affiliatesApi.programRates(),
+    staleTime: 5 * 60_000,
+    enabled: open,
+  });
+
+  // Category names for the allow/block lists (IDs still stored).
+  const { data: categories } = useQuery({
+    queryKey: ['coupon-categories'],
+    queryFn: () => affiliatesApi.listCategories(),
+    staleTime: 10 * 60_000,
+    enabled: open,
+  });
+  const catName = (id: number): string => {
+    const hit = (categories ?? []).find((c: any) => Number(c.id) === Number(id));
+    return hit ? `${hit.name} (#${hit.id})` : `#${id}`;
+  };
+
   return (
     <Modal
       open={open}
@@ -127,14 +150,42 @@ export function EditCouponModal({ open, affiliateId, coupon, onClose, onUpdated 
           </label>
         </div>
 
+        <h4 className="text-xs font-semibold uppercase tracking-wide text-gray-500">Discount — what the buyer saves</h4>
         <div className="grid grid-cols-2 gap-4">
           <Input
-            label="Discount value"
+            label="Buyer discount (%)"
             type="number"
             value={discountValue}
             onChange={(e) => setDiscountValue(e.target.value)}
-            helper="Percentage off"
+            helper="What the buyer saves at checkout"
             error={error ?? undefined}
+          />
+          <Input
+            label="Maximum discount per order (₹)"
+            type="number"
+            value={maximumDiscount}
+            onChange={(e) => setMaximumDiscount(e.target.value)}
+            placeholder="No cap"
+          />
+        </div>
+        {(() => {
+          const pct = parseFloat(discountValue);
+          const cap = maximumDiscount === '' ? null : Number(maximumDiscount);
+          if (!Number.isFinite(pct) || pct < 0) return null;
+          return (
+            <p className="rounded-md bg-emerald-50 px-3 py-2 text-xs text-emerald-900">
+              On a {inr(1000)} order the buyer saves {inr(buyerDiscount(1000, pct, Number.isFinite(cap as number) ? (cap as number) : null))}.
+              Changing program Settings later does not update this coupon — edit here.
+            </p>
+          );
+        })()}
+        <div className="grid grid-cols-2 gap-4">
+          <Input
+            label="Minimum order amount (₹)"
+            type="number"
+            value={minimumOrder}
+            onChange={(e) => setMinimumOrder(e.target.value)}
+            placeholder="0"
           />
           <Select
             label="First-order only?"
@@ -146,6 +197,8 @@ export function EditCouponModal({ open, affiliateId, coupon, onClose, onUpdated 
             ]}
           />
         </div>
+
+        <h4 className="text-xs font-semibold uppercase tracking-wide text-gray-500">Reuse — how often it works</h4>
 
         <div className="grid grid-cols-2 gap-4">
           <Input
@@ -163,22 +216,7 @@ export function EditCouponModal({ open, affiliateId, coupon, onClose, onUpdated 
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <Input
-            label="Minimum order amount (₹)"
-            type="number"
-            value={minimumOrder}
-            onChange={(e) => setMinimumOrder(e.target.value)}
-            placeholder="0"
-          />
-          <Input
-            label="Maximum discount per order (₹)"
-            type="number"
-            value={maximumDiscount}
-            onChange={(e) => setMaximumDiscount(e.target.value)}
-            placeholder="No cap"
-          />
-        </div>
+        <h4 className="text-xs font-semibold uppercase tracking-wide text-gray-500">Validity</h4>
 
         <div className="grid grid-cols-2 gap-4">
           <Input
@@ -197,27 +235,38 @@ export function EditCouponModal({ open, affiliateId, coupon, onClose, onUpdated 
           />
         </div>
 
-        <div className="space-y-2">
-          <Input
-            label="Applicable category IDs (blank = all)"
-            type="text"
-            value={applicableCategories}
-            onChange={(e) => setApplicableCategories(e.target.value)}
-            placeholder="e.g. 3, 7, 12"
-            helper="Comma-separated category IDs. Leave empty to apply to all categories."
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Input
-            label="Excluded category IDs"
-            type="text"
-            value={excludedCategories}
-            onChange={(e) => setExcludedCategories(e.target.value)}
-            placeholder="e.g. 5, 9"
-            helper="Comma-separated category IDs to exclude from this coupon."
-          />
-        </div>
+        <details className="rounded-md border border-gray-200 p-3">
+          <summary className="cursor-pointer text-xs font-semibold uppercase tracking-wide text-gray-500">
+            Category limits (advanced)
+          </summary>
+          <div className="mt-3 space-y-2">
+            <Input
+              label="Only these categories (blank = all)"
+              type="text"
+              value={applicableCategories}
+              onChange={(e) => setApplicableCategories(e.target.value)}
+              placeholder="e.g. 3, 7, 12"
+              helper="IDs work — names shown below after save."
+            />
+            {applicableCategories.trim() && (
+              <p className="text-xs text-gray-500">
+                {applicableCategories.split(',').map((p) => parseInt(p.trim(), 10)).filter((n) => Number.isFinite(n) && n > 0).map((n) => catName(n)).join(' · ')}
+              </p>
+            )}
+            <Input
+              label="Never these categories"
+              type="text"
+              value={excludedCategories}
+              onChange={(e) => setExcludedCategories(e.target.value)}
+              placeholder="e.g. 5, 9"
+            />
+            {excludedCategories.trim() && (
+              <p className="text-xs text-gray-500">
+                {excludedCategories.split(',').map((p) => parseInt(p.trim(), 10)).filter((n) => Number.isFinite(n) && n > 0).map((n) => catName(n)).join(' · ')}
+              </p>
+            )}
+          </div>
+        </details>
       </div>
     </Modal>
   );

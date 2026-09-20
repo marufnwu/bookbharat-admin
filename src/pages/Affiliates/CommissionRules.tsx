@@ -10,26 +10,15 @@ import { toast } from '@/utils/toast';
 import type { CommissionRule, CommissionRuleType } from '@/types/affiliate';
 import { useCan } from '@/hooks/useCan';
 import { ConfirmModal } from './ConfirmModal';
+import { AffiliatePageHelp } from './AffiliatePageHelp';
+// Single source: rate labels/reasons from backend money-meta.
+import { useMoneyMeta, rateSourceLabel, rateSourceWhy, inr } from './moneyTruth';
 
 const TABS: { key: CommissionRuleType; label: string }[] = [
   { key: 'default', label: 'Default' },
   { key: 'category', label: 'Category' },
   { key: 'product', label: 'Product' },
 ];
-
-// Human labels for rate resolution sources (mirrors CommissionRuleService)
-const SOURCE_LABELS: Record<string, string> = {
-  product_rule: 'product rule',
-  custom_product: 'custom product rate',
-  category_rule: 'category rule',
-  default_rule: 'default rule',
-  no_rule: 'no rule — excluded',
-  disabled: 'disabled',
-  affiliate_override_coupon: 'affiliate override (coupon)',
-  affiliate_override_link: 'affiliate override (link)',
-  global_default_coupon: 'global default (coupon)',
-  global_default_link: 'global default (link)',
-};
 
 export default function CommissionRules() {
   const [tab, setTab] = useState<CommissionRuleType>('default');
@@ -38,8 +27,18 @@ export default function CommissionRules() {
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const canManage = useCan('commission_rules.manage');
   const [simProductId, setSimProductId] = useState('');
+  const [simProductLabel, setSimProductLabel] = useState('');
+  const [simSource, setSimSource] = useState<'coupon' | 'link'>('coupon');
+  const [simAffiliate, setSimAffiliate] = useState('');
+  const [simAffiliates, setSimAffiliates] = useState<{ id: number; full_name: string; code: string }[]>([]);
   const [simResult, setSimResult] = useState<any>(null);
   const [simLoading, setSimLoading] = useState(false);
+
+  useEffect(() => {
+    affiliatesApi.list({ per_page: 100 }).then((r) => {
+      setSimAffiliates((r.items ?? []).map((a: any) => ({ id: a.id, full_name: a.full_name, code: a.code })));
+    }).catch(() => {});
+  }, []);
 
   const { data, refetch, isLoading, isError } = useQuery({
     queryKey: ['commission-rules', tab],
@@ -59,6 +58,13 @@ export default function CommissionRules() {
   });
 
   const rules = data?.rules ?? [];
+  // Single source: program rates for the top card + rate labels.
+  const { data: moneyMeta } = useMoneyMeta();
+  const { data: programSettings } = useQuery({
+    queryKey: ['affiliate-settings-program-rates'],
+    queryFn: () => affiliatesApi.programRates(),
+    staleTime: 5 * 60_000,
+  });
 
   async function performDelete(id: number) {
     try { await affiliatesApi.deleteRule(id); toast.success('Rule deleted'); refreshAll(); }
@@ -69,8 +75,11 @@ export default function CommissionRules() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900">Commission Rules</h1>
-          <p className="mt-1 text-sm text-gray-600">Configure commission rates for affiliates</p>
+          <h1 className="text-2xl font-semibold text-gray-900">Earning Rules</h1>
+          <p className="mt-1 text-sm text-gray-600">How much affiliates earn — standard rates live in Settings, special rates live here</p>
+          <div className="mt-3">
+            <AffiliatePageHelp page="earning-rules" />
+          </div>
         </div>
         {canManage && (
           <Button onClick={() => { setEditing(null); setModalOpen(true); }}>
@@ -79,35 +88,87 @@ export default function CommissionRules() {
         )}
       </div>
 
+      {/* Program rates card: the two Settings defaults that BEAT the rules
+          below them. Single source: values from settings, winner order from
+          money-meta hierarchy. */}
+      <Card className="p-4">
+        <h3 className="text-sm font-semibold text-gray-900">Program rates (apply first)</h3>
+        <p className="mt-1 text-xs text-gray-500">
+          These two Settings rates beat every product, category and default rule below.
+          A personal rate on an affiliate beats even these.
+        </p>
+        <div className="mt-2 grid gap-2 text-sm sm:grid-cols-2">
+          {(['coupon', 'link'] as const).map((src) => {
+            const raw = src === 'coupon' ? programSettings?.coupon_default : programSettings?.link_default;
+            const set = raw !== null && raw !== undefined && raw !== '';
+            return (
+              <div key={src} className="rounded-md bg-gray-50 px-3 py-2">
+                <span className="text-gray-500">{src === 'coupon' ? 'Coupon' : 'Link'} orders pay </span>
+                <strong className="text-gray-900">{set ? `${raw}%` : 'no fixed rate'}</strong>
+                <span className="text-gray-500"> {set ? '(program rate)' : '— catalog rules decide'}</span>
+              </div>
+            );
+          })}
+        </div>
+        <Link to="/affiliates/settings" className="mt-2 inline-block text-xs font-medium text-primary-600 hover:underline">
+          Change in Settings →
+        </Link>
+      </Card>
+
       {coverage && (
         <Card className={cn('p-4 flex flex-wrap items-center justify-between gap-3', coverage.uncovered_products > 0 && 'border-l-4 border-l-error-500')}>
           <div className="text-sm text-gray-700">
-            <strong className="text-gray-900">Coverage:</strong>{' '}
-            {coverage.explicit_rules_covered} explicit rules · {coverage.custom_rate_products} custom rates ·{' '}
-            <span className={coverage.uncovered_products > 0 ? 'font-semibold text-error-600' : 'text-gray-500'}>
-              {coverage.uncovered_products} uncovered (earn 0%){coverage.uncovered_products > 0 ? ' 🔴' : ''}
+            {coverage.uncovered_products > 0 ? (
+              <span>
+                <strong className="text-error-600">{coverage.uncovered_products} products earn nothing</strong>
+                {' '}— no rate anywhere (no rule, no custom rate, no program rate). Set one above or add a rule below.
+              </span>
+            ) : (
+              <span>Every enabled product has a rate — nothing earns 0 by accident.</span>
+            )}
+            <span className="text-gray-400 text-xs ml-2">
+              ({coverage.total_enabled_products} enabled · {coverage.disabled_products} switched off)
             </span>
-            {' '}· {coverage.disabled_products} disabled
-            <span className="text-gray-400 text-xs ml-2">({coverage.total_enabled_products} affiliate-enabled products)</span>
           </div>
           <Link to="/affiliates/product-settings">
-            <Button variant="outline" size="sm">Audit effective rates</Button>
+            <Button variant="outline" size="sm">See per-product rates</Button>
           </Link>
         </Card>
       )}
 
       <Card className="p-4">
-        <h3 className="text-sm font-semibold text-gray-900 mb-3">Rule Simulator</h3>
-        <p className="text-xs text-gray-500 mb-3">Test what commission rate a product would get based on current rules.</p>
-        <div className="flex gap-3 items-end">
-          <div className="flex-1 max-w-xs">
-            <Input
-              label="Product ID"
-              type="number"
-              value={simProductId}
-              onChange={(e) => setSimProductId(e.target.value)}
-              placeholder="Enter product ID"
+        <h3 className="text-sm font-semibold text-gray-900 mb-3">Check a product's earning</h3>
+        <p className="text-xs text-gray-500 mb-3">Pick a product, who sells it, and where the order came from — same answer the order system gives.</p>
+        <div className="flex gap-3 items-end flex-wrap">
+          <div className="flex-1 max-w-xs min-w-[220px]">
+            <ProductSearchInput
+              initialLabel=""
+              onSelect={(id, label) => { setSimProductId(String(id)); setSimProductLabel(label); }}
             />
+          </div>
+          <div className="max-w-[180px]">
+            <label className="mb-1 block text-sm font-medium text-gray-700">Order came from</label>
+            <select
+              value={simSource}
+              onChange={(e) => setSimSource(e.target.value as 'coupon' | 'link')}
+              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm"
+            >
+              <option value="coupon">Coupon order</option>
+              <option value="link">Link order</option>
+            </select>
+          </div>
+          <div className="max-w-[220px] flex-1 min-w-[180px]">
+            <label className="mb-1 block text-sm font-medium text-gray-700">For affiliate (optional)</label>
+            <select
+              value={simAffiliate}
+              onChange={(e) => setSimAffiliate(e.target.value)}
+              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm"
+            >
+              <option value="">Program rates (no personal override)</option>
+              {simAffiliates.map((a) => (
+                <option key={a.id} value={a.id}>{a.full_name} ({a.code})</option>
+              ))}
+            </select>
           </div>
           <Button
             variant="outline"
@@ -116,10 +177,17 @@ export default function CommissionRules() {
               if (!simProductId) return;
               setSimLoading(true);
               try {
-                const result = await affiliatesApi.simulateRule({ product_id: Number(simProductId) });
-                setSimResult(result);
+                // resolveBulk = same engine the order system uses (defaults,
+                // overrides, exclusions included). The old simulate endpoint
+                // ignored all of those and showed wrong rates.
+                const result = await affiliatesApi.resolveRates(
+                  [Number(simProductId)],
+                  simSource === 'coupon' ? 'coupon' : undefined,
+                  simAffiliate ? Number(simAffiliate) : undefined,
+                );
+                setSimResult({ ...(result?.resolutions?.[0] ?? null), _affiliateName: simAffiliates.find((a) => String(a.id) === simAffiliate)?.full_name });
               } catch (e: any) {
-                toast.error('Simulation failed');
+                toast.error('Check failed');
               } finally {
                 setSimLoading(false);
               }
@@ -127,17 +195,31 @@ export default function CommissionRules() {
             loading={simLoading}
             disabled={!simProductId}
           >
-            <MagnifyingGlassIcon className="h-4 w-4 mr-1" /> Simulate
+            <MagnifyingGlassIcon className="h-4 w-4 mr-1" /> Check
           </Button>
         </div>
         {simResult && (
           <div className="mt-3 p-3 bg-gray-50 rounded-lg text-sm">
             <div className="flex items-center gap-2">
-              <span className="text-gray-500">Result:</span>
-              <Badge variant={simResult.rate !== null ? 'success' : 'default'} size="sm">{simResult.rule_type ?? 'none'}</Badge>
-              {simResult.rate !== null && <span className="font-semibold text-gray-900">{simResult.rate}%</span>}
+              <span className="text-gray-500">Earning:</span>
+              <Badge variant={simResult.rate > 0 ? 'success' : 'default'} size="sm">{rateSourceLabel(moneyMeta, simResult.rate_source)}</Badge>
+              <span className="font-semibold text-gray-900">{simResult.rate}%</span>
             </div>
-            <p className="text-gray-600 mt-1">{simResult.message}</p>
+            <p className="text-gray-600 mt-1">
+              On a {inr(1000)} order{simProductLabel ? ` for ${simProductLabel}` : ''}{' '}
+              {simResult._affiliateName ? `${simResult._affiliateName}` : 'the affiliate'} would earn{' '}
+              {inr((1000 * Number(simResult.rate || 0)) / 100)} — because{' '}
+              {rateSourceWhy(moneyMeta, simResult.rate_source, simResult._affiliateName ?? '')}
+            </p>
+            {Array.isArray(simResult.beaten_by) && simResult.beaten_by.length > 0 && (
+              <ul className="mt-1 space-y-0.5 text-xs text-gray-500">
+                {simResult.beaten_by.map((b: any) => (
+                  <li key={b.source}>
+                    {b.rate}% ({b.label}) ignored — {b.why}
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         )}
       </Card>
@@ -169,11 +251,15 @@ export default function CommissionRules() {
         </Card>
       ) : (
         <div className="bg-white rounded-lg shadow">
-          <Table
+            <Table
             data={rules}
             columns={[
-              { key: '_target', title: 'Target', render: (_: any, r: any) => <span className="font-medium text-gray-900">{r.rule_type === 'default' ? 'All products (default)' : r.rule_type === 'category' ? 'Category #' + r.category_id : 'Product #' + r.product_id}</span> },
-              { key: 'rate', title: 'Rate', render: (_: any, r: any) => r.rate + '%', align: 'right' as const },
+              { key: '_target', title: 'Applies to', render: (_: any, r: any) => <span className="font-medium text-gray-900">{r.rule_type === 'default' ? 'Everything else (fallback)' : r.rule_type === 'category' ? (r.category?.name ?? 'Category') + ` (#${r.category_id})` : (r.product?.name ?? 'Product') + ` (#${r.product_id})`}</span> },
+              { key: 'rate', title: 'Pays', render: (_: any, r: any) => (
+                <span className={Number(r.rate) === 0 ? 'font-semibold text-red-600' : ''}>
+                  {r.rate}%{Number(r.rate) === 0 ? ' (excluded)' : ''}
+                </span>
+              ), align: 'right' as const },
               { key: 'is_active', title: 'Status', render: (_: any, r: any) => r.is_active ? <Badge variant="success" size="sm">Active</Badge> : <Badge variant="default" size="sm">Inactive</Badge> },
               { key: '_actions', title: 'Actions', render: (_: any, r: any) => (
                 canManage ? (
@@ -440,31 +526,7 @@ function RuleModal({ open, rule, onClose, onSaved, onEditExisting }: {
           </div>
         )}
         {ruleType === 'product' && beforeRate && (
-          <div className="rounded-lg bg-gray-50 border border-gray-200 p-3 text-sm">
-            <p>
-              Currently:{' '}
-              <strong className={beforeRate.rate <= 0 ? 'text-red-600' : 'text-gray-900'}>
-                {beforeRate.rate}%
-              </strong>{' '}
-              <span className="text-gray-500">({SOURCE_LABELS[beforeRate.rate_source] ?? beforeRate.rate_source})</span>
-            </p>
-            <p>
-              After saving:{' '}
-              <strong className={parseFloat(rate) <= 0 ? 'text-red-600' : 'text-primary-700'}>
-                {rate || 0}%
-              </strong>{' '}
-              <span className="text-gray-500">(your new product rule)</span>
-            </p>
-            {parseFloat(rate) === 0 && (
-              <p className="text-xs text-red-600 mt-1">⚠ A 0% rule excludes this product from commissions.</p>
-            )}
-            {Number(beforeRate.rate) === parseFloat(rate) && (
-              <p className="text-xs text-gray-400 mt-1">No change to the effective rate.</p>
-            )}
-            <p className="text-xs text-gray-400 mt-1.5">
-              Rate is locked at order placement — later rule changes never rewrite past commissions.
-            </p>
-          </div>
+          <RuleBeforeAfter beforeRate={beforeRate} rate={rate} />
         )}
         <label className="flex items-center gap-2 text-sm text-gray-700">
           <input
@@ -477,6 +539,37 @@ function RuleModal({ open, rule, onClose, onSaved, onEditExisting }: {
         </label>
       </div>
     </Modal>
+  );
+}
+
+function RuleBeforeAfter({ beforeRate, rate }: { beforeRate: { rate: number; rate_source: string }; rate: string }) {
+  const { data: meta } = useMoneyMeta();
+  return (
+    <div className="rounded-lg bg-gray-50 border border-gray-200 p-3 text-sm">
+      <p>
+        Currently:{' '}
+        <strong className={beforeRate.rate <= 0 ? 'text-red-600' : 'text-gray-900'}>
+          {beforeRate.rate}%
+        </strong>{' '}
+        <span className="text-gray-500">({rateSourceLabel(meta, beforeRate.rate_source)} — {rateSourceWhy(meta, beforeRate.rate_source)})</span>
+      </p>
+      <p>
+        After saving:{' '}
+        <strong className={parseFloat(rate) <= 0 ? 'text-red-600' : 'text-primary-700'}>
+          {rate || 0}%
+        </strong>{' '}
+        <span className="text-gray-500">(your new product rule)</span>
+      </p>
+      {parseFloat(rate) === 0 && (
+        <p className="text-xs text-red-600 mt-1">⚠ A 0% rule excludes this product from commissions.</p>
+      )}
+      {Number(beforeRate.rate) === parseFloat(rate) && (
+        <p className="text-xs text-gray-400 mt-1">No change to the effective rate.</p>
+      )}
+      <p className="text-xs text-gray-400 mt-1.5">
+        Rate is locked at order placement — later rule changes never rewrite past commissions.
+      </p>
+    </div>
   );
 }
 
