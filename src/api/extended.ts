@@ -122,8 +122,9 @@ export const categoriesApiExtended = {
     }).then(res => res.data);
   },
 
-  // Extended methods
-  getAll: () => api.get('/categories?per_page=100').then(res => res.data),
+  // Extended methods — fetch all at once so the client can rebuild the full tree
+  // (100 truncates stores with deep nesting; paginator shape unchanged)
+  getAll: () => api.get('/categories?per_page=1000').then(res => res.data),
   create: (data: FormData) => {
     // Remove Content-Type header to let axios set it with proper boundary
     const config = {

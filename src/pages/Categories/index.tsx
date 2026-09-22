@@ -117,6 +117,9 @@ const Categories: React.FC = () => {
     if (type === 'checkbox') {
       const checked = (e.target as HTMLInputElement).checked;
       setFormData(prev => ({ ...prev, [name]: checked }));
+    } else if (name === 'parent_id') {
+      // Select gives '' for "None" — normalize to null, otherwise keep numeric id
+      setFormData(prev => ({ ...prev, parent_id: value === '' ? null : Number(value) }));
     } else {
       setFormData(prev => ({ ...prev, [name]: value }));
     }
@@ -160,13 +163,20 @@ const Categories: React.FC = () => {
     data.append('name', formData.name);
     data.append('slug', formData.slug);
 
-    // Only append optional fields if they have values
-    if (formData.description) {
-      data.append('description', formData.description);
-    }
-
-    if (formData.parent_id) {
-      data.append('parent_id', formData.parent_id.toString());
+    // parent_id + description must always be sent on update: '' clears them.
+    // (Previously omitted when empty, so "None (Top Level)" never detached the
+    //  category and clearing the description never stuck. Creation still omits
+    //  empty values — absent == top level / empty there.)
+    if (editingCategory) {
+      data.append('parent_id', formData.parent_id != null ? formData.parent_id.toString() : '');
+      data.append('description', formData.description || '');
+    } else {
+      if (formData.description) {
+        data.append('description', formData.description);
+      }
+      if (formData.parent_id) {
+        data.append('parent_id', formData.parent_id.toString());
+      }
     }
 
     data.append('is_active', formData.is_active ? '1' : '0');
@@ -199,7 +209,11 @@ const Categories: React.FC = () => {
   };
 
   const handleDelete = (category: Category) => {
-    if (category.children && category.children.length > 0) {
+    // API list is flat (no children eager-loaded), so detect subcategories from flat list
+    const hasSubcategories =
+      categories.some((c: Category) => (c.parent_id ?? null) === category.id) ||
+      (category.children !== undefined && category.children.length > 0);
+    if (hasSubcategories) {
       toast.error('Cannot delete category with subcategories');
       return;
     }
@@ -237,22 +251,32 @@ const Categories: React.FC = () => {
     );
   };
 
+  const getRootOrderedIds = (): number[] => {
+    if (pendingOrder.length > 0) return pendingOrder;
+    return [...categories]
+      .filter((c: Category) => (c.parent_id ?? null) == null)
+      .sort((a: Category, b: Category) => (a.sort_order || 0) - (b.sort_order || 0))
+      .map((c: Category) => c.id);
+  };
+
   // Move category up in the pending order
   const handleMoveUp = (categoryId: number) => {
+    const baseOrder = getRootOrderedIds();
+    // Initialize on first click AND apply the move immediately
     if (pendingOrder.length === 0) {
-      // Initialize pendingOrder with current root category order
-      const rootCategories = categories.filter((c: Category) => c.parent_id == null).sort((a: Category, b: Category) => (a.sort_order || 0) - (b.sort_order || 0));
-      setPendingOrder(rootCategories.map((c: Category) => c.id));
-      return;
+      setPendingOrder(baseOrder);
     }
 
-    const idx = pendingOrder.indexOf(categoryId);
-    if (idx <= 0) return; // Already at top
+    const idx = baseOrder.indexOf(categoryId);
+    if (idx <= 0) {
+      if (pendingOrder.length === 0) setPendingOrder(baseOrder);
+      return; // Already at top
+    }
 
     // Trigger animation on the item being moved
     setAnimatingId(categoryId);
 
-    const newOrder = [...pendingOrder];
+    const newOrder = [...baseOrder];
     [newOrder[idx - 1], newOrder[idx]] = [newOrder[idx], newOrder[idx - 1]];
     setPendingOrder(newOrder);
 
@@ -262,20 +286,21 @@ const Categories: React.FC = () => {
 
   // Move category down in the pending order
   const handleMoveDown = (categoryId: number) => {
+    const baseOrder = getRootOrderedIds();
     if (pendingOrder.length === 0) {
-      // Initialize pendingOrder with current root category order
-      const rootCategories = categories.filter((c: Category) => c.parent_id == null).sort((a: Category, b: Category) => (a.sort_order || 0) - (b.sort_order || 0));
-      setPendingOrder(rootCategories.map((c: Category) => c.id));
-      return;
+      setPendingOrder(baseOrder);
     }
 
-    const idx = pendingOrder.indexOf(categoryId);
-    if (idx < 0 || idx >= pendingOrder.length - 1) return; // Already at bottom
+    const idx = baseOrder.indexOf(categoryId);
+    if (idx < 0 || idx >= baseOrder.length - 1) {
+      if (pendingOrder.length === 0) setPendingOrder(baseOrder);
+      return; // Already at bottom
+    }
 
     // Trigger animation on the item being moved
     setAnimatingId(categoryId);
 
-    const newOrder = [...pendingOrder];
+    const newOrder = [...baseOrder];
     [newOrder[idx], newOrder[idx + 1]] = [newOrder[idx + 1], newOrder[idx]];
     setPendingOrder(newOrder);
 
@@ -305,12 +330,22 @@ const Categories: React.FC = () => {
 
   // Build category tree - sorted by sort_order within each level, or by pendingOrder if set
   const buildCategoryTree = (categories: Category[], parentId: number | null = null, level = 0): Category[] => {
-    const filtered = categories.filter(cat => cat.parent_id === parentId);
+    const normalizedParent = parentId ?? null;
+    const filtered = categories.filter(cat => (cat.parent_id ?? null) == normalizedParent);
 
-    // Sort by pendingOrder if set, otherwise by sort_order
-    const sorted = pendingOrder.length > 0 && parentId === null
-      ? filtered.sort((a, b) => pendingOrder.indexOf(a.id) - pendingOrder.indexOf(b.id))
-      : filtered.sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+    // Sort by pendingOrder if set, otherwise by sort_order (copy first to avoid mutating source)
+    const sorted = [...filtered].sort((a, b) => {
+      if (pendingOrder.length > 0 && normalizedParent === null) {
+        const ai = pendingOrder.indexOf(a.id);
+        const bi = pendingOrder.indexOf(b.id);
+        // Keep unknown ids at the end in sort_order order
+        if (ai === -1 && bi === -1) return (a.sort_order || 0) - (b.sort_order || 0);
+        if (ai === -1) return 1;
+        if (bi === -1) return -1;
+        return ai - bi;
+      }
+      return (a.sort_order || 0) - (b.sort_order || 0);
+    });
 
     return sorted.map(cat => ({
       ...cat,
@@ -344,136 +379,143 @@ const Categories: React.FC = () => {
 
   const filteredCategories = filterCategories(categoryTree, searchTerm);
 
+  const isSearching = searchTerm.trim().length > 0;
+
   const renderCategory = (category: Category) => {
-    const isExpanded = expandedCategories.includes(category.id);
-    const hasChildren = category.children && category.children.length > 0;
-    const isRoot = category.level === 0;
-    const rootCategories = pendingOrder.length > 0
-      ? pendingOrder
-      : categories.filter((c: Category) => c.parent_id == null).sort((a: Category, b: Category) => (a.sort_order || 0) - (b.sort_order || 0)).map((c: Category) => c.id);
-    const currentIdx = rootCategories.indexOf(category.id);
+    const isExpanded = isSearching ? true : expandedCategories.includes(category.id);
+    const hasChildren = !!category.children && category.children.length > 0;
+    const isRoot = (category.level || 0) === 0;
+    const rootIds = getRootOrderedIds();
+    const currentIdx = rootIds.indexOf(category.id);
     const canMoveUp = isRoot && currentIdx > 0;
-    const canMoveDown = isRoot && currentIdx < rootCategories.length - 1;
+    const canMoveDown = isRoot && currentIdx >= 0 && currentIdx < rootIds.length - 1;
 
     return (
       <div
         key={category.id}
         className={cn(
-          "flex items-center transition-all duration-300",
-          animatingId === category.id && category.level === 0 && "bg-blue-50 scale-[1.02] shadow-md rounded-lg z-10"
+          "transition-all duration-300 border-b last:border-b-0",
+          animatingId === category.id && category.level === 0 && "bg-blue-50"
         )}
       >
-        {/* Order buttons column - fixed width to align content properly */}
-        <div className="w-20 flex-shrink-0 flex items-center justify-center gap-1">
-          {isRoot && (
-            <>
-              <button
-                onClick={() => handleMoveUp(category.id)}
-                disabled={!canMoveUp}
-                className={cn(
-                  "w-7 h-7 flex items-center justify-center rounded border transition-all duration-150",
-                  canMoveUp
-                    ? "border-gray-300 bg-white text-gray-500 hover:bg-blue-500 hover:text-white hover:border-blue-500 shadow-sm"
-                    : "border-gray-100 bg-gray-50 text-gray-300 cursor-not-allowed"
-                )}
-                title="Move up"
-              >
-                <ChevronUp className="h-4 w-4" />
-              </button>
-              <button
-                onClick={() => handleMoveDown(category.id)}
-                disabled={!canMoveDown}
-                className={cn(
-                  "w-7 h-7 flex items-center justify-center rounded border transition-all duration-150",
-                  canMoveDown
-                    ? "border-gray-300 bg-white text-gray-500 hover:bg-blue-500 hover:text-white hover:border-blue-500 shadow-sm"
-                    : "border-gray-100 bg-gray-50 text-gray-300 cursor-not-allowed"
-                )}
-                title="Move down"
-              >
-                <ChevronDown className="h-4 w-4" />
-              </button>
-            </>
-          )}
-        </div>
-
-        <div
-          className="flex-1 flex items-center justify-between p-3 border-b bg-white hover:bg-gray-50 transition-colors"
-          style={{ paddingLeft: `${(category.level || 0) * 2 + 0.5}rem` }}
-        >
-          <div className="flex items-center gap-3 flex-1">
-            <button
-              onClick={() => hasChildren && toggleExpand(category.id)}
-              className="p-1 hover:bg-gray-100 rounded transition-colors"
-              disabled={!hasChildren}
-            >
-              {hasChildren ? (
-                isExpanded ? (
-                  <ChevronDown className="h-4 w-4 text-gray-500" />
-                ) : (
-                  <ChevronRight className="h-4 w-4 text-gray-500" />
-                )
-              ) : (
-                <div className="w-4 h-4" />
-              )}
-            </button>
-
-            {category.image_url ? (
-              <img
-                src={category.image_url}
-                alt={category.name}
-                className="w-10 h-10 object-cover rounded-lg shadow-sm"
-              />
-            ) : (
-              <div className="w-10 h-10 bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg flex items-center justify-center shadow-sm">
-                {isExpanded ? (
-                  <FolderOpen className="h-5 w-5 text-gray-500" />
-                ) : (
-                  <Folder className="h-5 w-5 text-gray-500" />
-                )}
-              </div>
+        {/* Row: order buttons + content on one horizontal line */}
+        <div className="flex items-center bg-white hover:bg-gray-50 transition-colors">
+          {/* Order buttons column - only for roots, fixed width keeps rows aligned */}
+          <div className="w-20 flex-shrink-0 flex items-center justify-center gap-1">
+            {isRoot && (
+              <>
+                <button
+                  onClick={() => handleMoveUp(category.id)}
+                  disabled={!canMoveUp}
+                  className={cn(
+                    "w-7 h-7 flex items-center justify-center rounded border transition-all duration-150",
+                    canMoveUp
+                      ? "border-gray-300 bg-white text-gray-500 hover:bg-blue-500 hover:text-white hover:border-blue-500 shadow-sm"
+                      : "border-gray-100 bg-gray-50 text-gray-300 cursor-not-allowed"
+                  )}
+                  title="Move up"
+                >
+                  <ChevronUp className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => handleMoveDown(category.id)}
+                  disabled={!canMoveDown}
+                  className={cn(
+                    "w-7 h-7 flex items-center justify-center rounded border transition-all duration-150",
+                    canMoveDown
+                      ? "border-gray-300 bg-white text-gray-500 hover:bg-blue-500 hover:text-white hover:border-blue-500 shadow-sm"
+                      : "border-gray-100 bg-gray-50 text-gray-300 cursor-not-allowed"
+                  )}
+                  title="Move down"
+                >
+                  <ChevronDown className="h-4 w-4" />
+                </button>
+              </>
             )}
-
-            <div className="flex-1">
-              <p className="font-medium">{category.name}</p>
-              <p className="text-sm text-gray-500">{category.slug}</p>
-            </div>
           </div>
 
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-gray-500">
-              {category.products_count || 0} products
-            </span>
-
-            <span className={`
-              px-2 py-1 rounded-full text-xs font-medium
-              ${category.is_active
-                ? 'bg-green-100 text-green-800'
-                : 'bg-gray-100 text-gray-800'
-              }
-            `}>
-              {category.is_active ? 'Active' : 'Inactive'}
-            </span>
-
-            <div className="flex items-center gap-1">
+          <div
+            className="flex-1 flex items-center justify-between gap-3 p-3 min-w-0"
+            style={{ paddingLeft: `${(category.level || 0) * 1.75}rem` }}
+          >
+            <div className="flex items-center gap-3 flex-1 min-w-0">
               <button
-                onClick={() => handleEdit(category)}
-                className="p-1 text-blue-600 hover:bg-blue-50 rounded"
+                onClick={() => hasChildren && !isSearching && toggleExpand(category.id)}
+                className="p-1 hover:bg-gray-100 rounded transition-colors flex-shrink-0"
+                disabled={!hasChildren || isSearching}
+                title={isSearching ? 'Expanded for search' : hasChildren ? 'Expand/collapse' : 'No subcategories'}
               >
-                <Edit className="h-4 w-4" />
+                {hasChildren ? (
+                  isExpanded ? (
+                    <ChevronDown className="h-4 w-4 text-gray-500" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4 text-gray-500" />
+                  )
+                ) : (
+                  <div className="w-4 h-4" />
+                )}
               </button>
-              <button
-                onClick={() => handleDelete(category)}
-                className="p-1 text-red-600 hover:bg-red-50 rounded"
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
+
+              {category.image_url ? (
+                <img
+                  src={category.image_url}
+                  alt={category.name}
+                  className="w-10 h-10 object-cover rounded-lg shadow-sm flex-shrink-0"
+                />
+              ) : (
+                <div className="w-10 h-10 bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg flex items-center justify-center shadow-sm flex-shrink-0">
+                  {isExpanded && hasChildren ? (
+                    <FolderOpen className="h-5 w-5 text-gray-500" />
+                  ) : (
+                    <Folder className="h-5 w-5 text-gray-500" />
+                  )}
+                </div>
+              )}
+
+              <div className="flex-1 min-w-0">
+                <p className="font-medium truncate">{category.name}</p>
+                <p className="text-sm text-gray-500 truncate">{category.slug}</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 sm:gap-4 flex-shrink-0">
+              <span className="text-sm text-gray-500 whitespace-nowrap hidden sm:inline">
+                {category.products_count || 0} products
+              </span>
+              <span className="text-sm text-gray-500 whitespace-nowrap sm:hidden">
+                {category.products_count || 0}
+              </span>
+
+              <span className={`
+                px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap
+                ${category.is_active
+                  ? 'bg-green-100 text-green-800'
+                  : 'bg-gray-100 text-gray-800'
+                }
+              `}>
+                {category.is_active ? 'Active' : 'Inactive'}
+              </span>
+
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => handleEdit(category)}
+                  className="p-1 text-blue-600 hover:bg-blue-50 rounded"
+                >
+                  <Edit className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => handleDelete(category)}
+                  className="p-1 text-red-600 hover:bg-red-50 rounded"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
             </div>
           </div>
         </div>
 
         {isExpanded && hasChildren && (
-          <div>
+          <div className="border-t border-gray-100">
             {category.children?.map(child => renderCategory(child))}
           </div>
         )}
@@ -608,13 +650,23 @@ const Categories: React.FC = () => {
                 </label>
                 <select
                   name="parent_id"
-                  value={formData.parent_id || ''}
+                  value={formData.parent_id ?? ''}
                   onChange={handleInputChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="">None (Top Level)</option>
                   {categories
-                    .filter((cat: Category) => cat.id !== editingCategory?.id)
+                    .filter((cat: Category) => {
+                      if (!editingCategory) return true;
+                      if (cat.id === editingCategory.id) return false;
+                      // Exclude descendants of the edited category (backend would 422 them)
+                      let pid: number | null | undefined = cat.parent_id;
+                      while (pid != null) {
+                        if (pid === editingCategory.id) return false;
+                        pid = categories.find((c: Category) => c.id === pid)?.parent_id;
+                      }
+                      return true;
+                    })
                     .map((cat: Category) => (
                       <option key={cat.id} value={cat.id}>
                         {cat.name}
