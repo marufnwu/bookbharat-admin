@@ -32,6 +32,7 @@ import SeoPreviewPanel from '../../components/products/SeoPreviewPanel';
 import SeoFieldHelp from '../../components/products/SeoFieldHelp';
 import KeywordChips from '../../components/products/KeywordChips';
 import AiSeoSidebar from '../../components/products/AiSeoSidebar';
+import EntityCombobox from '../../components/products/EntityCombobox';
 import { useSeoAutoFill } from '../../hooks/useSeoAutoFill';
 import { toKg, toGrams } from '../../utils/weight';
 import { isValidSlug, sanitizeSlug, SLUG_ERROR_MESSAGE } from '../../utils/slug';
@@ -60,6 +61,7 @@ interface ProductForm {
   stock_quantity: number;
   category_id: number;
   author?: string;
+  author_id?: number;
   publisher?: string;
   publisher_id?: number;
   isbn?: string;
@@ -227,6 +229,7 @@ const ProductEdit: React.FC = () => {
     stock_quantity: 0,
     category_id: 0,
     author: '',
+    author_id: undefined,
     publisher: '',
     publisher_id: undefined,
     isbn: '',
@@ -283,10 +286,12 @@ const ProductEdit: React.FC = () => {
 
   const publishers = publishersResponse?.data?.data || publishersResponse?.data || [];
 
-  const { data: authors } = useQuery({
+  const { data: authorsResponse } = useQuery({
     queryKey: ['authors'],
     queryFn: authorsApi.getAll,
   });
+
+  const authors = authorsResponse?.data?.data || authorsResponse?.data || [];
 
   // Load product data when available
   useEffect(() => {
@@ -307,7 +312,9 @@ const ProductEdit: React.FC = () => {
         stock_quantity: p.stock_quantity || 0,
         category_id: p.category_id || 0,
         author: p.author || (p.authors && p.authors.length > 0 ? p.authors[0].name : ''),
+        author_id: p.author_id || undefined,
         publisher: p.publisher || '',
+        publisher_id: p.publisher_id || undefined,
         isbn: p.isbn || '',
         language: p.language || 'English',
         pages: p.pages || undefined,
@@ -754,19 +761,22 @@ const ProductEdit: React.FC = () => {
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Author
-                    </label>
-                    <input
-                      type="text"
-                      name="author"
-                      value={formData.author}
-                      onChange={handleInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="Enter author name"
-                    />
-                  </div>
+                  <EntityCombobox
+                    label="Author"
+                    value={formData.author || ''}
+                    selectedId={formData.author_id}
+                    items={authors}
+                    onChange={(name, selectedId) =>
+                      setFormData(prev => ({ ...prev, author: name, author_id: selectedId }))
+                    }
+                    onClear={() =>
+                      setFormData(prev => ({ ...prev, author: '', author_id: undefined }))
+                    }
+                    placeholder="Search or type author name..."
+                    createTitle="Create New Author"
+                    notFoundHint="Author not found, click to create"
+                    addNewHint="Add new author"
+                  />
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">

@@ -34,6 +34,7 @@ import SiteSettings from "./pages/Settings/SiteSettings";
 import TestTailwind from "./pages/TestTailwind";
 import Categories from "./pages/Categories";
 import PublishersList from "./pages/Publishers/PublishersList";
+import AuthorsList from "./pages/Authors/AuthorsList";
 import Reviews from "./pages/Reviews";
 import Coupons from "./pages/Coupons";
 import AffiliateList from "./pages/Affiliates/AffiliateList";
@@ -199,6 +200,7 @@ const App: React.FC = () => {
               {/* Categories */}
               <Route path="categories" element={<Categories />} />
               <Route path="publishers" element={<PublishersList />} />
+              <Route path="authors" element={<AuthorsList />} />
 
               {/* Reviews */}
               <Route path="reviews" element={<Reviews />} />

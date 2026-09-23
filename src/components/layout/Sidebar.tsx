@@ -92,6 +92,7 @@ const navigation: NavigationItem[] = [
       { name: 'Preorders', href: '/preorders', icon: Calendar },
       { name: 'Categories', href: '/categories', icon: FolderOpen },
       { name: 'Publishers', href: '/publishers', icon: BookOpen },
+      { name: 'Authors', href: '/authors', icon: BookOpen },
       { name: 'Reviews', href: '/reviews', icon: Star },
       { name: 'Packaging', href: '/packaging', icon: Gift },
     ],
