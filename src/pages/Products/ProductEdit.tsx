@@ -34,6 +34,7 @@ import KeywordChips from '../../components/products/KeywordChips';
 import AiSeoSidebar from '../../components/products/AiSeoSidebar';
 import { useSeoAutoFill } from '../../hooks/useSeoAutoFill';
 import { toKg, toGrams } from '../../utils/weight';
+import { isValidSlug, sanitizeSlug, SLUG_ERROR_MESSAGE } from '../../utils/slug';
 import {
   Card,
   CardHeader,
@@ -294,7 +295,9 @@ const ProductEdit: React.FC = () => {
       setFormData({
         name: p.name || p.title || '',
         sku: p.sku || p.isbn || '',
-        slug: p.slug || '',
+        // Sanitize on load: legacy dirty slugs (spaces/&/dashes) get cleaned
+        // in the form, so the next save repairs them via the normal path.
+        slug: sanitizeSlug(p.slug || ''),
         description: p.description || '',
         short_description: p.short_description || '',
         price: parseFloat(String(p.price)) || 0,
@@ -390,6 +393,13 @@ const ProductEdit: React.FC = () => {
       const slug = value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
       setFormData(prev => ({ ...prev, slug }));
     }
+  };
+
+  // Slug inputs never store spaces/&/punctuation: typed junk collapses to a
+  // single hyphen live (mirrors backend Slugs::normalize), so a slug with
+  // a space can never be submitted.
+  const handleSlugChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData(prev => ({ ...prev, slug: sanitizeSlug(e.target.value) }));
   };
 
   const handleAiSuggestion = (field: string, value: any) => {
@@ -495,6 +505,12 @@ const ProductEdit: React.FC = () => {
 
     if (!formData.name || !formData.sku || !formData.category_id) {
       toast.error('Please fill in all required fields');
+      return;
+    }
+
+    // Slug backstop (AI suggestions / any path bypassing handleSlugChange)
+    if (formData.slug && !isValidSlug(formData.slug)) {
+      toast.error(SLUG_ERROR_MESSAGE);
       return;
     }
 
@@ -691,8 +707,9 @@ const ProductEdit: React.FC = () => {
                       type="text"
                       name="slug"
                       value={formData.slug}
-                      onChange={handleInputChange}
+                      onChange={handleSlugChange}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="auto-generated-from-name"
                     />
                   </div>
 
@@ -1680,7 +1697,7 @@ const ProductEdit: React.FC = () => {
                           type="text"
                           name="slug"
                           value={formData.slug || ''}
-                          onChange={handleInputChange}
+                          onChange={handleSlugChange}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
                           placeholder="auto-generated-from-name"
                         />

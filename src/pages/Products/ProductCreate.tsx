@@ -17,6 +17,7 @@ import KeywordChips from '../../components/products/KeywordChips';
 import AiSeoSidebar from '../../components/products/AiSeoSidebar';
 import { useSeoAutoFill } from '../../hooks/useSeoAutoFill';
 import { toKg, toGrams } from '../../utils/weight';
+import { isValidSlug, sanitizeSlug, SLUG_ERROR_MESSAGE } from '../../utils/slug';
 import {
   Card,
   CardHeader,
@@ -200,6 +201,13 @@ const ProductCreate: React.FC = () => {
     }
   };
 
+  // Slug inputs never store spaces/&/punctuation: typed junk collapses to a
+  // single hyphen live (mirrors backend Slugs::normalize), so a slug with
+  // a space can never be submitted.
+  const handleSlugChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData(prev => ({ ...prev, slug: sanitizeSlug(e.target.value) }));
+  };
+
   const handleAiSuggestion = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
@@ -313,6 +321,12 @@ const ProductCreate: React.FC = () => {
     // Validate required fields
     if (!formData.name || !formData.sku || !formData.category_id) {
       toast.error('Please fill in all required fields');
+      return;
+    }
+
+    // Slug backstop (AI suggestions / any path bypassing handleSlugChange)
+    if (formData.slug && !isValidSlug(formData.slug)) {
+      toast.error(SLUG_ERROR_MESSAGE);
       return;
     }
 
@@ -477,8 +491,9 @@ const ProductCreate: React.FC = () => {
                   type="text"
                   name="slug"
                   value={formData.slug}
-                  onChange={handleInputChange}
+                  onChange={handleSlugChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="auto-generated-from-name"
                 />
               </div>
 
@@ -1572,7 +1587,7 @@ const ProductCreate: React.FC = () => {
                         type="text"
                         name="slug"
                         value={formData.slug || ''}
-                        onChange={handleInputChange}
+                        onChange={handleSlugChange}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
                         placeholder="auto-generated-from-name"
                       />
