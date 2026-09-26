@@ -92,6 +92,15 @@ module.exports = {
         'slide-up': 'slideUp 0.3s ease-out',
         'scale-in': 'scaleIn 0.2s ease-out',
         'spin-slow': 'spin 3s linear infinite',
+        // Command palette
+        'palette-in': 'paletteIn 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
+        'cascade-in': 'cascadeIn 0.26s cubic-bezier(0.16, 1, 0.3, 1) both',
+        // Celebration
+        'confetti-fall': 'confettiFall 2.2s cubic-bezier(0.25, 0.6, 0.35, 1) forwards',
+        'pop-ring': 'popRing 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+        // Live indicators
+        'pulse-dot': 'pulseDot 1.8s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+        'sheen': 'sheen 2.4s ease-in-out infinite',
       },
       keyframes: {
         fadeIn: {
@@ -125,6 +134,31 @@ module.exports = {
         scaleIn: {
           '0%': { transform: 'scale(0.95)', opacity: '0' },
           '100%': { transform: 'scale(1)', opacity: '1' },
+        },
+        paletteIn: {
+          '0%': { transform: 'translateY(-8px) scale(0.97)', opacity: '0' },
+          '100%': { transform: 'translateY(0) scale(1)', opacity: '1' },
+        },
+        // Staggered reveal for palette results — the delay is set per-row inline.
+        cascadeIn: {
+          '0%': { transform: 'translateY(6px)', opacity: '0' },
+          '100%': { transform: 'translateY(0)', opacity: '1' },
+        },
+        confettiFall: {
+          '0%': { transform: 'translate3d(0, -10vh, 0) rotate(0deg)', opacity: '1' },
+          '100%': { transform: 'translate3d(var(--drift, 0px), 105vh, 0) rotate(720deg)', opacity: '0' },
+        },
+        popRing: {
+          '0%': { transform: 'scale(0.6)', opacity: '0.9' },
+          '100%': { transform: 'scale(2.4)', opacity: '0' },
+        },
+        pulseDot: {
+          '0%, 100%': { transform: 'scale(1)', opacity: '1' },
+          '50%': { transform: 'scale(1.9)', opacity: '0.35' },
+        },
+        sheen: {
+          '0%': { transform: 'translateX(-100%)' },
+          '100%': { transform: 'translateX(100%)' },
         },
       },
       transitionProperty: {

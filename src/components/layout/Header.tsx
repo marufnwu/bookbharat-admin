@@ -28,6 +28,8 @@ interface HeaderProps {
   sidebarCollapsed?: boolean;
   userName?: string;
   onLogout: () => void;
+  /** Opens the ⌘K command palette. */
+  onOpenCommandPalette?: () => void;
   className?: string;
 }
 
@@ -38,11 +40,10 @@ export const Header: React.FC<HeaderProps> = ({
   sidebarCollapsed = false,
   userName = 'Admin',
   onLogout,
+  onOpenCommandPalette,
   className,
 }) => {
   const location = useLocation();
-  const [searchQuery, setSearchQuery] = React.useState('');
-  const [showSearch, setShowSearch] = React.useState(false);
 
   // Generate breadcrumbs from current path
   const breadcrumbs = React.useMemo(() => {
@@ -60,12 +61,6 @@ export const Header: React.FC<HeaderProps> = ({
 
     return items;
   }, [location.pathname]);
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    // Implement search functionality
-    console.log('Search:', searchQuery);
-  };
 
   return (
     <header
@@ -137,26 +132,30 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* Right section */}
       <div className="flex items-center gap-2">
-        {/* Search - Desktop */}
-        <form onSubmit={handleSearch} className="hidden md:block relative">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              type="search"
-              placeholder="Search..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-64 h-10 pl-10 pr-4 text-sm bg-gray-50 border border-gray-200 rounded-lg
-                       placeholder:text-gray-400 focus:bg-white focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 transition-colors"
-            />
-          </div>
-        </form>
-
-        {/* Search - Mobile */}
+        {/* Command palette trigger — clicking or focusing opens ⌘K */}
         <button
           type="button"
-          onClick={() => setShowSearch(!showSearch)}
+          onClick={onOpenCommandPalette}
+          className="hidden md:flex items-center gap-2 w-64 h-10 px-3 text-sm bg-gray-50
+                     border border-gray-200 rounded-lg text-gray-400
+                     hover:bg-white hover:border-gray-300 hover:shadow-sm
+                     focus:outline-none focus:ring-2 focus:ring-primary-500/30
+                     transition-all duration-200"
+          aria-label="Open command palette"
+        >
+          <Search className="h-4 w-4 flex-shrink-0" />
+          <span className="flex-1 text-left">Search or jump to…</span>
+          <kbd className="hidden shrink-0 items-center gap-0.5 rounded border border-gray-200 bg-white px-1.5 py-0.5 font-mono text-[10px] font-medium text-gray-400 lg:flex">
+            <span>⌘</span>K
+          </kbd>
+        </button>
+
+        {/* Command palette trigger - Mobile */}
+        <button
+          type="button"
+          onClick={onOpenCommandPalette}
           className="md:hidden p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
+          aria-label="Open command palette"
         >
           <Search className="w-5 h-5" />
         </button>
@@ -241,26 +240,6 @@ export const Header: React.FC<HeaderProps> = ({
           </Transition>
         </Menu>
       </div>
-
-      {/* Mobile search overlay */}
-      {showSearch && (
-        <div className="absolute inset-x-0 top-16 bg-white border-b border-gray-200 p-4 md:hidden z-40">
-          <form onSubmit={handleSearch}>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input
-                type="search"
-                placeholder="Search products, orders, customers..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                autoFocus
-                className="w-full h-12 pl-10 pr-4 text-sm bg-gray-50 border border-gray-200 rounded-lg
-                         placeholder:text-gray-400 focus:bg-white focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
-              />
-            </div>
-          </form>
-        </div>
-      )}
     </header>
   );
 };

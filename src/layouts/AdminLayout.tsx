@@ -1,14 +1,22 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/useAuth';
 import { Sidebar, Header, MobileNav } from '../components/layout';
+import CommandPalette, { useCommandPaletteHotkey } from '../components/CommandPalette';
 
 const AdminLayout: React.FC = () => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+
+  const openPalette = useCallback(() => setPaletteOpen(true), []);
+  const closePalette = useCallback(() => setPaletteOpen(false), []);
+
+  // ⌘K / Ctrl+K anywhere in the admin opens the palette.
+  useCommandPaletteHotkey(openPalette);
 
   useEffect(() => {
     setMobileDrawerOpen(false);
@@ -43,6 +51,7 @@ const AdminLayout: React.FC = () => {
           sidebarCollapsed={sidebarCollapsed}
           userName={user?.name}
           onLogout={handleLogout}
+          onOpenCommandPalette={openPalette}
         />
 
         <main className="flex-1 overflow-y-auto">
@@ -59,6 +68,8 @@ const AdminLayout: React.FC = () => {
         onClose={() => setMobileDrawerOpen(false)}
         onLogout={handleLogout}
       />
+
+      <CommandPalette open={paletteOpen} onClose={closePalette} />
     </div>
   );
 };

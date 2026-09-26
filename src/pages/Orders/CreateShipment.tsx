@@ -17,6 +17,7 @@ import {
   RefreshCw,
   Filter,
   ChevronDown,
+  ChevronRight,
   ChevronUp,
   Zap,
   Award,
@@ -102,11 +103,16 @@ const CreateShipment: React.FC = () => {
 
   const [step, setStep] = useState<"package" | "couriers">("package");
   const [selectedCarrier, setSelectedCarrier] = useState<CarrierRate | null>(null);
+  // Row the admin last activated. Purely visual feedback between tapping a row
+  // and the confirmation modal appearing.
+  const [activeRateKey, setActiveRateKey] = useState<string | null>(null);
   const [selectedWarehouse, setSelectedWarehouse] = useState<string | null>(null);
   const [showShipmentModal, setShowShipmentModal] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [sortBy, setSortBy] = useState<"price" | "time" | "rating" | "recommended">("price");
   const [filterPreset, setFilterPreset] = useState<"all" | "budget" | "fast" | "premium">("all");
+  // Which provider to show. "all" keeps the full list.
+  const [providerFilter, setProviderFilter] = useState<string>("all");
 
   // Package details (Step 1)
   const [packageWeight, setPackageWeight] = useState('');
@@ -126,11 +132,11 @@ const CreateShipment: React.FC = () => {
   const order = orderResponse?.order;
 
   const PREFERRED_COURIER_META: Record<string, { name: string; bg: string; text: string; border: string; logo: string }> = {
-    delhivery:   { name: 'Delhivery',   bg: 'bg-red-50',      text: 'text-red-700',     border: 'border-red-200',     logo: '/images/couriers/delhivery.png' },
-    shadowfax:   { name: 'Shadowfax',   bg: 'bg-blue-50',     text: 'text-blue-700',    border: 'border-blue-200',    logo: '/images/couriers/shadowfax.png' },
-    ekart:       { name: 'Ekart',       bg: 'bg-orange-50',   text: 'text-orange-700',  border: 'border-orange-200',  logo: '/images/couriers/ekart.png' },
-    bluedart:    { name: 'Blue Dart',   bg: 'bg-sky-50',      text: 'text-sky-700',     border: 'border-sky-200',     logo: '/images/couriers/bluedart.png' },
-    xpressbees:  { name: 'Xpressbees',  bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', logo: '/images/couriers/xpressbees.png' },
+    delhivery:   { name: 'Delhivery',   bg: 'bg-red-50',      text: 'text-red-700',     border: 'border-red-200',     logo: '/images/couriers/delhivery.svg' },
+    shadowfax:   { name: 'Shadowfax',   bg: 'bg-blue-50',     text: 'text-blue-700',    border: 'border-blue-200',    logo: '/images/couriers/shadowfax.svg' },
+    ekart:       { name: 'Ekart',       bg: 'bg-orange-50',   text: 'text-orange-700',  border: 'border-orange-200',  logo: '/images/couriers/ekart.svg' },
+    bluedart:    { name: 'Blue Dart',   bg: 'bg-sky-50',      text: 'text-sky-700',     border: 'border-sky-200',     logo: '/images/couriers/bluedart.svg' },
+    xpressbees:  { name: 'Xpressbees',  bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', logo: '/images/couriers/xpressbees.svg' },
   };
   const preferredCouriers: string[] = Array.isArray((order as any)?.metadata?.customer_preferences?.preferred_couriers)
     ? ((order as any).metadata.customer_preferences.preferred_couriers as string[])
@@ -214,6 +220,14 @@ const CreateShipment: React.FC = () => {
         pickup_pincode: pickupLocation?.pincode || "110001",
         delivery_pincode: deliveryPincode,
         weight: weightInGrams,
+        // The parcel box must be sent with the quote, not just with the
+        // booking. Carriers charge on max(dead, volumetric) weight, and the
+        // volumetric figure is derived from these dimensions — omitting them
+        // made the quote come back on dead weight while the AWB was charged on
+        // the volumetric weight of the box, so the difference was debited from
+        // the merchant account. These are the same values sent to
+        // /shipping/multi-carrier/create, so the quote and the AWB agree.
+        dimensions: { length, width, height },
         order_value: parseFloat(orderValue),
         payment_mode: isCOD ? "cod" : "prepaid",
         cod_amount: codAmount,
@@ -341,8 +355,12 @@ const CreateShipment: React.FC = () => {
     return { display: formatCurrency(amount), muted: false };
   };
 
-  // Filter and sort carriers
-  const getFilteredCarriers = () => {
+  /**
+   * Step 1 — the preset filter only. Provider chips are derived from this, so
+   * their counts stay accurate and a provider never offers a chip that would
+   * lead to an empty list.
+   */
+  const getPresetFilteredCarriers = (): CarrierRate[] => {
     if (!ratesData?.rates) return [];
     let carriers = [...ratesData.rates];
 
@@ -353,6 +371,22 @@ const CreateShipment: React.FC = () => {
       carriers = carriers.sort((a, b) => a.delivery_days - b.delivery_days);
     } else if (filterPreset === "premium") {
       carriers = carriers.filter((c) => c.rating >= 4.0 && c.success_rate >= 95);
+    }
+
+    return carriers;
+  };
+
+  // Filter and sort carriers
+  const getFilteredCarriers = (): CarrierRate[] => {
+    let carriers = getPresetFilteredCarriers();
+
+    // Provider filter. Aggregators contribute most of the options — Shipway
+    // alone can be 15 of 25 rows — so without this the list is dominated by a
+    // single provider and the direct couriers are hard to reach.
+    if (providerFilter !== "all") {
+      carriers = carriers.filter(
+        (c) => (c.carrier_name || c.carrier_code || "").toLowerCase() === providerFilter
+      );
     }
 
     // Apply sorting. Null/0 total_charge means the carrier has no live rate —
@@ -372,6 +406,86 @@ const CreateShipment: React.FC = () => {
 
   const carriers = getFilteredCarriers();
   const recommended = carriers.find((c) => c.ranking_score === Math.max(...carriers.map((c) => c.ranking_score)));
+
+  /**
+   * Providers present after the preset filter, with their option counts.
+   * Sorted by count descending so the biggest contributor leads, and
+   * alphabetically within a count so the row order is stable between fetches.
+   *
+   * The logo is taken from the rate rows themselves rather than a local
+   * name-to-slug map, so the chip follows whatever config/shipping-carriers.php
+   * declares and there is no second place to keep in sync.
+   */
+  const providerOptions = (() => {
+    const counts = new Map<string, { label: string; count: number; logo: string }>();
+
+    getPresetFilteredCarriers().forEach((c) => {
+      const label = c.carrier_name || c.carrier_code || "Other";
+      const key = label.toLowerCase();
+      const existing = counts.get(key);
+
+      if (existing) {
+        existing.count += 1;
+      } else {
+        counts.set(key, { label, count: 1, logo: c.carrier_logo || "" });
+      }
+    });
+
+    // Built with forEach rather than spreading Map.entries() — the spread form
+    // needs a downlevelIteration-capable target, which this project does not set.
+    const options: Array<{ key: string; label: string; count: number; logo: string }> = [];
+    counts.forEach((value, key) => options.push({ key, label: value.label, count: value.count, logo: value.logo }));
+
+    return options.sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
+  })();
+
+  // ====================== Presentation helpers ======================
+  // The filtering/sorting logic above is unchanged. Everything below only makes
+  // the existing result list easier to read.
+
+  const rateKey = (c: CarrierRate, i: number) => `${c.carrier_id ?? c.carrier_code}-${c.service_code}-${i}`;
+
+  /**
+   * Aggregators repeat their own name in the service label — Shipway returns
+   * "Shipway Shadowfax (0.5kg)" under the provider "Shipway", so both lines of
+   * the card read "Shipway" and the row looks like a duplicate of its
+   * neighbours. Strip the redundant prefix so the courier name leads.
+   */
+  const serviceLabel = (c: CarrierRate): string => {
+    const provider = (c.carrier_name || "").trim();
+    const service = (c.service_name || "").trim();
+    if (provider && service.toLowerCase().startsWith(provider.toLowerCase())) {
+      return service.slice(provider.length).replace(/^[\s\-–—:|]+/, "").trim() || service;
+    }
+    return service || provider;
+  };
+
+  const providerLabel = (c: CarrierRate): string => (c.carrier_name || "").trim();
+
+  const hasLiveRate = (c: CarrierRate) => c.total_charge != null && c.total_charge > 0;
+
+  /**
+   * Markers for the questions the list should answer on sight: which option is
+   * recommended, which is cheapest, which is fastest. Only "recommended"
+   * existed before, as a separate banner, so the other two had to be found by
+   * scanning prices and day counts.
+   */
+  const liveCarriers = carriers.filter(hasLiveRate);
+  const cheapestIndex = liveCarriers.length
+    ? carriers.indexOf(
+        liveCarriers.reduce((a, b) =>
+          (a.total_charge ?? Infinity) <= (b.total_charge ?? Infinity) ? a : b
+        )
+      )
+    : -1;
+  const fastestIndex = liveCarriers.length
+    ? carriers.indexOf(
+        liveCarriers.reduce((a, b) =>
+          (a.delivery_days ?? Infinity) <= (b.delivery_days ?? Infinity) ? a : b
+        )
+      )
+    : -1;
+  const recommendedIndex = recommended ? carriers.indexOf(recommended) : -1;
 
   const handleCarrierSelect = (carrier: CarrierRate) => {
     setSelectedCarrier(carrier);
@@ -848,108 +962,149 @@ const CreateShipment: React.FC = () => {
             </div>
           </div>
 
-          {/* Quick Filters - Mobile Friendly */}
-          <div className="bg-white rounded-lg shadow-sm border p-2 md:p-4">
-            <div className="flex flex-col gap-2">
-              {/* Filter buttons row */}
-              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 -mx-1 px-1 md:mx-0 md:px-0 md:flex-wrap md:gap-2">
-                {[
-                  { value: "all", label: "All", icon: Filter },
-                  { value: "budget", label: "Budget", icon: DollarSign },
-                  { value: "fast", label: "Fast", icon: Zap },
-                  { value: "premium", label: "Premium", icon: Award },
-                ].map((preset) => {
-                  const Icon = preset.icon;
+          {/* Toolbar — presets, sort and refresh on a single line */}
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="inline-flex rounded-lg border border-gray-200 bg-white p-0.5">
+              {[
+                { value: "all", label: "All", icon: Filter },
+                { value: "budget", label: "Cheapest", icon: DollarSign },
+                { value: "fast", label: "Fastest", icon: Zap },
+                { value: "premium", label: "Reliable", icon: Award },
+              ].map((preset) => {
+                const Icon = preset.icon;
+                const isActive = filterPreset === preset.value;
+                return (
+                  <button
+                    key={preset.value}
+                    onClick={() => setFilterPreset(preset.value as any)}
+                    aria-pressed={isActive}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                      isActive
+                        ? "bg-gray-900 text-white"
+                        : "text-gray-600 hover:bg-gray-100"
+                    }`}
+                  >
+                    <Icon className="h-3.5 w-3.5" />
+                    {preset.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="ml-auto flex items-center gap-2">
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as any)}
+                aria-label="Sort couriers"
+                className="px-2.5 py-1.5 text-sm border border-gray-300 rounded-md bg-white text-gray-700"
+              >
+                <option value="recommended">Recommended first</option>
+                <option value="price">Lowest price</option>
+                <option value="time">Fastest delivery</option>
+                <option value="rating">Best rated</option>
+              </select>
+              <button
+                onClick={() => refetchRates()}
+                className="p-2 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-md border border-gray-200"
+                title="Refresh rates"
+                aria-label="Refresh rates"
+              >
+                <RefreshCw className={`h-4 w-4 ${ratesLoading ? "animate-spin" : ""}`} />
+              </button>
+            </div>
+          </div>
+
+          {/* Provider filter — aggregators dominate the option count, so this is
+              the quickest way to compare one provider's services on their own */}
+          {providerOptions.length > 1 && (
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-medium text-gray-500 flex-shrink-0">Provider</span>
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 -mx-1 px-1">
+                <button
+                  onClick={() => setProviderFilter("all")}
+                  aria-pressed={providerFilter === "all"}
+                  className={`flex-shrink-0 px-2.5 py-1 text-xs font-medium rounded-full border transition-colors ${
+                    providerFilter === "all"
+                      ? "bg-gray-900 text-white border-gray-900"
+                      : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
+                  }`}
+                >
+                  All
+                  <span className="ml-1 opacity-60">{getPresetFilteredCarriers().length}</span>
+                </button>
+
+                {providerOptions.map((option) => {
+                  const isActive = providerFilter === option.key;
                   return (
                     <button
-                      key={preset.value}
-                      onClick={() => setFilterPreset(preset.value as any)}
-                      className={`flex items-center gap-1 px-3 py-1.5 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
-                        filterPreset === preset.value
-                          ? "bg-blue-600 text-white"
-                          : "bg-gray-100 text-gray-700 active:bg-gray-200"
+                      key={option.key}
+                      onClick={() => setProviderFilter(option.key)}
+                      aria-pressed={isActive}
+                      title={option.label}
+                      className={`flex-shrink-0 px-2.5 py-1 text-xs font-medium rounded-full border transition-colors ${
+                        isActive
+                          ? "bg-gray-900 text-white border-gray-900"
+                          : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
                       }`}
                     >
-                      <Icon className="h-3.5 w-3.5" />
-                      <span className="hidden sm:inline">{preset.label}</span>
+                      <span className="max-w-[9rem] truncate">{option.label}</span>
+                      <span className="ml-1.5 opacity-60">{option.count}</span>
                     </button>
                   );
                 })}
               </div>
-              {/* Sort and refresh row */}
-              <div className="flex items-center justify-between gap-2">
-                <select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value as any)}
-                  className="flex-1 px-3 py-1.5 border border-gray-300 rounded-md text-sm bg-white"
-                >
-                  <option value="recommended">Sort: Recommended</option>
-                  <option value="price">Sort: Price</option>
-                  <option value="time">Sort: Delivery</option>
-                  <option value="rating">Sort: Rating</option>
-                </select>
-                <button
-                  onClick={() => refetchRates()}
-                  className="p-2 text-blue-600 hover:bg-blue-50 active:bg-blue-100 rounded-md border border-gray-200"
-                  title="Refresh rates"
-                >
-                  <RefreshCw className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Summary Stats */}
-          {ratesData?.summary && (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <div className="bg-white p-3 rounded-lg shadow-sm border text-center">
-                <p className="text-xs text-gray-500">Options</p>
-                <p className="text-xl font-bold">{ratesData.summary.available_options}</p>
-              </div>
-              <div className="bg-white p-3 rounded-lg shadow-sm border text-center">
-                <p className="text-xs text-gray-500">Price Range</p>
-                <p className="text-sm font-semibold">
-                  {formatCurrency(ratesData.summary.price_range.min)} -{" "}
-                  {formatCurrency(ratesData.summary.price_range.max)}
-                </p>
-              </div>
-              <div className="bg-white p-3 rounded-lg shadow-sm border text-center">
-                <p className="text-xs text-gray-500">Delivery</p>
-                <p className="text-sm font-semibold">
-                  {ratesData.summary.delivery_range.min}-{ratesData.summary.delivery_range.max} days
-                </p>
-              </div>
-              <div className="bg-white p-3 rounded-lg shadow-sm border text-center">
-                <p className="text-xs text-gray-500">Avg Price</p>
-                <p className="text-xl font-bold">{formatCurrency(ratesData.summary.average_price)}</p>
-              </div>
             </div>
           )}
 
-          {/* Buyer Preferred Couriers Banner */}
+          {/* Summary — one line instead of four stat cards re-describing the list */}
+          {ratesData?.summary && (
+            <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 px-1 text-xs text-gray-500">
+              <span>
+                <span className="font-semibold text-gray-900">{carriers.length}</span> options
+                {providerFilter !== "all" && carriers.length !== getPresetFilteredCarriers().length && (
+                  <span className="text-gray-400">
+                    {" "}
+                    of {getPresetFilteredCarriers().length}
+                  </span>
+                )}
+              </span>
+              <span aria-hidden>·</span>
+              <span>
+                {formatCurrency(ratesData.summary.price_range.min)} –{" "}
+                {formatCurrency(ratesData.summary.price_range.max)}
+              </span>
+              <span aria-hidden>·</span>
+              <span>
+                {ratesData.summary.delivery_range.min}–{ratesData.summary.delivery_range.max} days
+              </span>
+              <span aria-hidden>·</span>
+              <span>avg {formatCurrency(ratesData.summary.average_price)}</span>
+            </div>
+          )}
+
+          {/* Customer preference — compact, this is context not a call to action */}
           {preferredCouriers.length > 0 && (
-            <div className="bg-amber-50 border-2 border-amber-300 rounded-xl p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <Truck className="h-5 w-5 text-amber-600" />
-                <span className="font-bold text-amber-900">Buyer's Preferred Couriers</span>
-              </div>
-              <p className="text-sm text-amber-700 mb-3">
-                Please prefer these carriers — picked by the customer for good service in their area. We can also ship via India Post if needed.
-              </p>
-              <div className="flex flex-wrap gap-2">
+            <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
+              <Truck className="h-4 w-4 text-amber-600 flex-shrink-0" />
+              <span className="text-xs font-medium text-amber-900 flex-shrink-0">
+                Customer prefers
+              </span>
+              <div className="flex flex-wrap gap-1.5">
                 {preferredCouriers.map((code) => {
                   const meta = PREFERRED_COURIER_META[code];
                   if (!meta) return null;
                   return (
                     <span
                       key={code}
-                      className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-semibold border ${meta.bg} ${meta.text} ${meta.border}`}
+                      className={`inline-flex items-center gap-1.5 px-2 py-0.5 text-xs font-medium rounded-full border ${meta.bg} ${meta.text} ${meta.border}`}
                     >
                       <img
                         src={meta.logo}
-                        alt={`${meta.name} logo`}
-                        className="h-5 w-5 object-contain flex-shrink-0"
-                        onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                        alt=""
+                        className="h-4 w-4 object-contain flex-shrink-0"
+                        onError={(e) => {
+                          (e.currentTarget as HTMLImageElement).style.display = "none";
+                        }}
                       />
                       {meta.name}
                     </span>
@@ -959,124 +1114,142 @@ const CreateShipment: React.FC = () => {
             </div>
           )}
 
-          {/* Recommended Option */}
-          {recommended && (
-            <div className="bg-gradient-to-r from-blue-500 to-indigo-600 rounded-xl p-4 text-white">
-              <div className="flex items-center gap-2 mb-3">
-                <Award className="h-5 w-5" />
-                <span className="font-bold">Recommended</span>
-                <span className="ml-auto text-xs bg-white/20 px-2 py-1 rounded-full">BEST CHOICE</span>
-              </div>
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="h-12 w-12 bg-white rounded-lg flex items-center justify-center">
-                    {recommended.carrier_logo ? (
-                      <img src={recommended.carrier_logo} alt="" className="max-h-8 max-w-8 object-contain" />
-                    ) : (
-                      <Truck className="h-6 w-6 text-gray-400" />
-                    )}
-                  </div>
-                  <div>
-                    <p className="font-bold">{recommended.carrier_name}</p>
-                    <p className="text-sm text-white/80">{recommended.service_name}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-4">
-                  <div className="text-center">
-                    <p className="text-2xl font-bold">{formatCarrierPrice(recommended.total_charge).display}</p>
-                    <p className="text-xs text-white/80">{recommended.delivery_days} days</p>
-                  </div>
+          {/* Courier list — one dense, scannable row per option */}
+          {ratesLoading ? (
+            <div className="flex justify-center py-10">
+              <div className="animate-spin rounded-full h-7 w-7 border-b-2 border-gray-400" />
+            </div>
+          ) : carriers.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-gray-300 py-10 text-center">
+              <Truck className="h-8 w-8 mx-auto mb-2 text-gray-300" />
+              <p className="text-sm text-gray-600">No courier options match these filters</p>
+              <button
+                onClick={() => {
+                  setFilterPreset("all");
+                  setProviderFilter("all");
+                  setSortBy("price");
+                }}
+                className="mt-2 text-sm text-blue-600 hover:text-blue-700"
+              >
+                Clear filters
+              </button>
+            </div>
+          ) : (
+            <div className="rounded-xl border border-gray-200 bg-white divide-y divide-gray-100 overflow-hidden">
+              {carriers.map((carrier, index) => {
+                const key = rateKey(carrier, index);
+                const isActive = activeRateKey === key;
+                const isLive = hasLiveRate(carrier);
+                const price = formatCarrierPrice(carrier.total_charge);
+                const provider = providerLabel(carrier);
+
+                return (
                   <button
-                    onClick={() => handleCarrierSelect(recommended)}
-                    className="px-4 py-2 bg-white text-blue-600 rounded-lg font-medium hover:bg-gray-100"
+                    key={key}
+                    type="button"
+                    disabled={!isLive}
+                    onClick={() => {
+                      setActiveRateKey(key);
+                      handleCarrierSelect(carrier);
+                    }}
+                    className={`w-full flex items-center gap-3 px-3 sm:px-4 py-3 text-left transition-colors ${
+                      isLive
+                        ? isActive
+                          ? "bg-blue-50 ring-1 ring-inset ring-blue-200"
+                          : "hover:bg-gray-50"
+                        : "bg-gray-50/60 cursor-not-allowed"
+                    }`}
                   >
-                    Create Shipment
+                    {/* Logo — a wide tile, because most carrier logos are
+                        wordmarks (Delhivery is 5.9:1, DTDC 4.4:1). In a square
+                        tile they render a few pixels tall and read as a smudge. */}
+                    <div className="h-9 w-20 flex-shrink-0 rounded-md border border-gray-200 bg-white flex items-center justify-center overflow-hidden">
+                      {carrier.carrier_logo ? (
+                        <img
+                          src={carrier.carrier_logo}
+                          alt=""
+                          className="max-h-6 max-w-[4.5rem] object-contain object-left"
+                        />
+                      ) : (
+                        <Truck className="h-4 w-4 text-gray-300" />
+                      )}
+                    </div>
+
+                    {/* Identity: the courier/service name leads, provider is context */}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span
+                          className={`text-sm font-medium truncate ${
+                            isLive ? "text-gray-900" : "text-gray-400"
+                          }`}
+                        >
+                          {serviceLabel(carrier)}
+                        </span>
+
+                        {index === recommendedIndex && (
+                          <span className="rounded bg-blue-600 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
+                            Recommended
+                          </span>
+                        )}
+                        {index === cheapestIndex && (
+                          <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700 ring-1 ring-inset ring-emerald-200">
+                            Cheapest
+                          </span>
+                        )}
+                        {index === fastestIndex && (
+                          <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700 ring-1 ring-inset ring-amber-200">
+                            Fastest
+                          </span>
+                        )}
+                        {!isLive && (
+                          <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-gray-500">
+                            No live rate
+                          </span>
+                        )}
+                      </div>
+
+                      <p className="mt-0.5 truncate text-xs text-gray-500">
+                        {provider && <span>{provider}</span>}
+                        {provider && carrier.delivery_days != null && <span aria-hidden> · </span>}
+                        {carrier.delivery_days != null && (
+                          <span>
+                            {carrier.delivery_days} {carrier.delivery_days === 1 ? "day" : "days"}
+                          </span>
+                        )}
+                        {carrier.expected_delivery_date && (
+                          <span className="hidden sm:inline">
+                            {" · "}
+                            {new Date(carrier.expected_delivery_date).toLocaleDateString(undefined, {
+                              month: "short",
+                              day: "numeric",
+                            })}
+                          </span>
+                        )}
+                      </p>
+                    </div>
+
+                    {/* Price */}
+                    <div className="flex-shrink-0 text-right">
+                      <p
+                        className={`text-sm font-semibold tabular-nums ${
+                          price.muted ? "text-gray-400" : "text-gray-900"
+                        }`}
+                      >
+                        {price.display}
+                      </p>
+                      {carrier.has_discount && carrier.discount ? (
+                        <p className="text-[11px] text-emerald-600">
+                          Save {formatCurrency(carrier.discount)}
+                        </p>
+                      ) : null}
+                    </div>
+
+                    {isLive && <ChevronRight className="h-4 w-4 flex-shrink-0 text-gray-300" />}
                   </button>
-                </div>
-              </div>
+                );
+              })}
             </div>
           )}
-
-          {/* Carrier List */}
-          <div className="space-y-3">
-            {ratesLoading && (
-              <div className="flex justify-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
-              </div>
-            )}
-            {carriers.map((carrier, index) => (
-              <div
-                key={`${carrier.carrier_id}-${carrier.service_code}-${index}`}
-                className="bg-white rounded-lg border border-gray-200 hover:border-blue-300 p-4 transition-all"
-              >
-                <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-                  {/* Carrier Info */}
-                  <div className="flex items-center gap-3 flex-1">
-                    <div className="h-12 w-12 bg-gray-50 rounded-lg border flex items-center justify-center flex-shrink-0">
-                      {carrier.carrier_logo ? (
-                        <img src={carrier.carrier_logo} alt="" className="max-h-8 max-w-8 object-contain" />
-                      ) : (
-                        <Truck className="h-5 w-5 text-gray-400" />
-                      )}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="font-semibold text-gray-900 truncate">{carrier.carrier_name}</p>
-                      <p className="text-sm text-gray-500 truncate">{carrier.service_name}</p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <div className="flex items-center text-yellow-500">
-                          <Star className="h-3 w-3 fill-current" />
-                          <span className="text-xs ml-1">{carrier.rating}</span>
-                        </div>
-                        <span className="text-xs text-gray-400">{carrier.success_rate}% success</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Price & Delivery */}
-                  <div className="flex items-center justify-between sm:justify-end gap-4 sm:gap-6">
-                    <div className="text-left sm:text-right">
-                      <p className={`text-lg font-bold ${formatCarrierPrice(carrier.total_charge).muted ? 'text-gray-400' : 'text-gray-900'}`}>
-                        {formatCarrierPrice(carrier.total_charge).display}
-                      </p>
-                      {carrier.has_discount && (
-                        <p className="text-xs text-green-600">Save {formatCurrency(carrier.discount || 0)}</p>
-                      )}
-                    </div>
-                    <div className="text-right">
-                      <p className="font-medium text-gray-900">{carrier.delivery_days} days</p>
-                      <p className="text-xs text-gray-500">
-                        {carrier.expected_delivery_date &&
-                          new Date(carrier.expected_delivery_date).toLocaleDateString(undefined, {
-                            month: "short",
-                            day: "numeric",
-                          })}
-                      </p>
-                    </div>
-                    <button
-                    onClick={() => handleCarrierSelect(carrier)}
-                    className="px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 transition-all"
-                  >
-                    Create Shipment
-                  </button>
-                  </div>
-                </div>
-
-                {/* Features */}
-                {carrier.features && carrier.features.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 mt-3 pt-3 border-t">
-                    {carrier.features.slice(0, 4).map((feature: string) => (
-                      <span
-                        key={feature}
-                        className="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full capitalize"
-                      >
-                        {feature.replace("_", " ")}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
         </div>
       )}
       </div>

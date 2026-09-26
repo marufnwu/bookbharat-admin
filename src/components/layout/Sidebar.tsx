@@ -49,7 +49,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 
-interface NavigationItem {
+export interface NavigationItem {
   name: string;
   href: string;
   icon: LucideIcon;
@@ -65,7 +65,7 @@ const hasActiveDescendant = (
     child.children ? hasActiveDescendant(child, isCurrentPath) : isCurrentPath(child.href)
   ) ?? false;
 
-const navigation: NavigationItem[] = [
+export const navigation: NavigationItem[] = [
   { name: 'Dashboard', href: '/dashboard', icon: Home },
 
   // Sales & Orders

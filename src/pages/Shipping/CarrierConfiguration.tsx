@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../api/axios';
 import { toast } from '../../utils/toast';
+import WarehouseMappingPanel from './WarehouseMappingPanel';
 import {
   Truck,
   Settings,
@@ -11,16 +12,13 @@ import {
   Package,
   CheckCircle,
   XCircle,
-  AlertCircle,
   Shield,
   Star,
   TrendingUp,
   RefreshCw,
   TestTube,
-  Info,
   Activity,
   Zap,
-  MapPin,
   CreditCard,
   X,
   Key,
@@ -31,7 +29,6 @@ import {
   Warehouse,
   PlusCircle,
   Trash2,
-  Download,
   Copy,
   Search,
 } from 'lucide-react';
@@ -941,385 +938,6 @@ const CarrierConfiguration: React.FC = () => {
 };
 
 // ---------------------------------------------------------------------------
-// Warehouse Management Tab Component
-// ---------------------------------------------------------------------------
-
-interface WarehouseManagementTabProps {
-  carrier: CarrierConfig;
-}
-
-interface WarehouseData {
-  id: number;
-  name: string;
-  code: string;
-  contact_person: string;
-  phone: string;
-  email?: string;
-  address_line_1: string;
-  address_line_2?: string;
-  city: string;
-  state: string;
-  pincode: string;
-  country: string;
-  is_active: boolean;
-  is_default: boolean;
-  carrier_mapping?: {
-    carrier_warehouse_name: string;
-    carrier_warehouse_id?: string;
-    is_enabled: boolean;
-  };
-}
-
-const WarehouseManagementTab: React.FC<WarehouseManagementTabProps> = ({ carrier }) => {
-  const [loadingAddresses, setLoadingAddresses] = useState(false);
-  const [registeredAddresses, setRegisteredAddresses] = useState<any[]>([]);
-  const [warehouses, setWarehouses] = useState<WarehouseData[]>([]);
-  const [selectedWarehouse, setSelectedWarehouse] = useState<number | null>(null);
-  const [warehouseAlias, setWarehouseAlias] = useState('');
-  const queryClient = useQueryClient();
-
-  const { data: warehousesData, isLoading: warehousesLoading } = useQuery({
-    queryKey: ['warehouses'],
-    queryFn: async () => {
-      const response = await api.get('/warehouses');
-      const payload = response.data?.data ?? response.data;
-      // The endpoint may return an array, a paginated envelope
-      // ({ data: [...] }), or an object wrapper — always resolve to an array.
-      if (Array.isArray(payload)) return payload;
-      if (Array.isArray(payload?.data)) return payload.data;
-      return [];
-    },
-  });
-
-  const { data: mappingsData } = useQuery({
-    queryKey: ['carrier-warehouse-mappings', carrier.id],
-    queryFn: async () => {
-      const response = await api.get(`/shipping/multi-carrier/carriers/${carrier.id}/warehouses`);
-      return response.data?.data || response.data;
-    },
-  });
-
-  const fetchRegisteredAddresses = async () => {
-    if (carrier.code !== 'EKART' && carrier.code !== 'DELHIVERY') {
-      toast.error('Address fetching is currently only supported for Ekart and Delhivery');
-      return;
-    }
-
-    setLoadingAddresses(true);
-    try {
-      const response = await api.get(`/shipping/multi-carrier/carriers/${carrier.id}/registered-addresses`);
-      if (response.data?.success) {
-        const addresses = response.data.addresses || response.data.warehouses || [];
-        setRegisteredAddresses(addresses);
-        if (addresses.length > 0) {
-          toast.success(`Found ${addresses.length} registered address(es)`);
-        } else {
-          toast(response.data.note || response.data.message || 'No addresses found', { icon: 'ℹ️' });
-        }
-      } else {
-        toast.error(response.data?.message || 'Failed to fetch registered addresses');
-      }
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to fetch addresses');
-    } finally {
-      setLoadingAddresses(false);
-    }
-  };
-
-  const updateMappingMutation = useMutation({
-    mutationFn: async (data: { warehouse_id: number; alias: string }) => {
-      return api.put(`/shipping/multi-carrier/carriers/${carrier.id}/warehouses/${data.warehouse_id}`, {
-        carrier_warehouse_name: data.alias,
-      });
-    },
-    onSuccess: () => {
-      toast.success('Warehouse mapping updated successfully');
-      queryClient.invalidateQueries({ queryKey: ['carrier-warehouse-mappings', carrier.id] });
-      setSelectedWarehouse(null);
-      setWarehouseAlias('');
-    },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Failed to update mapping');
-    },
-  });
-
-  React.useEffect(() => {
-    setWarehouses(Array.isArray(warehousesData) ? warehousesData : []);
-  }, [warehousesData]);
-
-  return (
-    <div className="space-y-6">
-      {/* Info Banner */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <div className="flex">
-          <Info className="h-5 w-5 text-blue-400 mt-0.5 flex-shrink-0" />
-          <div className="ml-3">
-            <h4 className="text-sm font-medium text-blue-800">Warehouse Configuration</h4>
-            <p className="mt-1 text-sm text-blue-700">
-              Map your local warehouses to carrier-registered pickup locations. Some carriers like Ekart require pre-registered warehouse names (aliases).
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Fetch Registered Addresses (Ekart & Delhivery) */}
-      {(carrier.code === 'EKART' || carrier.code === 'DELHIVERY') && (
-        <div className="bg-white border border-gray-200 rounded-lg p-4">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center">
-              <Download className="h-5 w-5 text-gray-400 mr-2" />
-              <h3 className="text-sm font-medium text-gray-900">Registered Addresses in {carrier.name}</h3>
-            </div>
-            <button
-              type="button"
-              onClick={fetchRegisteredAddresses}
-              disabled={loadingAddresses}
-              className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 flex items-center"
-            >
-              {loadingAddresses ? (
-                <>
-                  <RefreshCw className="h-4 w-4 mr-1.5 animate-spin" />
-                  Loading...
-                </>
-              ) : (
-                <>
-                  <RefreshCw className="h-4 w-4 mr-1.5" />
-                  Fetch from {carrier.name}
-                </>
-              )}
-            </button>
-          </div>
-
-          {registeredAddresses.length > 0 && (
-            <div className="space-y-2">
-              {registeredAddresses.map((addr, index) => (
-                <div key={index} className="bg-gray-50 rounded-md p-3 text-sm">
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      {carrier.code === 'EKART' ? (
-                        <>
-                          <p className="font-medium text-gray-900">Alias: {addr.alias}</p>
-                          <p className="text-gray-600 mt-1">{addr.address_line1}</p>
-                          <p className="text-gray-500 text-xs mt-1">
-                            {addr.city}, {addr.state} - {addr.pincode} | Phone: {addr.phone}
-                          </p>
-                        </>
-                      ) : (
-                        <>
-                          <div className="flex items-center gap-2">
-                            <p className="font-medium text-gray-900">{addr.name}</p>
-                            {addr.note && (
-                              <span className="px-2 py-0.5 text-xs bg-blue-100 text-blue-800 rounded">{addr.note}</span>
-                            )}
-                          </div>
-                          {addr.client_name && <p className="text-gray-600 mt-1 text-xs">Client: {addr.client_name}</p>}
-                          {addr.phone && (
-                            <p className="text-gray-500 text-xs mt-0.5">
-                              Phone: {addr.phone} {addr.email && `| Email: ${addr.email}`}
-                            </p>
-                          )}
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {registeredAddresses.length === 0 && loadingAddresses === false && (
-            <div className="text-center py-4">
-              <p className="text-sm text-gray-500 mb-2">No registered addresses found. Click "Fetch" to check.</p>
-              {carrier.code === 'DELHIVERY' && (
-                <a
-                  href="https://one.delhivery.com"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-sm text-blue-600 hover:text-blue-700 underline"
-                >
-                  View warehouses in Delhivery Portal →
-                </a>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Warehouse Mappings */}
-      <div className="bg-white border border-gray-200 rounded-lg p-4">
-        <div className="flex items-center mb-4">
-          <MapPin className="h-5 w-5 text-gray-400 mr-2" />
-          <h3 className="text-sm font-medium text-gray-900">Warehouse Mappings</h3>
-        </div>
-
-        {warehousesLoading ? (
-          <div className="text-center py-8 text-gray-500">
-            <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-2" />
-            <p>Loading warehouses...</p>
-          </div>
-        ) : warehouses.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
-            <Warehouse className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-            <p className="text-sm">No warehouses configured</p>
-            <p className="text-xs mt-1">Create a warehouse first to map it to this carrier</p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {warehouses.map((warehouse) => {
-              const mappings = Array.isArray(mappingsData) ? mappingsData : [];
-              const mapping = mappings.find((m: any) => m.warehouse_id === warehouse.id);
-              const isEditing = selectedWarehouse === warehouse.id;
-
-              return (
-                <div key={warehouse.id} className="border border-gray-200 rounded-lg p-4">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center">
-                        <Warehouse className="h-4 w-4 text-gray-400 mr-2" />
-                        <h4 className="font-medium text-gray-900">{warehouse.name}</h4>
-                        {warehouse.is_default && (
-                          <span className="ml-2 px-2 py-0.5 text-xs bg-blue-100 text-blue-800 rounded">Default</span>
-                        )}
-                      </div>
-                      <p className="text-sm text-gray-600 mt-1">{warehouse.address_line_1}</p>
-                      <p className="text-xs text-gray-500 mt-0.5">
-                        {warehouse.city}, {warehouse.state} - {warehouse.pincode}
-                      </p>
-
-                      {/* Current Mapping */}
-                      <div className="mt-3 pt-3 border-t border-gray-100">
-                        {mapping ? (
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <p className="text-xs text-gray-500">Carrier Warehouse Name:</p>
-                              <p className="text-sm font-medium text-gray-900">
-                                {mapping.carrier_warehouse_name || 'Not set'}
-                              </p>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setSelectedWarehouse(warehouse.id);
-                                setWarehouseAlias(mapping.carrier_warehouse_name || '');
-                              }}
-                              className="text-sm text-blue-600 hover:text-blue-700"
-                            >
-                              Edit
-                            </button>
-                          </div>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => setSelectedWarehouse(warehouse.id)}
-                            className="text-sm text-blue-600 hover:text-blue-700"
-                          >
-                            + Map to {carrier.name}
-                          </button>
-                        )}
-
-                        {/* Edit Form */}
-                        {isEditing && (
-                          <div className="mt-3 space-y-2">
-                            <label className="block text-xs font-medium text-gray-700">
-                              Carrier Warehouse Name/Alias:
-                            </label>
-                            <input
-                              type="text"
-                              value={warehouseAlias}
-                              onChange={(e) => setWarehouseAlias(e.target.value)}
-                              placeholder="Enter warehouse name as registered with carrier"
-                              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                            />
-                            <p className="text-xs text-gray-500">
-                              {carrier.code === 'EKART'
-                                ? <>For Ekart, use the exact "alias" from their registered addresses above</>
-                                : <>Enter the warehouse name/ID as registered with {carrier.name}</>}
-                            </p>
-                            <div className="flex space-x-2 mt-2">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  if (!warehouseAlias.trim()) {
-                                    toast.error('Please enter a warehouse name');
-                                    return;
-                                  }
-                                  updateMappingMutation.mutate({
-                                    warehouse_id: warehouse.id,
-                                    alias: warehouseAlias.trim(),
-                                  });
-                                }}
-                                disabled={updateMappingMutation.isPending}
-                                className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400"
-                              >
-                                {updateMappingMutation.isPending ? 'Saving...' : 'Save'}
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setSelectedWarehouse(null);
-                                  setWarehouseAlias('');
-                                }}
-                                className="px-3 py-1.5 text-sm border border-gray-300 rounded-md hover:bg-gray-50"
-                              >
-                                Cancel
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      {/* Help Text */}
-      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-        <div className="flex">
-          <AlertCircle className="h-5 w-5 text-yellow-400 mt-0.5 flex-shrink-0" />
-          <div className="ml-3">
-            <h4 className="text-sm font-medium text-yellow-800">Important Notes</h4>
-            <ul className="mt-2 text-sm text-yellow-700 space-y-1 list-disc list-inside">
-              <li>Warehouses must be pre-registered with the carrier before shipment creation</li>
-              {carrier.code === 'EKART' && (
-                <>
-                  <li>Use the "Fetch from Ekart" button to see registered warehouse aliases</li>
-                  <li>The warehouse alias must exactly match (case-sensitive)</li>
-                  <li>Ekart uses aliases like "Main_Warehouse" to identify pickup locations</li>
-                </>
-              )}
-              {carrier.code === 'DELHIVERY' && (
-                <>
-                  <li>Delhivery uses warehouse names (not aliases)</li>
-                  <li>
-                    View all warehouses at:{' '}
-                    <a href="https://one.delhivery.com" target="_blank" rel="noopener noreferrer" className="underline">
-                      one.delhivery.com
-                    </a>
-                  </li>
-                  <li>The warehouse name must exactly match what's registered with Delhivery</li>
-                  <li>Create warehouses via API or email: lastmile-integration@delhivery.com</li>
-                </>
-              )}
-              {carrier.code !== 'EKART' && carrier.code !== 'DELHIVERY' && (
-                <>
-                  <li>The warehouse name/ID must exactly match what's registered with the carrier</li>
-                  <li>Contact carrier support to register new warehouses</li>
-                </>
-              )}
-              <li>Changes take effect immediately for new shipments</li>
-            </ul>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// ---------------------------------------------------------------------------
 // Enhanced Carrier Configuration Form with Tabs
 // ---------------------------------------------------------------------------
 
@@ -1540,7 +1158,7 @@ const EnhancedCarrierConfigForm: React.FC<EnhancedCarrierConfigFormProps> = ({
         )}
 
         {/* Warehouse Tab */}
-        {activeTab === 'warehouse' && <WarehouseManagementTab carrier={carrier} />}
+        {activeTab === 'warehouse' && <WarehouseMappingPanel carrier={carrier} />}
       </div>
 
       {/* Action Buttons */}
@@ -1575,22 +1193,24 @@ const EnhancedCarrierConfigForm: React.FC<EnhancedCarrierConfigFormProps> = ({
           </button>
         )}
 
-        <button
-          type="submit"
-          disabled={isLoading}
-          className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
-        >
-          {isLoading ? (
-            <>
-              <RefreshCw className="h-4 w-4 mr-2 animate-spin inline" />
-              Saving...
-            </>
-          ) : (
-            <>
-              Save Configuration
-            </>
-          )}
-        </button>
+        {activeTab === 'credentials' && (
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
+          >
+            {isLoading ? (
+              <>
+                <RefreshCw className="h-4 w-4 mr-2 animate-spin inline" />
+                Saving...
+              </>
+            ) : (
+              <>
+                Save Configuration
+              </>
+            )}
+          </button>
+        )}
       </div>
     </form>
   );
