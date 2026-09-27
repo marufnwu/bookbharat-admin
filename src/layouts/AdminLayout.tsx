@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/useAuth';
-import { Sidebar, Header, MobileNav } from '../components/layout';
+import { Sidebar, Header, MobileNav, AgencyCredit } from '../components/layout';
 import CommandPalette, { useCommandPaletteHotkey } from '../components/CommandPalette';
 
 const AdminLayout: React.FC = () => {
@@ -61,6 +61,18 @@ const AdminLayout: React.FC = () => {
             </div>
           </div>
         </main>
+
+        {/*
+          Footer strip. The shell is h-screen with <main> as flex-1, so this sits
+          as a persistent band at the bottom of the content column rather than
+          scrolling with the page — which is the point: an agency credit that
+          only appears at the end of a long orders table is a credit nobody sees.
+        */}
+        <footer className="flex-shrink-0 border-t border-gray-200 bg-white">
+          <div className="mx-auto flex max-w-8xl items-center justify-end px-4 py-2.5 sm:px-6 lg:px-8">
+            <AgencyCredit />
+          </div>
+        </footer>
       </div>
 
       <MobileNav
