@@ -113,42 +113,51 @@ const DeliveryStatusSyncTab: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
-      </div>
-    );
-  }
-
-  if (isError || !data) {
-    return (
-      <div className="rounded-lg bg-red-50 p-4 text-sm text-red-700">
-        Failed to load delivery sync stats.{' '}
-        <button className="font-medium underline" onClick={() => refetch()}>
-          Retry
-        </button>
+      <div className="space-y-6">
+        {/* The settings form owns the master toggle, so it must render even
+            while stats are loading — otherwise the one control that decides
+            whether the poller runs at all is unreachable. */}
+        <DynamicSettings
+          group="order_delivery_sync"
+          title="Delivery Status Sync"
+          description="Polling cadence, age tiers, and carrier participation for the scheduled courier tracking sync."
+        />
+        <div className="flex justify-center items-center h-32">
+          <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+        </div>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      {/* Status strip */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <div className="rounded-lg border border-gray-200 bg-white p-4">
-          <p className="text-sm text-gray-500">Synced last 24h</p>
-          <p className="mt-1 text-2xl font-semibold text-gray-900">{data.stats.synced_last_24h}</p>
+      {/* Status strip. Failure here degrades to a warning, never a gate:
+          a failed stats query must not hide the sync controls. */}
+      {isError || !data ? (
+        <div className="rounded-lg bg-amber-50 p-4 text-sm text-amber-800">
+          Failed to load delivery sync stats. Settings below are still editable.{' '}
+          <button className="font-medium underline" onClick={() => refetch()}>
+            Retry
+          </button>
         </div>
-        <div className="rounded-lg border border-gray-200 bg-white p-4">
-          <p className="text-sm text-gray-500">Awaiting tracking update</p>
-          <p className="mt-1 text-2xl font-semibold text-gray-900">{data.stats.pending_tracking}</p>
+      ) : (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div className="rounded-lg border border-gray-200 bg-white p-4">
+            <p className="text-sm text-gray-500">Synced last 24h</p>
+            <p className="mt-1 text-2xl font-semibold text-gray-900">{data.stats.synced_last_24h}</p>
+          </div>
+          <div className="rounded-lg border border-gray-200 bg-white p-4">
+            <p className="text-sm text-gray-500">Awaiting tracking update</p>
+            <p className="mt-1 text-2xl font-semibold text-gray-900">{data.stats.pending_tracking}</p>
+          </div>
+          <div className="rounded-lg border border-gray-200 bg-white p-4">
+            <p className="text-sm text-gray-500">Last tracked</p>
+            <p className="mt-1 text-sm font-medium text-gray-900">
+              {data.stats.last_synced_at ? new Date(data.stats.last_synced_at).toLocaleString() : 'Never'}
+            </p>
+          </div>
         </div>
-        <div className="rounded-lg border border-gray-200 bg-white p-4">
-          <p className="text-sm text-gray-500">Last tracked</p>
-          <p className="mt-1 text-sm font-medium text-gray-900">
-            {data.stats.last_synced_at ? new Date(data.stats.last_synced_at).toLocaleString() : 'Never'}
-          </p>
-        </div>
-      </div>
+      )}
 
       {/* Dynamic settings form (intervals, boundaries, batch, excluded carriers) */}
       <DynamicSettings

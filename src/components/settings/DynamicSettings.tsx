@@ -6,6 +6,10 @@ import { toast } from '../../utils/toast';
 
 interface SettingField {
   value: any;
+  /** Shipped default, used to show "changed from the default (x)". */
+  default?: any;
+  /** True only when the stored value actually differs from `default`. */
+  is_customised?: boolean;
   type: string;
   label: string;
   description: string;
@@ -216,10 +220,10 @@ const DynamicSettings: React.FC<DynamicSettingsProps> = ({ group, title, descrip
                   {field.description && (
                     <p className="text-xs text-gray-500 mb-2">{field.description}</p>
                   )}
-                  {field.in_db && (
+                  {field.is_customised && (
                     <span className="inline-flex items-center gap-1 text-xs text-green-600">
                       <CheckCircle className="h-3 w-3" />
-                      Custom value
+                      Changed from the default ({String(field.default)})
                     </span>
                   )}
                 </div>
