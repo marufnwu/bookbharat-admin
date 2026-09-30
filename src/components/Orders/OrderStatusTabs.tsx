@@ -18,7 +18,9 @@ interface OrderStatusTabsProps {
     shipped_orders: number;
     delivered_orders: number;
     cancelled_orders: number;
+    returned_orders?: number;
     refunded_orders?: number;
+    completed_orders?: number;
     unshipped_prepaid?: number;
     unshipped_cod?: number;
     preorder_orders?: number;
@@ -34,6 +36,8 @@ const tabs: { key: string; label: string; color: string; statsKey: string }[] = 
   { key: 'preorder', label: 'Preorders', color: 'violet', statsKey: 'preorder_orders' },
   { key: 'shipped', label: 'Shipped', color: 'purple', statsKey: 'shipped_orders' },
   { key: 'delivered', label: 'Delivered', color: 'green', statsKey: 'delivered_orders' },
+  { key: 'returned', label: 'Returned / RTO', color: 'amber', statsKey: 'returned_orders' },
+  { key: 'refunded', label: 'Refunded', color: 'pink', statsKey: 'refunded_orders' },
   { key: 'cancelled', label: 'Cancelled', color: 'red', statsKey: 'cancelled_orders' },
 ];
 
@@ -46,6 +50,8 @@ const colorClasses: Record<string, { active: string; text: string; badge: string
   violet: { active: 'border-violet-500 text-violet-700', text: 'text-violet-600', badge: 'bg-violet-100 text-violet-700' },
   purple: { active: 'border-purple-500 text-purple-700', text: 'text-purple-600', badge: 'bg-purple-100 text-purple-700' },
   green: { active: 'border-green-500 text-green-700', text: 'text-green-600', badge: 'bg-green-100 text-green-700' },
+  amber: { active: 'border-amber-500 text-amber-700', text: 'text-amber-600', badge: 'bg-amber-100 text-amber-700' },
+  pink: { active: 'border-pink-500 text-pink-700', text: 'text-pink-600', badge: 'bg-pink-100 text-pink-700' },
   red: { active: 'border-red-500 text-red-700', text: 'text-red-600', badge: 'bg-red-100 text-red-700' },
 };
 

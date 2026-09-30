@@ -1379,6 +1379,8 @@ const OrderList: React.FC = () => {
                 <option value="processing">Processing</option>
                 <option value="shipped">Shipped</option>
                 <option value="delivered">Delivered</option>
+                <option value="returned">Returned / RTO</option>
+                <option value="completed">Completed</option>
                 <option value="cancelled">Cancelled</option>
                 <option value="refunded">Refunded</option>
                 <option disabled>──────────</option>
