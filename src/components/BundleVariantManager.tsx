@@ -55,22 +55,18 @@ const BundleVariantManager: React.FC<BundleVariantManagerProps> = ({
 
   // Debug: Track showForm state changes
   useEffect(() => {
-    console.log('showForm changed to:', showForm);
   }, [showForm]);
 
   // Debug: Track editingVariant state changes
   useEffect(() => {
-    console.log('editingVariant changed to:', editingVariant);
   }, [editingVariant]);
 
   // Create mutation
   const createMutation = useMutation({
     mutationFn: (data: Partial<ProductBundleVariant>) => {
-      console.log('Creating bundle variant:', data);
       return bundleVariantsApi.create(productId, data);
     },
     onSuccess: () => {
-      console.log('Bundle variant created successfully');
       queryClient.invalidateQueries({ queryKey: ['bundleVariants', productId] });
       toast.success('Bundle variant created successfully');
       resetForm();
@@ -84,11 +80,9 @@ const BundleVariantManager: React.FC<BundleVariantManagerProps> = ({
   // Update mutation
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: number; data: Partial<ProductBundleVariant> }) => {
-      console.log('Updating bundle variant:', id, data);
       return bundleVariantsApi.update(productId, id, data);
     },
     onSuccess: () => {
-      console.log('Bundle variant updated successfully');
       queryClient.invalidateQueries({ queryKey: ['bundleVariants', productId] });
       toast.success('Bundle variant updated successfully');
       resetForm();
@@ -136,7 +130,6 @@ const BundleVariantManager: React.FC<BundleVariantManagerProps> = ({
   }, [formData, productPrice]);
 
   const resetForm = () => {
-    console.log('resetForm called');
     setFormData({
       name: '',
       sku: '',
@@ -301,10 +294,8 @@ const BundleVariantManager: React.FC<BundleVariantManagerProps> = ({
         <Button
           onClick={() => {
             if (showForm) {
-              console.log('Closing form');
               resetForm();
             } else {
-              console.log('Opening form');
               setShowForm(true);
               setEditingVariant(null);
             }

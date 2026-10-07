@@ -107,7 +107,6 @@ const OrderCharges: React.FC = () => {
   const toggleMutation = useMutation({
     mutationFn: orderChargesApi.toggleStatus,
     onSuccess: (data) => {
-      console.log('Toggle success:', data);
       queryClient.invalidateQueries({ queryKey: ['order-charges'] });
       toast.success('Charge status updated');
     },

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ShoppingCart, Plus, Tag, RefreshCw } from 'lucide-react';
-import { Cart } from '../../pages/AbandonedCarts/types'; // Assuming shared types
-import { adminApi } from '../../pages/AbandonedCarts/api'; // Or a new dedicated API file
+import { Cart } from '../../api/carts/types'; // Assuming shared types
+import { adminApi } from '../../api/carts/api'; // Or a new dedicated API file
 import CartItemRow from './CartItemRow';
 import CouponManager from './CouponManager';
 import ProductSearchModal from './ProductSearchModal';

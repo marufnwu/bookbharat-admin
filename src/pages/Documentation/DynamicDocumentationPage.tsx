@@ -74,79 +74,79 @@ const DynamicDocumentationPage: React.FC = () => {
 
   const getIndexContent = () => {
     return `
-      <div class="space-y-8">
+      <div className="space-y-8">
         <!-- Header -->
         <div>
-          <h1 class="text-3xl font-bold text-gray-900 mb-4">BookBharat Admin Documentation</h1>
-          <p class="text-lg text-gray-600">Complete guide to managing your e-commerce platform with BookBharat's powerful admin panel</p>
+          <h1 className="text-3xl font-bold text-gray-900 mb-4">BookBharat Admin Documentation</h1>
+          <p className="text-lg text-gray-600">Complete guide to managing your e-commerce platform with BookBharat's powerful admin panel</p>
         </div>
 
         <!-- Quick Links Grid -->
         <div>
-          <h2 class="text-2xl font-bold text-gray-900 mb-6">Quick Start Guides</h2>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div class="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow">
-              <h3 class="text-lg font-semibold text-gray-900 mb-2">🛒 Abandoned Cart Recovery</h3>
-              <p class="text-gray-600 text-sm mb-3">Learn how to recover lost sales with our automated cart recovery system</p>
-              <a href="/docs/abandoned-carts" class="text-blue-600 hover:text-blue-800 text-sm font-medium">Read more →</a>
+          <h2 className="text-2xl font-bold text-gray-900 mb-6">Quick Start Guides</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">🛒 Abandoned Cart Recovery</h3>
+              <p className="text-gray-600 text-sm mb-3">Learn how to recover lost sales with our automated cart recovery system</p>
+              <a href="/docs/abandoned-carts" className="text-blue-600 hover:text-blue-800 text-sm font-medium">Read more →</a>
             </div>
-            <div class="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow">
-              <h3 class="text-lg font-semibold text-gray-900 mb-2">📱 WhatsApp Integration</h3>
-              <p class="text-gray-600 text-sm mb-3">Set up WhatsApp Business API for customer communication</p>
-              <a href="/docs/whatsapp-integration" class="text-blue-600 hover:text-blue-800 text-sm font-medium">Read more →</a>
+            <div className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">📱 WhatsApp Integration</h3>
+              <p className="text-gray-600 text-sm mb-3">Set up WhatsApp Business API for customer communication</p>
+              <a href="/docs/whatsapp-integration" className="text-blue-600 hover:text-blue-800 text-sm font-medium">Read more →</a>
             </div>
-            <div class="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow">
-              <h3 class="text-lg font-semibold text-gray-900 mb-2">📊 Analytics Dashboard</h3>
-              <p class="text-gray-600 text-sm mb-3">Understand your business metrics and performance indicators</p>
-              <a href="/docs/recovery-analytics" class="text-blue-600 hover:text-blue-800 text-sm font-medium">Read more →</a>
+            <div className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">📊 Analytics Dashboard</h3>
+              <p className="text-gray-600 text-sm mb-3">Understand your business metrics and performance indicators</p>
+              <a href="/docs/recovery-analytics" className="text-blue-600 hover:text-blue-800 text-sm font-medium">Read more →</a>
             </div>
-            <div class="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow">
-              <h3 class="text-lg font-semibold text-gray-900 mb-2">💳 Payment Setup</h3>
-              <p class="text-gray-600 text-sm mb-3">Configure payment gateways and manage transactions</p>
-              <a href="/docs/payments" class="text-blue-600 hover:text-blue-800 text-sm font-medium">Read more →</a>
+            <div className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">💳 Payment Setup</h3>
+              <p className="text-gray-600 text-sm mb-3">Configure payment gateways and manage transactions</p>
+              <a href="/docs/payments" className="text-blue-600 hover:text-blue-800 text-sm font-medium">Read more →</a>
             </div>
           </div>
         </div>
 
         <!-- Key Features -->
         <div>
-          <h2 class="text-2xl font-bold text-gray-900 mb-6">Platform Features</h2>
-          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div class="flex items-start space-x-3">
-              <div class="bg-blue-100 p-2 rounded-lg">
+          <h2 className="text-2xl font-bold text-gray-900 mb-6">Platform Features</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="flex items-start space-x-3">
+              <div className="bg-blue-100 p-2 rounded-lg">
                 ⚡
               </div>
               <div>
-                <h3 class="font-semibold text-gray-900 mb-1">Automated Cart Recovery</h3>
-                <p class="text-sm text-gray-600">Intelligent recovery system with ML-based customer segmentation</p>
+                <h3 className="font-semibold text-gray-900 mb-1">Automated Cart Recovery</h3>
+                <p className="text-sm text-gray-600">Intelligent recovery system with ML-based customer segmentation</p>
               </div>
             </div>
-            <div class="flex items-start space-x-3">
-              <div class="bg-green-100 p-2 rounded-lg">
+            <div className="flex items-start space-x-3">
+              <div className="bg-green-100 p-2 rounded-lg">
                 📧
               </div>
               <div>
-                <h3 class="font-semibold text-gray-900 mb-1">Multi-Channel Communication</h3>
-                <p class="text-sm text-gray-600">Reach customers via email, SMS, WhatsApp, and phone calls</p>
+                <h3 className="font-semibold text-gray-900 mb-1">Multi-Channel Communication</h3>
+                <p className="text-sm text-gray-600">Reach customers via email, SMS, WhatsApp, and phone calls</p>
               </div>
             </div>
-            <div class="flex items-start space-x-3">
-              <div class="bg-purple-100 p-2 rounded-lg">
+            <div className="flex items-start space-x-3">
+              <div className="bg-purple-100 p-2 rounded-lg">
                 📈
               </div>
               <div>
-                <h3 class="font-semibold text-gray-900 mb-1">Advanced Analytics</h3>
-                <p class="text-sm text-gray-600">Comprehensive analytics dashboard with recovery metrics</p>
+                <h3 className="font-semibold text-gray-900 mb-1">Advanced Analytics</h3>
+                <p className="text-sm text-gray-600">Comprehensive analytics dashboard with recovery metrics</p>
               </div>
             </div>
           </div>
         </div>
 
         <!-- Support -->
-        <div class="bg-gray-50 rounded-lg p-8 text-center">
-          <h2 class="text-2xl font-bold text-gray-900 mb-4">Need Help?</h2>
-          <p class="text-gray-600 mb-6">Can't find what you're looking for? Our support team is here to help.</p>
-          <button class="bg-blue-600 text-white px-8 py-3 rounded-md font-medium hover:bg-blue-700 transition-colors">
+        <div className="bg-gray-50 rounded-lg p-8 text-center">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">Need Help?</h2>
+          <p className="text-gray-600 mb-6">Can't find what you're looking for? Our support team is here to help.</p>
+          <button className="bg-blue-600 text-white px-8 py-3 rounded-md font-medium hover:bg-blue-700 transition-colors">
             Contact Support
           </button>
         </div>

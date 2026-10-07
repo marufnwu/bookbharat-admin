@@ -183,7 +183,7 @@ export const navigation: NavigationItem[] = [
     href: '/content',
     icon: FileText,
     children: [
-      { name: 'Blog', href: '/blog', icon: BookOpen },
+      { name: 'Blog', href: '/blog/posts', icon: BookOpen },
       { name: 'Pages', href: '/content-pages', icon: FileText },
       { name: 'Content Blocks', href: '/content-blocks', icon: Box },
       { name: 'Media Library', href: '/media-library', icon: Image },
@@ -218,8 +218,6 @@ export const navigation: NavigationItem[] = [
       { name: 'Admin Users', href: '/users', icon: Users },
       { name: 'Roles & Permissions', href: '/settings/roles', icon: Shield },
       { name: 'Error Logs', href: '/system/error-logs', icon: AlertTriangle },
-      { name: 'Logs', href: '/settings/system', icon: Server },
-      { name: 'Cache', href: '/settings/cache', icon: Database },
       {
         name: 'Migration',
         href: '/migration',

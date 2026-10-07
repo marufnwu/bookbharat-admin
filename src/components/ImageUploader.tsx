@@ -68,7 +68,6 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
   };
 
   const uploadFile = async (file: File) => {
-    console.log('Upload file called:', { fileName: file.name, fileType: file.type, fileSize: file.size });
 
     const error = validateFile(file);
     if (error) {
@@ -84,7 +83,6 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
       formData.append('file', file);
       formData.append('folder', folder);
 
-      console.log('Uploading to /media-library/upload with folder:', folder);
 
       const response = await api.post('/media-library/upload', formData, {
         headers: {
@@ -92,10 +90,8 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
         },
       });
 
-      console.log('Upload response:', response.data);
 
       if (response.data.success && response.data.data?.url) {
-        console.log('Upload successful, URL:', response.data.data.url);
         onChange(response.data.data.url);
         toast.success('Image uploaded successfully');
       } else {
@@ -112,13 +108,10 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
   };
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    console.log('File input changed, files:', e.target.files);
     const file = e.target.files?.[0];
     if (file) {
-      console.log('File selected:', file.name);
       uploadFile(file);
     } else {
-      console.log('No file selected');
     }
   };
 

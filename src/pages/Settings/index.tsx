@@ -1,13 +1,11 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Loader2, AlertTriangle, ChevronRightIcon, Settings as SettingsIcon, Info } from 'lucide-react';
+import { Loader2, AlertTriangle, ChevronRightIcon, Settings as SettingsIcon } from 'lucide-react';
 import { api } from '../../api/axios';
 import DynamicSettings from '../../components/settings/DynamicSettings';
 import {
   buildSettingsGroupsParams,
   filterGroupsByWhitelist,
-  readRuntimeOverrides,
-  applyRuntimeOverride,
   MAIN_SETTINGS_PAGE_CONTEXT,
   SETTINGS_GROUPS,
 } from '../../constants/settings';
@@ -23,51 +21,23 @@ interface SettingsGroup {
 const Settings: React.FC = () => {
   const [activeSection, setActiveSection] = useState<string>('');
 
-  // Read runtime overrides from the URL — useful for debugging the filter
-  // without editing the constants file. e.g. /settings?groups=android_app
-  const overrides = useMemo(() => readRuntimeOverrides(), []);
-  const effectiveContext = overrides.noFilter
-    ? ([] as readonly string[])
-    : applyRuntimeOverride(MAIN_SETTINGS_PAGE_CONTEXT, overrides.context);
-  const effectiveGroups = overrides.noFilter
-    ? ([] as readonly string[])
-    : applyRuntimeOverride(SETTINGS_GROUPS, overrides.groups);
-
-  const requestUrl = useMemo(() => {
-    const params = buildSettingsGroupsParams({
-      context: effectiveContext,
-      groups: effectiveGroups,
-    });
-    const qs = new URLSearchParams(params).toString();
-    return qs ? `/settings/groups?${qs}` : '/settings/groups (no filters)';
-  }, [effectiveContext, effectiveGroups]);
-
-  // Fetch available settings groups from backend.
   // The context list and whitelist come from `constants/settings.ts` — edit
-  // those values to control which groups this page shows. They can also be
-  // overridden at runtime via ?context=...&groups=...&nofilter=1
-  const { data: groupsData, isLoading, error, isFetching } = useQuery({
-    queryKey: ['settings', 'groups', 'main', effectiveContext.join(','), effectiveGroups.join(',')],
+  // those values to control which groups this page shows.
+  const { data: groupsData, isLoading, error } = useQuery({
+    queryKey: ['settings', 'groups', 'main'],
     staleTime: 0,
     gcTime: 0,
     queryFn: async () => {
-      // eslint-disable-next-line no-console
-      console.log('[Settings] requesting', requestUrl);
       const response = await api.get('/settings/groups', {
         params: buildSettingsGroupsParams({
-          context: effectiveContext,
-          groups: effectiveGroups,
+          context: MAIN_SETTINGS_PAGE_CONTEXT,
+          groups: SETTINGS_GROUPS,
         }),
       });
       const data = response.data.data as Record<string, SettingsGroup>;
-      // eslint-disable-next-line no-console
-      console.log('[Settings] backend returned', Object.keys(data).length, 'groups:', Object.keys(data));
       // Apply frontend whitelist so changing SETTINGS_GROUPS in code instantly
       // narrows what renders, even if the backend returns more.
-      const filtered = filterGroupsByWhitelist(data, effectiveGroups);
-      // eslint-disable-next-line no-console
-      console.log('[Settings] after whitelist:', Object.keys(filtered).length, 'groups:', Object.keys(filtered));
-      return filtered;
+      return filterGroupsByWhitelist(data, SETTINGS_GROUPS);
     },
   });
 
@@ -139,98 +109,72 @@ const Settings: React.FC = () => {
 
   return (
     <div className="space-y-4">
-      {/* Debug indicator — remove once filter behavior is verified */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 text-xs text-blue-900 flex flex-wrap items-center gap-x-4 gap-y-1">
-        <span className="inline-flex items-center gap-1 font-semibold">
-          <Info className="h-3 w-3" /> Filter debug
-        </span>
-        <span>
-          Request: <code className="bg-white px-1 rounded">{requestUrl}</code>
-        </span>
-        <span>
-          Whitelist ({effectiveGroups.length}):{' '}
-          <code className="bg-white px-1 rounded">
-            {effectiveGroups.length === 0 ? '∅ (show all)' : effectiveGroups.join(', ')}
-          </code>
-        </span>
-        <span>
-          Context ({effectiveContext.length}):{' '}
-          <code className="bg-white px-1 rounded">
-            {effectiveContext.length === 0 ? '∅ (all)' : effectiveContext.join(', ')}
-          </code>
-        </span>
-        <span>
-          Rendering: <code className="bg-white px-1 rounded">{sortedGroups.length} groups</code>
-          {isFetching && <span className="ml-1 text-blue-600">(refetching…)</span>}
-        </span>
-      </div>
-
-    <div className="flex gap-6">
-      {/* Left Sidebar Navigation */}
-      <div className="w-64 flex-shrink-0">
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 sticky top-6">
-          <div className="p-3 border-b border-gray-100 bg-gray-50 rounded-t-lg">
-            <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Settings</h2>
+      <div className="flex gap-6">
+        {/* Left Sidebar Navigation */}
+        <div className="w-64 flex-shrink-0">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 sticky top-6">
+            <div className="p-3 border-b border-gray-100 bg-gray-50 rounded-t-lg">
+              <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Settings</h2>
+            </div>
+            <nav className="p-1.5">
+              {sortedGroups.map(([key, group]) => {
+                const isActive = activeSection === key;
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => handleSectionChange(key)}
+                    className={`
+                      w-full flex items-center gap-2 px-3 py-2 rounded-md text-left transition-all text-sm
+                      ${isActive
+                        ? 'bg-blue-50 text-blue-700 shadow-sm'
+                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                      }
+                    `}
+                  >
+                    <SettingsIcon className={`h-4 w-4 flex-shrink-0 ${isActive ? 'text-blue-500' : 'text-gray-400'}`} />
+                    <span className={`flex-1 font-medium truncate ${isActive ? 'text-blue-700' : ''}`}>
+                      {group.label}
+                    </span>
+                    <ChevronRightIcon className={`h-3 w-3 flex-shrink-0 ${isActive ? 'text-blue-400' : 'text-gray-300'}`} />
+                  </button>
+                );
+              })}
+            </nav>
           </div>
-          <nav className="p-1.5">
-            {sortedGroups.map(([key, group]) => {
-              const isActive = activeSection === key;
-              return (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => handleSectionChange(key)}
-                  className={`
-                    w-full flex items-center gap-2 px-3 py-2 rounded-md text-left transition-all text-sm
-                    ${isActive
-                      ? 'bg-blue-50 text-blue-700 shadow-sm'
-                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                    }
-                  `}
-                >
-                  <SettingsIcon className={`h-4 w-4 flex-shrink-0 ${isActive ? 'text-blue-500' : 'text-gray-400'}`} />
-                  <span className={`flex-1 font-medium truncate ${isActive ? 'text-blue-700' : ''}`}>
-                    {group.label}
-                  </span>
-                  <ChevronRightIcon className={`h-3 w-3 flex-shrink-0 ${isActive ? 'text-blue-400' : 'text-gray-300'}`} />
-                </button>
-              );
-            })}
-          </nav>
         </div>
-      </div>
 
-      {/* Content Area */}
-      <div className="flex-1 min-w-0">
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-          {/* Section Header */}
-          <div className="px-6 py-4 border-b border-gray-100">
-            <div className="flex items-center gap-3">
-              <SettingsIcon className="h-5 w-5 text-blue-500" />
-              <div>
-                <h1 className="text-lg font-semibold text-gray-900">
-                  {currentGroup?.label || activeSection}
-                </h1>
-                <p className="text-sm text-gray-500">
-                  {currentGroup?.description || `Manage ${activeSection} settings`}
-                </p>
+        {/* Content Area */}
+        <div className="flex-1 min-w-0">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+            {/* Section Header */}
+            <div className="px-6 py-4 border-b border-gray-100">
+              <div className="flex items-center gap-3">
+                <SettingsIcon className="h-5 w-5 text-blue-500" />
+                <div>
+                  <h1 className="text-lg font-semibold text-gray-900">
+                    {currentGroup?.label || activeSection}
+                  </h1>
+                  <p className="text-sm text-gray-500">
+                    {currentGroup?.description || `Manage ${activeSection} settings`}
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Section Content */}
-          <div className="p-6">
-            {activeSection && currentGroup && (
-              <DynamicSettings
-                group={activeSection}
-                title={currentGroup.label}
-                description={currentGroup.description}
-              />
-            )}
+            {/* Section Content */}
+            <div className="p-6">
+              {activeSection && currentGroup && (
+                <DynamicSettings
+                  group={activeSection}
+                  title={currentGroup.label}
+                  description={currentGroup.description}
+                />
+              )}
+            </div>
           </div>
         </div>
       </div>
-    </div>
     </div>
   );
 };

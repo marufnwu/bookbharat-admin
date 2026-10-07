@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   PhotoIcon,
@@ -22,8 +22,6 @@ import DynamicSettings from '../../components/settings/DynamicSettings';
 import {
   buildSettingsGroupsParams,
   filterGroupsByWhitelist,
-  readRuntimeOverrides,
-  applyRuntimeOverride,
   SITE_SETTINGS_PAGE_CONTEXT,
   SETTINGS_GROUPS,
 } from '../../constants/settings';
@@ -109,50 +107,23 @@ const SiteSettings: React.FC = () => {
   // below automatically via the dynamic sections — no admin code change needed.
   const HARDCODED_SECTION_IDS = ['brand', 'contact', 'hours', 'theme', 'social', 'seo', 'features'];
 
-  // Read runtime overrides from the URL — useful for debugging the filter
-  // without editing the constants file. e.g. /settings/site?groups=android_app
-  const runtimeOverrides = useMemo(() => readRuntimeOverrides(), []);
-  const effectiveContext = runtimeOverrides.noFilter
-    ? ([] as readonly string[])
-    : applyRuntimeOverride(SITE_SETTINGS_PAGE_CONTEXT, runtimeOverrides.context);
-  const effectiveGroups = runtimeOverrides.noFilter
-    ? ([] as readonly string[])
-    : applyRuntimeOverride(SETTINGS_GROUPS, runtimeOverrides.groups);
-
-  const requestUrl = useMemo(() => {
-    const params = buildSettingsGroupsParams({
-      context: effectiveContext,
-      groups: effectiveGroups,
-    });
-    const qs = new URLSearchParams(params).toString();
-    return qs ? `/settings/groups?${qs}` : '/settings/groups (no filters)';
-  }, [effectiveContext, effectiveGroups]);
-
   // Fetch every dynamic settings group from the backend. New groups registered
   // in config/settings/*.php appear here without touching this file.
   // The context and whitelist come from `constants/settings.ts` — edit those
-  // values to control which groups this page shows. Runtime overrides via
-  // ?context=...&groups=...&nofilter=1 are also supported.
+  // values to control which groups this page shows.
   const { data: groupsData, isFetching } = useQuery({
-    queryKey: ['settings', 'groups', 'site', effectiveContext.join(','), effectiveGroups.join(',')],
+    queryKey: ['settings', 'groups', 'site'],
     staleTime: 0,
     gcTime: 0,
     queryFn: async () => {
-      // eslint-disable-next-line no-console
-      console.log('[SiteSettings] requesting', requestUrl);
       const res = await api.get('/settings/groups', {
         params: buildSettingsGroupsParams({
-          context: effectiveContext,
-          groups: effectiveGroups,
+          context: SITE_SETTINGS_PAGE_CONTEXT,
+          groups: SETTINGS_GROUPS,
         }),
       });
       const raw = (res.data?.data ?? {}) as Record<string, { label: string; description: string; icon: string; sort_order: number; field_count: number }>;
-      // eslint-disable-next-line no-console
-      console.log('[SiteSettings] backend returned', Object.keys(raw).length, 'groups:', Object.keys(raw));
-      const filtered = filterGroupsByWhitelist(raw, effectiveGroups);
-      // eslint-disable-next-line no-console
-      console.log('[SiteSettings] after whitelist:', Object.keys(filtered).length, 'groups:', Object.keys(filtered));
-      return filtered;
+      return filterGroupsByWhitelist(raw, SETTINGS_GROUPS);
     },
   });
 
@@ -745,31 +716,6 @@ const SiteSettings: React.FC = () => {
 
   return (
     <div className="space-y-4">
-      {/* Debug indicator — remove once filter behavior is verified */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 text-xs text-blue-900 flex flex-wrap items-center gap-x-4 gap-y-1">
-        <span className="inline-flex items-center gap-1 font-semibold">
-          Filter debug
-        </span>
-        <span>
-          Request: <code className="bg-white px-1 rounded">{requestUrl}</code>
-        </span>
-        <span>
-          Whitelist ({effectiveGroups.length}):{' '}
-          <code className="bg-white px-1 rounded">
-            {effectiveGroups.length === 0 ? '∅ (show all)' : effectiveGroups.join(', ')}
-          </code>
-        </span>
-        <span>
-          Context ({effectiveContext.length}):{' '}
-          <code className="bg-white px-1 rounded">
-            {effectiveContext.length === 0 ? '∅ (all)' : effectiveContext.join(', ')}
-          </code>
-        </span>
-        <span>
-          Rendering: <code className="bg-white px-1 rounded">{sections.length} sections ({dynamicSections.length} dynamic)</code>
-          {isFetching && <span className="ml-1 text-blue-600">(refetching…)</span>}
-        </span>
-      </div>
 
     <div className="flex gap-6">
       {/* Compact Left Sidebar Navigation */}

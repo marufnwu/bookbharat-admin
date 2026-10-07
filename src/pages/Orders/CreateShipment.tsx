@@ -525,7 +525,6 @@ const CreateShipment: React.FC = () => {
       width: currentWidth,
       height: currentHeight,
     };
-    console.log('Shipment payload:', JSON.stringify(payload, null, 2));
     createShipmentMutation.mutate(payload);
   };
 

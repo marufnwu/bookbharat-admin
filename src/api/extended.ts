@@ -1,6 +1,5 @@
 // Extended API methods for new admin panel pages
 import api from './axios';
-import axios from 'axios';
 
 // Extended Products API with all methods
 export const productsApiExtended = {
@@ -93,20 +92,14 @@ export const categoriesApiExtended = {
   updateCategory: (id: number, category: any) => api.put(`/categories/${id}`, category).then(res => res.data),
   deleteCategory: (id: number) => api.delete(`/categories/${id}`).then(res => res.data),
   getCategoryTree: () => {
-    // Use public API endpoint for category tree since it doesn't require admin auth
-    const publicBaseURL = process.env.REACT_APP_API_URL || process.env.REACT_APP_ADMIN_API_URL?.replace('/admin', '') || 'http://bookbharat.com/api/v1';
-    const publicApi = axios.create({
-      baseURL: publicBaseURL,
-      timeout: 30000,
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-    });
-    return publicApi.get('/categories').then(res => ({
+    // Admin /categories/tree returns the FULL depth tree (childrenRecursive),
+    // unlike the public /categories endpoint which lists root categories only
+    // — using the public one here previously hid all subcategories from the
+    // product forms.
+    return api.get('/categories/tree').then(res => ({
       success: true,
       data: res.data.data || [],
-      categories: res.data.data || []
+      categories: res.data.data || [],
     }));
   },
   getAllCategories: () => api.get('/categories?per_page=100').then(res => res.data),

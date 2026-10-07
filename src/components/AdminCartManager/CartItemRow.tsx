@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Tag, Trash2, Edit2, Save, X } from 'lucide-react';
-import { CartItem } from '../../pages/AbandonedCarts/types';
+import { CartItem } from '../../api/carts/types';
 
 interface CartItemRowProps {
   item: CartItem;

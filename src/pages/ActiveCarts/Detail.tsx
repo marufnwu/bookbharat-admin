@@ -2,7 +2,7 @@ import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import AdminCartManager from '../../components/AdminCartManager/AdminCartManager';
-import { adminApi } from '../AbandonedCarts/api';
+import { adminApi } from '../../api/carts/api';
 
 const ActiveCartDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();

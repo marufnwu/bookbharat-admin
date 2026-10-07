@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { adminApi } from '../AbandonedCarts/api';
+import { adminApi } from '../../api/carts/api';
 import { useNavigate } from 'react-router-dom';
 import { Search, Calendar, User, Eye } from 'lucide-react';
 

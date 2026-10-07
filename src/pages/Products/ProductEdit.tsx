@@ -415,30 +415,57 @@ const ProductEdit: React.FC = () => {
 
   const categoryName = (categoryTree as any)?.data?.find((c: any) => c.id === formData.category_id)?.name || '';
 
-  // Helper function to render categories with indentation for hierarchy
-  const renderCategoryOptions = (categories: any[], level = 0): React.ReactElement[] => {
+  // Dependent Category → Subcategory selection: the product still stores a
+  // single category_id (subcategory when chosen, otherwise the parent itself).
+  const [selectedRootId, setSelectedRootId] = useState<number | ''>('');
+
+  const categoryRoots = (categoryTree as any)?.data || [];
+
+  // Map every category id -> its root id, so an existing product's category
+  // pre-selects the right parent and subcategory.
+  const rootIdByCategory = React.useMemo(() => {
+    const map: Record<string | number, number> = {};
+    const walk = (nodes: any[], rootId: number) => {
+      nodes.forEach((node: any) => {
+        map[node.id] = rootId;
+        if (node.children?.length) walk(node.children, rootId);
+      });
+    };
+    categoryRoots.forEach((root: any) => walk([root], root.id));
+    return map;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [categoryTree]);
+
+  // Sync parent selection once tree + product data are both available
+  React.useEffect(() => {
+    if (formData.category_id && rootIdByCategory[formData.category_id]) {
+      setSelectedRootId(rootIdByCategory[formData.category_id]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [categoryTree, formData.category_id, rootIdByCategory]);
+
+  const handleCategoryRootChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const rootId = e.target.value ? (Number(e.target.value) as any) : 0;
+    setSelectedRootId(rootId);
+    // Default to direct assignment on the parent; user narrows via subcategory
+    setFormData(prev => ({ ...prev, category_id: rootId }));
+  };
+
+  const selectedRoot = categoryRoots.find((c: any) => c.id === selectedRootId);
+
+  const renderSubcategoryOptions = (children: any[], level = 1): React.ReactElement[] => {
     const options: React.ReactElement[] = [];
 
-    categories?.forEach((category) => {
-      // Create visual hierarchy with different indicators
-      let prefix = '';
-      if (level === 0) {
-        prefix = '📁 '; // Folder icon for parent categories
-      } else if (level === 1) {
-        prefix = '  ├── '; // Tree branch for subcategories
-      } else {
-        prefix = '  ' + '│   '.repeat(level - 1) + '├── '; // Deeper nesting
-      }
-
+    children?.forEach((category) => {
+      const prefix = level === 1 ? '├─ ' : '  ' + '│ '.repeat(level - 2) + '├─ ';
       options.push(
         <option key={category.id} value={category.id}>
           {prefix}{category.name}
         </option>
       );
 
-      // Recursively add children
       if (category.children && category.children.length > 0) {
-        options.push(...renderCategoryOptions(category.children, level + 1));
+        options.push(...renderSubcategoryOptions(category.children, level + 1));
       }
     });
 
@@ -722,17 +749,42 @@ const ProductEdit: React.FC = () => {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Category & Subcategory <span className="text-red-500">*</span>
+                      Category <span className="text-red-500">*</span>
                     </label>
                     <select
-                      name="category_id"
-                      value={formData.category_id}
-                      onChange={handleInputChange}
+                      value={selectedRootId === '' ? '' : String(selectedRootId)}
+                      onChange={handleCategoryRootChange}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
                       required
                     >
                       <option value="">Select Category</option>
-                      {renderCategoryOptions((categoryTree as any)?.data || [])}
+                      {categoryRoots.map((category: any) => (
+                        <option key={category.id} value={category.id}>
+                          📁 {category.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Subcategory
+                    </label>
+                    <select
+                      name="category_id"
+                      value={String(formData.category_id || '')}
+                      onChange={handleInputChange}
+                      disabled={!selectedRootId}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    >
+                      {selectedRoot ? (
+                        <option value={String(selectedRoot.id)}>
+                          — Assign directly to {selectedRoot.name} —
+                        </option>
+                      ) : (
+                        <option value="">Select a category first</option>
+                      )}
+                      {selectedRoot?.children && renderSubcategoryOptions(selectedRoot.children)}
                     </select>
                   </div>
 

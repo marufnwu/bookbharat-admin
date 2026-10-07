@@ -31,7 +31,6 @@ import CustomerCreate from "./pages/Customers/CustomerCreate";
 import CustomerEdit from "./pages/Customers/CustomerEdit";
 import Settings from "./pages/Settings";
 import SiteSettings from "./pages/Settings/SiteSettings";
-import TestTailwind from "./pages/TestTailwind";
 import Categories from "./pages/Categories";
 import PublishersList from "./pages/Publishers/PublishersList";
 import AuthorsList from "./pages/Authors/AuthorsList";
@@ -73,7 +72,6 @@ import EmailTemplates from "./pages/Content/EmailTemplates";
 import InvoiceTemplates from "./pages/Content/InvoiceTemplates";
 import AbandonedCarts from "./pages/Marketing/AbandonedCarts";
 import MessagingChannels from "./pages/Settings/MessagingChannels";
-import WhatsAppTemplates from "./pages/Settings/WhatsAppTemplates";
 import MessageTemplates from "./pages/Settings/MessageTemplates";
 import NotificationEvents from "./pages/Settings/NotificationEvents";
 import AiProvidersPage from "./pages/Settings/AiProvidersPage";
@@ -83,7 +81,6 @@ import PreordersList from "./pages/Preorders";
 // Documentation Pages
 import DynamicDocumentationPage from "./pages/Documentation/DynamicDocumentationPage";
 
-// Communication & Notification Pages - REMOVED
 
 import MarketingSettings from "./pages/Marketing/MarketingSettings";
 import RolesPermissions from "./pages/Settings/RolesPermissions";
@@ -91,8 +88,6 @@ import MarketingAnalytics from "./pages/Marketing/MarketingAnalytics";
 import FeedManagement from "./pages/Marketing/FeedManagement";
 import ProductCollections from "./pages/Marketing/ProductCollections";
 import AnalyticsHub from "./pages/Analytics";
-import PaymentAnalytics from "./pages/Analytics/PaymentAnalytics";
-import MessageLogs from "./pages/Analytics/MessageLogs";
 import ActiveCarts from "./pages/ActiveCarts";
 import ActiveCartDetail from "./pages/ActiveCarts/Detail";
 
@@ -125,7 +120,6 @@ import WebhookLog from "./pages/Payments/WebhookLog";
 // Settings Pages
 import PaymentSettings from "./pages/Settings/PaymentSettings";
 import TaxConfigurations from "./pages/Settings/TaxConfigurations";
-import OrderCharges from "./pages/Settings/OrderCharges";
 import OrderSettings from "./pages/Orders/OrderSettings";
 
 // Components
@@ -158,9 +152,7 @@ const App: React.FC = () => {
           <Routes>
             {/* Public routes */}
             <Route path="/login" element={<Login />} />
-            <Route path="/test" element={<TestTailwind />} />
-
-            {/* Protected routes */}
+{/* Protected routes */}
             <Route
               path="/"
               element={
@@ -311,8 +303,6 @@ const App: React.FC = () => {
               <Route path="settings/ai-providers" element={<AiProvidersPage />} />
               <Route path="settings/maintenance" element={<MaintenanceMode />} />
 
-              {/* Communication & Notifications - REMOVED */}
-
               {/* Marketing Management */}
               <Route
                 path="marketing/settings"
@@ -326,10 +316,9 @@ const App: React.FC = () => {
               <Route path="marketing/collections" element={<ProductCollections />} />
               <Route path="marketing/abandoned-carts" element={<AbandonedCarts />} />
 
-              {/* Analytics */}
-              <Route path="analytics" element={<AnalyticsHub />} />
-              <Route path="analytics/payments" element={<PaymentAnalytics />} />
-              <Route path="analytics/message-logs" element={<MessageLogs />} />
+              {/* Analytics — the hub owns the whole /analytics/* URL space
+                  (its internal router renders the tile grid and sub-pages) */}
+              <Route path="analytics/*" element={<AnalyticsHub />} />
 
               {/* Blog Management */}
               <Route path="blog/posts" element={<BlogPosts />} />

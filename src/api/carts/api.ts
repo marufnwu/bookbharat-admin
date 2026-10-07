@@ -3,7 +3,7 @@
  * Centralized API calls for abandoned cart admin
  */
 
-import { api } from '../../api/axios';
+import { api } from '../axios';
 import type {
   Cart,
   CartFilters,

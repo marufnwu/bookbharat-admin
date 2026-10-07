@@ -3,6 +3,7 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/useAuth';
 import { Sidebar, Header, MobileNav, AgencyCredit } from '../components/layout';
 import CommandPalette, { useCommandPaletteHotkey } from '../components/CommandPalette';
+import ErrorBoundary from '../components/ErrorBoundary';
 
 const AdminLayout: React.FC = () => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -57,7 +58,9 @@ const AdminLayout: React.FC = () => {
         <main className="flex-1 overflow-y-auto">
           <div className="py-6">
             <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8">
-              <Outlet />
+              <ErrorBoundary>
+                <Outlet />
+              </ErrorBoundary>
             </div>
           </div>
         </main>
