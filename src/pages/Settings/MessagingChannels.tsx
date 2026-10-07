@@ -9,45 +9,35 @@ interface ChannelConfig {
   is_active: boolean;
 }
 
-interface ChannelStats {
-  total: number;
-  success_rate: number;
-}
-
+/**
+ * Read-only provider connections: credentials (ENV-managed, masked) and a
+ * test button per channel. Delivery statistics live on the Messaging
+ * Dashboard; template content on Message Templates; event routing on
+ * Notification Events.
+ */
 const MessagingChannels: React.FC = () => {
   const [selectedTab, setSelectedTab] = useState('email');
   const [testingChannel, setTestingChannel] = useState('');
-  
+
   const [emailConfig, setEmailConfig] = useState<ChannelConfig | null>(null);
   const [smsConfig, setSmsConfig] = useState<ChannelConfig | null>(null);
   const [whatsappConfig, setWhatsappConfig] = useState<ChannelConfig | null>(null);
-  const [stats, setStats] = useState<{ email?: ChannelStats; sms?: ChannelStats; whatsapp?: ChannelStats }>({});
 
   useEffect(() => {
     loadChannels();
-    loadStats();
   }, []);
 
   const loadChannels = async () => {
     try {
       const response = await api.get('/settings/messaging/channels');
       const channels = response.data.channels;
-      
+
       if (channels.email?.[0]) setEmailConfig(channels.email[0]);
       if (channels.sms?.[0]) setSmsConfig(channels.sms[0]);
       if (channels.whatsapp?.[0]) setWhatsappConfig(channels.whatsapp[0]);
     } catch (error) {
       console.error('Failed to load channels:', error);
       toast.error('Failed to load channel configurations');
-    }
-  };
-
-  const loadStats = async () => {
-    try {
-      const response = await api.get('/settings/messaging/statistics');
-      setStats(response.data.statistics);
-    } catch (error) {
-      console.error('Failed to load statistics:', error);
     }
   };
 
@@ -128,12 +118,6 @@ const MessagingChannels: React.FC = () => {
             </span>
           )}
         </div>
-        {stats.email && (
-          <div className="text-sm text-gray-500">
-            Success Rate: <span className="font-medium text-gray-900">{stats.email.success_rate.toFixed(1)}%</span> 
-            <span className="mx-1">({stats.email.total} sent)</span>
-          </div>
-        )}
       </div>
 
       {renderEnvNotice()}
@@ -182,12 +166,6 @@ const MessagingChannels: React.FC = () => {
             </span>
           )}
         </div>
-        {stats.sms && (
-          <div className="text-sm text-gray-500">
-            Success Rate: <span className="font-medium text-gray-900">{stats.sms.success_rate.toFixed(1)}%</span>
-            <span className="mx-1">({stats.sms.total} sent)</span>
-          </div>
-        )}
       </div>
 
       {renderEnvNotice()}
@@ -232,12 +210,6 @@ const MessagingChannels: React.FC = () => {
             </span>
           )}
         </div>
-        {stats.whatsapp && (
-          <div className="text-sm text-gray-500">
-            Success Rate: <span className="font-medium text-gray-900">{stats.whatsapp.success_rate.toFixed(1)}%</span>
-            <span className="mx-1">({stats.whatsapp.total} sent)</span>
-          </div>
-        )}
       </div>
 
       {renderEnvNotice()}
@@ -261,7 +233,7 @@ const MessagingChannels: React.FC = () => {
           <FileText className="h-5 w-5 text-yellow-600 mr-2" />
           <div className="text-sm text-yellow-700">
             <p className="font-medium">Template Management</p>
-            <p className="mt-1">Manage WhatsApp templates in <a href="/settings/whatsapp-templates" className="underline font-medium">WhatsApp Templates</a> page</p>
+            <p className="mt-1">Manage WhatsApp templates in <a href="/settings/message-templates" className="underline font-medium">Message Templates</a></p>
           </div>
         </div>
       </div>

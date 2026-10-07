@@ -19,6 +19,7 @@ import {
 // Analytics pages
 import PaymentAnalytics from './PaymentAnalytics';
 import MessageLogs from './MessageLogs';
+import MessagingDashboard from './MessagingDashboard';
 import RecoveryCampaigns from './RecoveryCampaigns';
 import OrderSources from './OrderSources';
 import ConversionFunnel from './ConversionFunnel';
@@ -58,10 +59,10 @@ const AnalyticsHub: React.FC = () => {
       color: 'bg-amber-100 text-amber-600',
     },
     {
-      title: 'Notification Stats',
-      description: 'Monitor notification delivery, open rates, and engagement.',
+      title: 'Messaging Dashboard',
+      description: 'WhatsApp, SMS and email delivery health, failures and volume.',
       icon: Bell,
-      path: '/notifications/analytics',
+      path: '/analytics/messaging',
       color: 'bg-red-100 text-red-600',
     },
     {
@@ -155,6 +156,7 @@ const AnalyticsHub: React.FC = () => {
         </div>
       } />
       <Route path="payments" element={<PaymentAnalytics />} />
+      <Route path="messaging" element={<MessagingDashboard />} />
       <Route path="message-logs" element={<MessageLogs />} />
       <Route path="recovery-campaigns" element={<RecoveryCampaigns />} />
       <Route path="order-sources" element={<OrderSources />} />

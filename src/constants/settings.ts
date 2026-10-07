@@ -36,7 +36,7 @@ export const SETTINGS_GROUPS = [
   // 'features',
   // 'currency',
   // 'business',
-  // 'messaging',
+  'messaging',
   // 'tax',
   // 'modules',
   'android_app',

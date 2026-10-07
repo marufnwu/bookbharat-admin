@@ -74,6 +74,8 @@ import InvoiceTemplates from "./pages/Content/InvoiceTemplates";
 import AbandonedCarts from "./pages/Marketing/AbandonedCarts";
 import MessagingChannels from "./pages/Settings/MessagingChannels";
 import WhatsAppTemplates from "./pages/Settings/WhatsAppTemplates";
+import MessageTemplates from "./pages/Settings/MessageTemplates";
+import NotificationEvents from "./pages/Settings/NotificationEvents";
 import AiProvidersPage from "./pages/Settings/AiProvidersPage";
 import MaintenanceMode from "./pages/Settings/MaintenanceMode";
 import PreordersList from "./pages/Preorders";
@@ -302,7 +304,10 @@ const App: React.FC = () => {
               <Route path="settings/taxes" element={<TaxConfigurations />} />
               <Route path="settings/charges" element={<Navigate to="/orders/settings?tab=charges" replace />} />
               <Route path="settings/messaging-channels" element={<MessagingChannels />} />
-              <Route path="settings/whatsapp-templates" element={<WhatsAppTemplates />} />
+              {/* Old WhatsApp Templates route — superseded by Message Templates */}
+              <Route path="settings/whatsapp-templates" element={<Navigate to="/settings/message-templates" replace />} />
+              <Route path="settings/message-templates" element={<MessageTemplates />} />
+              <Route path="settings/notification-events" element={<NotificationEvents />} />
               <Route path="settings/ai-providers" element={<AiProvidersPage />} />
               <Route path="settings/maintenance" element={<MaintenanceMode />} />
 

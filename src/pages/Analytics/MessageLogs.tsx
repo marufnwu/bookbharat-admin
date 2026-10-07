@@ -1,423 +1,398 @@
-import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { RefreshCw, Download, Eye, Mail, MessageSquare, Phone, AlertCircle, X, ChevronLeft, ChevronRight, Search } from 'lucide-react';
+/**
+ * Message Logs — audit trail of every message the system sent. Filterable
+ * list, detail drawer with payload + provider response, resend for failed
+ * rows. Backed by /settings/messaging/logs.
+ */
+
+import React, { useMemo, useState } from 'react';
 import { format } from 'date-fns';
-import { api } from '../../api/axios';
-import { toast } from '../../utils/toast';
-import { daysAgoIso, toIsoDate } from '../../utils/format';
-import { LoadingSpinner } from '../../components';
+import { Mail as MailIcon, MessageSquare, Phone, RefreshCw } from 'lucide-react';
+import {
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  ConfirmModal,
+  Drawer,
+  EmptyState,
+  StatusBadge,
+  Table,
+} from '../../components';
+import type { TableColumn } from '../../types';
+import { DateRangeFilter } from '../../components/DateRangeFilter';
+import { useMessageLogs, useRetryLog } from '../../api/messaging/hooks';
+import { exportLogs } from '../../api/messaging/api';
+import type { LogFilters, MessageChannel, MessageLog } from '../../api/messaging/types';
 
-interface MessageLog {
-  id: number;
-  channel: string;
-  template_code: string;
-  recipient: string;
-  status: string;
-  sent_at: string;
-  error_message?: string;
-  created_at: string;
-  user?: { name: string };
-  metadata?: any;
-}
+const CHANNELS: { value: string; label: string }[] = [
+  { value: '', label: 'All channels' },
+  { value: 'whatsapp', label: 'WhatsApp' },
+  { value: 'sms', label: 'SMS' },
+  { value: 'email', label: 'Email' },
+];
 
-interface MessageLogsEnvelope {
-  data: MessageLog[];
-  total?: number;
-}
+const STATUSES: { value: string; label: string }[] = [
+  { value: '', label: 'All statuses' },
+  { value: 'queued', label: 'Queued' },
+  { value: 'sent', label: 'Sent' },
+  { value: 'delivered', label: 'Delivered' },
+  { value: 'failed', label: 'Failed' },
+];
 
-const MessageLogs: React.FC = () => {
+const CHANNEL_ICONS: Record<MessageChannel, React.ReactNode> = {
+  whatsapp: <MessageSquare className="h-4 w-4 text-success-600" />,
+  sms: <Phone className="h-4 w-4 text-primary-600" />,
+  email: <MailIcon className="h-4 w-4 text-primary-600" />,
+};
+
+const DEFAULT_FILTERS: LogFilters = {
+  channel: '',
+  status: '',
+  template_code: '',
+  user_id: '',
+  date_from: '',
+  date_to: '',
+};
+
+const statusToBadge = (status: MessageLog['status']) =>
+  status === 'queued'
+    ? 'pending'
+    : status === 'sent' || status === 'delivered'
+      ? 'success'
+      : status === 'failed'
+        ? 'failed'
+        : 'default';
+
+export const MessageLogs: React.FC = () => {
+  const [filters, setFilters] = useState<LogFilters>(DEFAULT_FILTERS);
   const [page, setPage] = useState(1);
-  const [rowsPerPage] = useState(50);
-  const [selectedLog, setSelectedLog] = useState<MessageLog | null>(null);
+  const [selected, setSelected] = useState<MessageLog | null>(null);
+  const [confirmResend, setConfirmResend] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
-  // Filters
-  const [channelFilter, setChannelFilter] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
-  const [templateFilter, setTemplateFilter] = useState('');
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
+  const perPage = 50;
+  const { data, isLoading } = useMessageLogs(filters, page, perPage);
+  const retryLog = useRetryLog();
 
-  // Fetch message logs via React Query. The backend (MessageLogController)
-  // currently returns `{success, logs: {data: [...], total: N}}`; the route
-  // is not yet registered against `/settings/messaging/logs` (see repo
-  // memory "Dashboard API Fix" section for the wiring TODO).
-  const { data: logsResp, isLoading: loading, refetch } = useQuery({
-    queryKey: ['message-logs', page, rowsPerPage, channelFilter, statusFilter, templateFilter, dateFrom, dateTo],
-    queryFn: async () => {
-      const response = await api.get<MessageLogsEnvelope>('/settings/messaging/logs', {
-        params: {
-          page,
-          per_page: rowsPerPage,
-          channel: channelFilter,
-          status: statusFilter,
-          template_code: templateFilter,
-          date_from: dateFrom,
-          date_to: dateTo,
-        },
-      });
-      // Tolerate both `{data, total}` and Laravel paginator `{data: [], total: N}`.
-      const data = (response.data as any)?.logs?.data
-        ?? (response.data as any)?.data
-        ?? [];
-      const total = (response.data as any)?.logs?.total
-        ?? (response.data as any)?.total
-        ?? 0;
-      return { data: data as MessageLog[], total: Number(total) };
-    },
-  });
-  const logs = logsResp?.data ?? [];
-  const total = logsResp?.total ?? 0;
+  const rows = data?.data ?? [];
+  const total = data?.total ?? 0;
 
-  const retryMessage = async (id: number) => {
+  const handleExport = async () => {
+    setExporting(true);
     try {
-      const response = await api.post(`/settings/messaging/logs/${id}/retry`);
-      if (response.data.success) {
-        toast.success('Message resent successfully');
-        refetch();
-        setSelectedLog(null);
-      } else {
-        toast.error(response.data.message);
-      }
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to retry');
-    }
-  };
-
-  const exportLogs = async () => {
-    try {
-      const params = {
-        channel: channelFilter,
-        status: statusFilter,
-        date_from: dateFrom,
-        date_to: dateTo,
-      };
-
-      const response = await api.get('/settings/messaging/logs/export', {
-        params,
-        responseType: 'blob',
-      });
-
-      // Guard against JSON error bodies (4xx/5xx) which axios serves as a
-      // blob with `application/json` content-type — those would otherwise
-      // download as a corrupt "log.csv". Refuse non-CSV bodies and surface a
-      // useful error instead.
-      const contentType = String(response.headers?.['content-type'] ?? '');
-      if (!/csv|text\/plain/i.test(contentType)) {
-        toast.error('Export endpoint returned a non-CSV response — check the route is wired.');
-        return;
-      }
-
-      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const blob = await exportLogs(filters);
+      const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `message-logs-${new Date().toISOString()}.csv`);
-      document.body.appendChild(link);
+      link.download = `message-logs-${format(new Date(), 'yyyy-MM-dd')}.csv`;
       link.click();
-      link.remove();
-    } catch (error) {
-      toast.error('Failed to export logs');
+      URL.revokeObjectURL(url);
+    } catch {
+      // Export failure is surfaced by the browser (no download); nothing else to do.
+    } finally {
+      setExporting(false);
     }
   };
 
-  const getStatusBadge = (status: string) => {
-    const styles: Record<string, string> = {
-      delivered: 'bg-green-100 text-green-800',
-      sent: 'bg-blue-100 text-blue-800',
-      queued: 'bg-yellow-100 text-yellow-800',
-      failed: 'bg-red-100 text-red-800',
-    };
-
-    return (
-      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${styles[status] || 'bg-gray-100 text-gray-800'}`}>
-        {status}
-      </span>
-    );
-  };
-
-  const getChannelIcon = (channel: string) => {
-    switch (channel) {
-      case 'email':
-        return <Mail className="h-4 w-4 text-gray-500" />;
-      case 'sms':
-        return <MessageSquare className="h-4 w-4 text-gray-500" />;
-      case 'whatsapp':
-        return <Phone className="h-4 w-4 text-green-500" />;
-      default:
-        return null;
-    }
-  };
+  const columns: TableColumn<MessageLog>[] = useMemo(
+    () => [
+      {
+        key: 'channel',
+        title: 'Channel',
+        render: (_: unknown, record: MessageLog) => (
+          <span className="flex items-center gap-2">
+            {CHANNEL_ICONS[record.channel as MessageChannel]}
+            <span className="capitalize text-gray-700">{record.channel}</span>
+          </span>
+        ),
+      },
+      {
+        key: 'template_code',
+        title: 'Event',
+        render: (_: unknown, record: MessageLog) => (
+          <span className="font-mono text-xs text-gray-700">{record.template_code ?? '—'}</span>
+        ),
+      },
+      {
+        key: 'recipient',
+        title: 'Recipient',
+        render: (v: string) => <span className="text-gray-700">{v}</span>,
+      },
+      {
+        key: 'status',
+        title: 'Status',
+        render: (_: unknown, record: MessageLog) => (
+          <StatusBadge status={statusToBadge(record.status)}>{record.status}</StatusBadge>
+        ),
+      },
+      {
+        key: 'user',
+        title: 'Customer',
+        render: (_: unknown, record: MessageLog) =>
+          record.user ? (
+            <span className="text-gray-700">{record.user.name}</span>
+          ) : (
+            <span className="text-gray-400">Guest</span>
+          ),
+      },
+      {
+        key: 'created_at',
+        title: 'Time',
+        render: (v: string) => (
+          <span className="text-gray-500">{format(new Date(v), 'MMM d, HH:mm:ss')}</span>
+        ),
+      },
+      {
+        key: 'actions',
+        title: '',
+        align: 'right',
+        render: (_: unknown, record: MessageLog) =>
+          record.status === 'failed' ? (
+            <Button
+              size="sm"
+              variant="outline"
+              leftIcon={<RefreshCw className="h-3.5 w-3.5" />}
+              onClick={(e) => {
+                e.stopPropagation();
+                setSelected(record);
+                setConfirmResend(true);
+              }}
+            >
+              Resend
+            </Button>
+          ) : null,
+      },
+    ],
+    [],
+  );
 
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Message Logs</h1>
-        <div className="flex gap-2">
-          <button
-            onClick={() => refetch()}
-            disabled={loading}
-            className="flex items-center px-4 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
-          >
-            <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-            Refresh
-          </button>
-          <button
-            onClick={exportLogs}
-            className="flex items-center px-4 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
-          >
-            <Download className="w-4 h-4 mr-2" />
-            Export
-          </button>
+    <div className="space-y-6">
+      {/* Page header */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Message Logs</h1>
+          <p className="mt-1 text-sm text-gray-500">
+            Every message sent to customers — WhatsApp, SMS, and email.
+          </p>
         </div>
+        <Button variant="outline" loading={exporting} onClick={handleExport}>
+          Export CSV
+        </Button>
       </div>
 
       {/* Filters */}
-      <div className="bg-white shadow rounded-lg p-4 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Channel</label>
+      <Card>
+        <CardContent className="flex flex-col gap-3 pt-2 lg:flex-row lg:items-end">
+          <div className="flex-1 space-y-1">
+            <label className="text-xs font-semibold uppercase text-gray-500">Channel</label>
             <select
-              value={channelFilter}
-              onChange={(e) => setChannelFilter(e.target.value)}
-              className="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-blue-500 focus:border-blue-500 p-2 border"
+              value={filters.channel}
+              onChange={(e) => {
+                setFilters({ ...filters, channel: e.target.value });
+                setPage(1);
+              }}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
             >
-              <option value="">All Channels</option>
-              <option value="email">Email</option>
-              <option value="sms">SMS</option>
-              <option value="whatsapp">WhatsApp</option>
+              {CHANNELS.map((c) => (
+                <option key={c.value} value={c.value}>
+                  {c.label}
+                </option>
+              ))}
             </select>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+          <div className="flex-1 space-y-1">
+            <label className="text-xs font-semibold uppercase text-gray-500">Status</label>
             <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-blue-500 focus:border-blue-500 p-2 border"
+              value={filters.status}
+              onChange={(e) => {
+                setFilters({ ...filters, status: e.target.value });
+                setPage(1);
+              }}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
             >
-              <option value="">All Statuses</option>
-              <option value="queued">Queued</option>
-              <option value="sent">Sent</option>
-              <option value="delivered">Delivered</option>
-              <option value="failed">Failed</option>
+              {STATUSES.map((s) => (
+                <option key={s.value} value={s.value}>
+                  {s.label}
+                </option>
+              ))}
             </select>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Template</label>
+          <div className="flex-1 space-y-1">
+            <label className="text-xs font-semibold uppercase text-gray-500">Event</label>
             <input
               type="text"
-              value={templateFilter}
-              onChange={(e) => setTemplateFilter(e.target.value)}
-              placeholder="e.g. login_otp"
-              className="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-blue-500 focus:border-blue-500 p-2 border"
+              value={filters.template_code}
+              placeholder="e.g. order_placed"
+              onChange={(e) => {
+                setFilters({ ...filters, template_code: e.target.value });
+                setPage(1);
+              }}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
             />
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">From Date</label>
-            <input
-              type="date"
-              value={dateFrom}
-              onChange={(e) => setDateFrom(e.target.value)}
-              className="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-blue-500 focus:border-blue-500 p-2 border"
+          <div className="flex-1 space-y-1">
+            <label className="text-xs font-semibold uppercase text-gray-500">Date range</label>
+            <DateRangeFilter
+              startDate={filters.date_from || ''}
+              endDate={filters.date_to || ''}
+              onStartChange={(v) => {
+                setFilters({ ...filters, date_from: v });
+                setPage(1);
+              }}
+              onEndChange={(v) => {
+                setFilters({ ...filters, date_to: v });
+                setPage(1);
+              }}
+              onClear={() => setFilters({ ...filters, date_from: '', date_to: '' })}
             />
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">To Date</label>
-            <input
-              type="date"
-              value={dateTo}
-              onChange={(e) => setDateTo(e.target.value)}
-              className="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-blue-500 focus:border-blue-500 p-2 border"
-            />
-          </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
-      {/* Logs Table */}
-      <div className="bg-white shadow rounded-lg overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Channel</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Template</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Recipient</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sent At</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {logs.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="px-6 py-4 text-center text-sm text-gray-500">
-                    {loading ? 'Loading...' : 'No logs found matching your filters.'}
-                  </td>
-                </tr>
-              ) : (
-                logs.map((log) => (
-                  <tr key={log.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{log.id}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      <div className="flex items-center gap-2">
-                        {getChannelIcon(log.channel)}
-                        <span className="capitalize">{log.channel}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{log.template_code}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{log.recipient}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">{getStatusBadge(log.status)}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {log.sent_at ? format(new Date(log.sent_at), 'MMM dd, yyyy HH:mm') : '-'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <button
-                        onClick={() => setSelectedLog(log)}
-                        className="text-blue-600 hover:text-blue-900 mr-3"
-                        title="View Details"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </button>
-                      {log.status === 'failed' && (
-                        <button
-                          onClick={() => retryMessage(log.id)}
-                          className="text-orange-600 hover:text-orange-900"
-                          title="Retry"
-                        >
-                          <RefreshCw className="w-4 h-4" />
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Pagination */}
-        <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
-          <div className="flex-1 flex justify-between sm:hidden">
-            <button
-              onClick={() => setPage(p => Math.max(1, p - 1))}
-              disabled={page === 1}
-              className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
-            >
-              Previous
-            </button>
-            <button
-              onClick={() => setPage(p => p + 1)}
-              disabled={page * rowsPerPage >= total}
-              className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
-            >
-              Next
-            </button>
-          </div>
-          <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-            <div>
-              <p className="text-sm text-gray-700">
-                Showing <span className="font-medium">{(page - 1) * rowsPerPage + 1}</span> to <span className="font-medium">{Math.min(page * rowsPerPage, total)}</span> of <span className="font-medium">{total}</span> results
-              </p>
-            </div>
-            <div>
-              <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-                <button
-                  onClick={() => setPage(p => Math.max(1, p - 1))}
-                  disabled={page === 1}
-                  className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
-                >
-                  <span className="sr-only">Previous</span>
-                  <ChevronLeft className="h-5 w-5" />
-                </button>
-                <button
-                  onClick={() => setPage(p => p + 1)}
-                  disabled={page * rowsPerPage >= total}
-                  className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
-                >
-                  <span className="sr-only">Next</span>
-                  <ChevronRight className="h-5 w-5" />
-                </button>
-              </nav>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Details Modal */}
-      {selectedLog && (
-        <div className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-          <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-            <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true" onClick={() => setSelectedLog(null)}></div>
-            <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-              <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                <div className="sm:flex sm:items-start">
-                  <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
-                    <h3 className="text-lg leading-6 font-medium text-gray-900" id="modal-title">
-                      Message Details
-                    </h3>
-                    <div className="mt-4 space-y-4">
-                      <div>
-                        <label className="text-xs font-semibold text-gray-500 uppercase">ID</label>
-                        <p className="text-sm text-gray-900">{selectedLog.id}</p>
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="text-xs font-semibold text-gray-500 uppercase">Channel</label>
-                          <p className="text-sm text-gray-900 capitalize">{selectedLog.channel}</p>
-                        </div>
-                        <div>
-                          <label className="text-xs font-semibold text-gray-500 uppercase">Status</label>
-                          <div className="mt-1">{getStatusBadge(selectedLog.status)}</div>
-                        </div>
-                      </div>
-                      <div>
-                        <label className="text-xs font-semibold text-gray-500 uppercase">Recipient</label>
-                        <p className="text-sm text-gray-900">{selectedLog.recipient}</p>
-                      </div>
-                      <div>
-                        <label className="text-xs font-semibold text-gray-500 uppercase">Template</label>
-                        <p className="text-sm text-gray-900">{selectedLog.template_code}</p>
-                      </div>
-                      {selectedLog.error_message && (
-                        <div>
-                          <label className="text-xs font-semibold text-gray-500 uppercase">Error</label>
-                          <p className="text-sm text-red-600">{selectedLog.error_message}</p>
-                        </div>
-                      )}
-                      {selectedLog.metadata && (
-                        <div>
-                          <label className="text-xs font-semibold text-gray-500 uppercase">Metadata</label>
-                          <div className="mt-1 bg-gray-50 p-2 rounded text-xs font-mono overflow-auto max-h-40">
-                            <pre>{JSON.stringify(selectedLog.metadata, null, 2)}</pre>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                {selectedLog.status === 'failed' && (
-                  <button
-                    type="button"
-                    className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm"
-                    onClick={() => retryMessage(selectedLog.id)}
-                  >
-                    Retry Sending
-                  </button>
-                )}
-                <button
-                  type="button"
-                  className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
-                  onClick={() => setSelectedLog(null)}
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+      {/* Logs table */}
+      {rows.length === 0 && !isLoading ? (
+        <Card>
+          <EmptyState
+            icon={<MailIcon className="h-10 w-10" />}
+            title="No messages found"
+            description="No messages match the selected filters."
+          />
+        </Card>
+      ) : (
+        <Card>
+          <Table
+            data={rows}
+            columns={columns}
+            loading={isLoading}
+            onRowClick={(record) => setSelected(record)}
+            pagination={{
+              current: page,
+              pageSize: perPage,
+              total,
+              onChange: setPage,
+            }}
+          />
+        </Card>
       )}
+
+      {/* Detail drawer */}
+      <Drawer
+        open={selected !== null}
+        onClose={() => setSelected(null)}
+        title={`Message #${selected?.id ?? ''}`}
+        description={selected ? `${selected.channel} · ${selected.template_code ?? '—'}` : ''}
+        width="md"
+      >
+        {selected && (
+          <div className="space-y-5">
+            <div className="flex items-center gap-3">
+              <StatusBadge status={statusToBadge(selected.status)}>{selected.status}</StatusBadge>
+              <Badge variant="default" size="sm">
+                {selected.attempts ?? 1} attempt{(selected.attempts ?? 1) > 1 ? 's' : ''}
+              </Badge>
+              {selected.provider && <Badge variant="info">{selected.provider}</Badge>}
+            </div>
+
+            <dl className="space-y-3 text-sm">
+              <div className="flex justify-between gap-4">
+                <dt className="font-medium text-gray-500">Recipient</dt>
+                <dd className="text-right text-gray-900">{selected.recipient}</dd>
+              </div>
+              <div className="flex justify-between gap-4">
+                <dt className="font-medium text-gray-500">Customer</dt>
+                <dd className="text-right text-gray-900">
+                  {selected.user ? `${selected.user.name} (${selected.user.email})` : 'Guest'}
+                </dd>
+              </div>
+              {selected.provider_message_id && (
+                <div className="flex justify-between gap-4">
+                  <dt className="font-medium text-gray-500">Provider message ID</dt>
+                  <dd className="break-all text-right font-mono text-xs text-gray-900">
+                    {selected.provider_message_id}
+                  </dd>
+                </div>
+              )}
+              <div className="flex justify-between gap-4">
+                <dt className="font-medium text-gray-500">Sent at</dt>
+                <dd className="text-gray-900">
+                  {selected.sent_at ? format(new Date(selected.sent_at), 'MMM d, yyyy HH:mm:ss') : '—'}
+                </dd>
+              </div>
+              <div className="flex justify-between gap-4">
+                <dt className="font-medium text-gray-500">Delivered at</dt>
+                <dd className="text-gray-900">
+                  {selected.delivered_at
+                    ? format(new Date(selected.delivered_at), 'MMM d, yyyy HH:mm:ss')
+                    : '—'}
+                </dd>
+              </div>
+              {selected.subject_type && (
+                <div className="flex justify-between gap-4">
+                  <dt className="font-medium text-gray-500">Related to</dt>
+                  <dd className="text-gray-900">
+                    {selected.subject_type.replace('App\\Models\\', '')} #{selected.subject_id}
+                  </dd>
+                </div>
+              )}
+            </dl>
+
+            {selected.error_message && (
+              <div className="rounded-lg bg-error-50 px-4 py-3">
+                <p className="text-xs font-semibold uppercase text-error-600">Error</p>
+                <p className="mt-1 text-sm text-error-700">{selected.error_message}</p>
+              </div>
+            )}
+
+            {selected.payload && Object.keys(selected.payload).length > 0 && (
+              <div>
+                <p className="mb-1 text-xs font-semibold uppercase text-gray-500">
+                  Template data (payload)
+                </p>
+                <pre className="max-h-48 overflow-auto rounded-lg bg-gray-50 p-3 text-xs text-gray-700">
+                  {JSON.stringify(selected.payload, null, 2)}
+                </pre>
+              </div>
+            )}
+
+            {selected.metadata && Object.keys(selected.metadata).length > 0 && (
+              <div>
+                <p className="mb-1 text-xs font-semibold uppercase text-gray-500">
+                  Provider response (metadata)
+                </p>
+                <pre className="max-h-48 overflow-auto rounded-lg bg-gray-50 p-3 text-xs text-gray-700">
+                  {JSON.stringify(selected.metadata, null, 2)}
+                </pre>
+              </div>
+            )}
+
+            {selected.status === 'failed' && (
+              <Button
+                variant="primary"
+                leftIcon={<RefreshCw className="h-4 w-4" />}
+                onClick={() => setConfirmResend(true)}
+              >
+                Resend message
+              </Button>
+            )}
+          </div>
+        )}
+      </Drawer>
+
+      {/* Resend confirmation */}
+      <ConfirmModal
+        open={confirmResend}
+        onClose={() => setConfirmResend(false)}
+        onConfirm={() => {
+          if (selected) retryLog.mutate(selected.id);
+          setConfirmResend(false);
+        }}
+        title="Resend message"
+        message={`Resend the ${selected?.channel ?? ''} message for "${selected?.template_code ?? ''}" to ${selected?.recipient ?? ''}?`}
+        confirmText="Resend"
+        variant="warning"
+        loading={retryLog.isPending}
+      />
     </div>
   );
 };
