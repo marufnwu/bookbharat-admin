@@ -308,6 +308,7 @@ const MessagingChannels: React.FC = () => {
           {renderConfigField('whatsapp', whatsappConfig, 'access_token', 'Access Token')}
           {renderConfigField('whatsapp', whatsappConfig, 'phone_number_id', 'Phone Number ID')}
           {renderConfigField('whatsapp', whatsappConfig, 'business_account_id', 'Business Account ID')}
+          {renderConfigField('whatsapp', whatsappConfig, 'app_id', 'App ID')}
           {renderConfigField('whatsapp', whatsappConfig, 'api_version', 'API Version')}
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-1">Test Recipient</label>
@@ -324,7 +325,7 @@ const MessagingChannels: React.FC = () => {
         <div className="flex items-center p-3 bg-gray-50 rounded-lg">
           <Settings className="h-5 w-5 text-gray-400 mr-2" />
           <span className="text-sm text-gray-600">
-            ENV Variables: <code className="bg-white px-2 py-1 rounded text-xs">WHATSAPP_ACCESS_TOKEN, WHATSAPP_PHONE_NUMBER_ID, WHATSAPP_ENABLED</code>
+            ENV Variables: <code className="bg-white px-2 py-1 rounded text-xs">WHATSAPP_ACCESS_TOKEN, WHATSAPP_PHONE_NUMBER_ID, WHATSAPP_BUSINESS_ACCOUNT_ID, WHATSAPP_APP_ID, WHATSAPP_ENABLED</code>
           </span>
         </div>
 
