@@ -846,28 +846,8 @@ export const brandsApi = {
     Promise.resolve({ success: true, message: 'Brand deleted' } as any),
 };
 
-// Customers API (alias for users API since backend treats customers as users) (base)
-const customersApiBase = {
-  getCustomers: (filters: FilterOptions = {}): Promise<ApiResponse<PaginatedResponse<Customer>>> =>
-    usersApiBase.getUsers(filters) as Promise<ApiResponse<PaginatedResponse<Customer>>>,
-
-  getCustomer: (id: number): Promise<ApiResponse<Customer>> =>
-    usersApiBase.getUser(id) as Promise<ApiResponse<Customer>>,
-
-  createCustomer: (customer: Partial<Customer>): Promise<ApiResponse<Customer>> =>
-    Promise.resolve({ success: true, message: 'Customer created', data: customer as Customer } as any),
-
-  updateCustomer: (id: number, customer: Partial<Customer>): Promise<ApiResponse<Customer>> =>
-    usersApiBase.updateUser(id, customer as Partial<User>) as Promise<ApiResponse<Customer>>,
-
-  deleteCustomer: (id: number): Promise<ApiResponse> =>
-    Promise.resolve({ success: true, message: 'Customer deleted' } as any),
-
-  getCustomerOrders: (id: number, filters: FilterOptions = {}): Promise<ApiResponse<PaginatedResponse<Order>>> =>
-    usersApiBase.getUserOrders(id, filters),
-};
-
-// Override with extended versions
+// Customers API (alias for users API since backend treats customers as users)
+// Superseded by customersApiExtended (extended.ts) — see assignment below.
 const productsApi = productsApiExtended;
 const categoriesApi = categoriesApiExtended;
 const ordersApi = ordersApiExtended;

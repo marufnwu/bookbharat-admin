@@ -474,7 +474,6 @@ const CustomerEdit: React.FC = () => {
                   <h4 className="text-sm font-medium text-yellow-900 mb-2">Account Security</h4>
                   <ul className="space-y-1 text-sm text-yellow-700">
                     <li>• Last login: {customer?.last_login_at ? new Date(customer.last_login_at).toLocaleString() : 'Never'}</li>
-                    <li>• Failed login attempts: {customer?.failed_login_attempts || 0}</li>
                     <li>• Account status: {formData.is_blocked ? 'Blocked' : 'Active'}</li>
                     <li>• Email verified: {formData.email_verified ? 'Yes' : 'No'}</li>
                   </ul>

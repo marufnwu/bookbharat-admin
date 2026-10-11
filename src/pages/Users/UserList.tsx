@@ -41,10 +41,10 @@ const UserList: React.FC = () => {
     mutationFn: customersApi.deleteCustomer,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['customers'] });
-      showSuccess('Customer deleted successfully');
+      showSuccess('Customer deactivated');
     },
     onError: (error: any) => {
-      showError('Failed to delete customer', error.response?.data?.message);
+      showError('Failed to deactivate customer', error.response?.data?.message);
     },
   });
 
@@ -69,7 +69,7 @@ const UserList: React.FC = () => {
   };
 
   const handleDeleteCustomer = (id: number) => {
-    if (window.confirm('Are you sure you want to delete this customer?')) {
+    if (window.confirm('Deactivating this customer hides them from the customer list (orders keep their record). Continue?')) {
       deleteCustomerMutation.mutate(id);
     }
   };
@@ -101,9 +101,14 @@ const UserList: React.FC = () => {
 
   const customers = (customersResponse as any)?.users?.data || (customersResponse as any)?.data?.data || [];
   const totalCustomers = (customersResponse as any)?.users?.total || (customersResponse as any)?.data?.meta?.total || 0;
-  const verifiedCount = customers.filter((c: any) => c.email_verified_at).length;
-  const vipCount = customers.filter((c: any) => c.total_spent >= 50000).length;
-  const newCount = customers.filter((c: any) => c.total_spent === 0).length;
+  // Global counters come from the backend stats payload — the backend
+  // aggregates over all users, while the page only holds up to `per_page`
+  // rows (counting the current page mislabeled totals).
+  const stats = (customersResponse as any)?.stats || {};
+  const verifiedCount = stats.verified_users ?? customers.filter((c: any) => c.email_verified_at).length;
+  const vipCount = stats.vip_users ?? 0;
+  const newCount = stats.new_users_this_month ?? 0;
+  const blockedCount = customers.filter((c: any) => c.is_blocked || !c.is_active).length;
 
   if (isLoading) {
     return <PageSkeleton />;
@@ -178,7 +183,7 @@ const UserList: React.FC = () => {
                 <UserIcon className="h-6 w-6 text-purple-600" />
               </div>
               <div className="ml-4">
-                <h3 className="text-xs sm:text-sm font-medium text-gray-500">New</h3>
+                <h3 className="text-xs sm:text-sm font-medium text-gray-500">New (this month)</h3>
                 <p className="text-xl sm:text-2xl font-bold text-gray-900">{newCount}</p>
               </div>
             </div>
@@ -215,7 +220,7 @@ const UserList: React.FC = () => {
           </div>
 
           {showFilters && (
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 mt-4 border-t border-gray-200">
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 pt-4 mt-4 border-t border-gray-200">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Sort By
@@ -225,11 +230,26 @@ const UserList: React.FC = () => {
                   value={filters.sort_by}
                   onChange={(e) => handleFilterChange('sort_by', e.target.value)}
                 >
+                  {/* Backend whitelist: created_at, name, total_spent, orders_count */}
                   <option value="created_at">Join Date</option>
                   <option value="name">Name</option>
                   <option value="total_spent">Total Spent</option>
                   <option value="total_orders">Total Orders</option>
-                  <option value="last_order_date">Last Order</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Status
+                </label>
+                <select
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                  value={(filters as any).status || ''}
+                  onChange={(e) => handleFilterChange('status', e.target.value)}
+                >
+                  <option value="">All</option>
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive / Blocked</option>
                 </select>
               </div>
 
@@ -305,9 +325,14 @@ const UserList: React.FC = () => {
                       {customer.phone || 'N/A'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <Badge variant={getVerificationBadgeVariant(customer.email_verified_at)}>
-                        {customer.email_verified_at ? 'Verified' : 'Unverified'}
-                      </Badge>
+                      <div className="flex flex-col items-start gap-1">
+                        <Badge variant={getVerificationBadgeVariant(customer.email_verified_at)}>
+                          {customer.email_verified_at ? 'Verified' : 'Unverified'}
+                        </Badge>
+                        <Badge variant={customer.is_blocked ? 'error' : 'default'}>
+                          {customer.is_blocked ? 'Blocked' : 'Active'}
+                        </Badge>
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {customer.total_orders}
@@ -403,6 +428,9 @@ const UserList: React.FC = () => {
                   <Badge variant={getVerificationBadgeVariant(customer.email_verified_at)}>
                     {customer.email_verified_at ? 'Verified' : 'Unverified'}
                   </Badge>
+                  {customer.is_blocked && (
+                    <Badge variant="error">Blocked</Badge>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-2 gap-3 text-sm">

@@ -192,6 +192,8 @@ export const customersApiExtended = {
   delete: (id: number) => api.delete(`/users/${id}`).then(res => res.data),
   updateStatus: (id: number, status: string, reason?: string) =>
     api.put(`/users/${id}/status`, { status, reason }).then(res => res.data),
+  getCustomerOrders: (id: number, filters?: any) =>
+    api.get(`/users/${id}/orders`, { params: filters }).then(res => res.data),
 };
 
 // Extended Coupons API

@@ -378,6 +378,14 @@ export interface Customer {
   updated_at: string;
   addresses?: Address[];
   orders?: Order[];
+  // Admin user-transform fields (see UserController::transformUserWithRole)
+  is_blocked?: boolean;
+  is_active?: boolean;
+  email_verified?: boolean;
+  is_vip?: boolean;
+  accepts_marketing?: boolean;
+  accepts_sms?: boolean;
+  role?: string;
 }
 
 // Table Types

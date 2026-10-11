@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { customersApi, ordersApi } from '../../api';
+import { customersApi } from '../../api';
 import {
   ArrowLeft,
   User,
@@ -48,10 +48,10 @@ const CustomerDetail: React.FC = () => {
     enabled: !!id,
   });
 
-  // Fetch customer orders
-  const { data: ordersResponse } = useQuery({
+  // Fetch customer orders (backend: GET /users/{id}/orders — user-filtered)
+  const { data: ordersResponse, isLoading: ordersLoading } = useQuery({
     queryKey: ['customer-orders', id],
-    queryFn: () => ordersApi.getAll({ user_id: Number(id) }),
+    queryFn: () => customersApi.getCustomerOrders(Number(id)),
     enabled: !!id,
   });
 
@@ -63,8 +63,8 @@ const CustomerDetail: React.FC = () => {
     mutationFn: async ({ blocked, reason }: { blocked: boolean; reason?: string }) => {
       return customersApi.updateStatus(Number(id), blocked ? 'blocked' : 'active', reason);
     },
-    onSuccess: () => {
-      toast.success(customer?.is_blocked ? 'Customer unblocked' : 'Customer blocked');
+    onSuccess: (_result, { blocked }) => {
+      toast.success(blocked ? 'Customer blocked' : 'Customer unblocked');
       setShowBlockModal(false);
       refetch();
     },
@@ -73,13 +73,16 @@ const CustomerDetail: React.FC = () => {
     },
   });
 
-  // Delete customer mutation
+  // Delete customer mutation.
+  // Backend "delete" deactivates the customer (is_active=false + renamed
+  // email) rather than hard-deleting, since pending/completed orders must
+  // keep their customer reference.
   const deleteMutation = useMutation({
     mutationFn: async () => {
       return customersApi.delete(Number(id));
     },
     onSuccess: () => {
-      toast.success('Customer deleted successfully');
+      toast.success('Customer deactivated');
       navigate('/customers');
     },
     onError: (error: any) => {
@@ -100,7 +103,7 @@ const CustomerDetail: React.FC = () => {
   };
 
   const handleDelete = () => {
-    if (window.confirm('Are you sure you want to delete this customer? This action cannot be undone.')) {
+    if (window.confirm('Deactivating this customer hides them from the customer list. Pending and completed orders keep their record. Continue?')) {
       deleteMutation.mutate();
     }
   };
@@ -141,9 +144,15 @@ const CustomerDetail: React.FC = () => {
     );
   }
 
-  // Calculate customer stats
-  const totalSpent = orders.reduce((sum: number, order: any) => sum + (order.total || 0), 0);
-  const avgOrderValue = orders.length > 0 ? totalSpent / orders.length : 0;
+  // Calculate customer stats.
+  // total_spent = PAID orders (payment_status 'paid') — backend definition,
+  // shared with list/export; avg uses the same base so the cards don't mix
+  // accounting bases.
+  const paidOrders = orders.filter((o: any) => o.payment_status === 'paid');
+  const totalSpent = customer?.total_spent != null
+    ? Number(customer.total_spent)
+    : paidOrders.reduce((sum: number, order: any) => sum + (Number(order.total_amount) || 0), 0);
+  const avgOrderValue = paidOrders.length > 0 ? totalSpent / paidOrders.length : 0;
   const lastOrderDate = orders.length > 0 ? orders[0].created_at : null;
 
   return (
@@ -416,7 +425,7 @@ const CustomerDetail: React.FC = () => {
                       VIP Customer
                     </span>
                   )}
-                  {orders.length > 10 && (
+                  {(customer.total_orders ?? orders.length) > 10 && (
                     <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm">
                       Loyal Customer
                     </span>
@@ -458,7 +467,9 @@ const CustomerDetail: React.FC = () => {
 
           {activeTab === 'orders' && (
             <div className="space-y-4">
-              {orders.length > 0 ? (
+              {ordersLoading ? (
+                <p className="text-center text-gray-500 py-8">Loading orders…</p>
+              ) : orders.length > 0 ? (
                 orders.map((order: any) => (
                   <Card key={order.id} className="hover:bg-gray-50 transition-colors">
                     <CardContent className="p-4">
@@ -468,7 +479,7 @@ const CustomerDetail: React.FC = () => {
                           <p className="text-sm text-gray-500">{formatDate(order.created_at)}</p>
                         </div>
                         <div className="text-right">
-                          <p className="font-semibold text-gray-900">{formatCurrency(order.total)}</p>
+                          <p className="font-semibold text-gray-900">{formatCurrency(Number(order.total_amount) || 0)}</p>
                           <StatusBadge status={order.status as any} size="sm" />
                         </div>
                       </div>
