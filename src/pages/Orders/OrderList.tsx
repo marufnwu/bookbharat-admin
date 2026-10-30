@@ -929,12 +929,15 @@ const OrderList: React.FC = () => {
       actions.push(
         <Button
           key="approve"
-          size="sm"
-          variant="outline"
+          size="icon-sm"
+          type="button"
+          variant="ghost"
+          className="text-gray-600 hover:bg-gray-100"
           onClick={() => handleStatusUpdate(order.id, 'processing')}
+          aria-label="Process order"
+          title="Process order"
         >
-          <CheckIcon className="h-4 w-4 mr-1" />
-          Process
+          <CheckIcon className="h-4 w-4" />
         </Button>
       );
     }
@@ -944,11 +947,14 @@ const OrderList: React.FC = () => {
       actions.push(
         <Link key="create-shipment" to={`/orders/${order.id}/create-shipment`}>
           <Button
-            size="sm"
-            variant="success"
+            size="icon-sm"
+          type="button"
+            variant="ghost"
+            className="text-gray-600 hover:bg-gray-100"
+            aria-label="Create shipment"
+            title="Create shipment"
           >
-            <PaperAirplaneIcon className="h-4 w-4 mr-1" />
-            Create Shipment
+            <TruckIcon className="h-4 w-4" />
           </Button>
         </Link>
       );
@@ -958,11 +964,15 @@ const OrderList: React.FC = () => {
       actions.push(
         <Button
           key="deliver"
-          size="sm"
-          variant="outline"
+          size="icon-sm"
+          type="button"
+          variant="ghost"
+          className="text-green-600 hover:bg-green-50"
           onClick={() => handleStatusUpdate(order.id, 'delivered')}
+          aria-label="Mark delivered"
+          title="Mark delivered"
         >
-          Mark Delivered
+          <CheckCircleIcon className="h-4 w-4" />
         </Button>
       );
     }
@@ -971,12 +981,15 @@ const OrderList: React.FC = () => {
       actions.push(
         <Button
           key="cancel"
-          size="sm"
-          variant="danger"
+          size="icon-sm"
+          type="button"
+          variant="ghost"
+          className="text-red-600 hover:bg-red-50"
           onClick={() => handleStatusUpdate(order.id, 'cancelled')}
+          aria-label="Cancel order"
+          title="Cancel order"
         >
-          <XMarkIcon className="h-4 w-4 mr-1" />
-          Cancel
+          <XMarkIcon className="h-4 w-4" />
         </Button>
       );
     }
@@ -985,8 +998,9 @@ const OrderList: React.FC = () => {
     actions.push(
       <Button
         key="change-status"
-        size="sm"
+        size="icon-sm"
         variant="ghost"
+        className="text-gray-600 hover:bg-gray-100"
         onClick={() => setStatusModal({
           isOpen: true,
           orderId: order.id,
@@ -996,6 +1010,7 @@ const OrderList: React.FC = () => {
           overrideWorkflow: false,
         })}
         title="Change to any status"
+        aria-label="Change status"
       >
         <ArrowPathIcon className="h-4 w-4" />
       </Button>
@@ -1089,6 +1104,10 @@ const OrderList: React.FC = () => {
   const columns = useMemo(() => [
     {
       key: 'select' as const,
+      width: 48,
+      align: 'center' as const,
+      className: '',
+      headerClassName: '',
       title: (
         <input
           type="checkbox"
@@ -1109,6 +1128,8 @@ const OrderList: React.FC = () => {
     {
       key: 'product' as const,
       title: 'Product',
+      width: 72,
+      align: 'center' as const,
       render: (_: any, record: Order) => (
         <OrderProductThumb order={record} />
       ),
@@ -1116,6 +1137,8 @@ const OrderList: React.FC = () => {
     {
       key: 'order_number' as const,
       title: 'Order #',
+      width: 120,
+      align: 'left' as const,
       sortable: true,
       render: (value: any, record: Order) => (
         <button
@@ -1137,6 +1160,8 @@ const OrderList: React.FC = () => {
     {
       key: 'user' as const,
       title: 'Customer',
+      width: 150,
+      align: 'left' as const,
       render: (_: any, record: Order) => (
         <span className="font-medium text-gray-900">{getCustomerName(record)}</span>
       ),
@@ -1144,6 +1169,8 @@ const OrderList: React.FC = () => {
     {
       key: 'affiliate' as any,
       title: 'Affiliate',
+      width: 150,
+      align: 'left' as const,
       render: (_: any, record: Order) => {
         if (!(record as any).affiliate_id) {
           return <span className="text-gray-300">—</span>;
@@ -1175,6 +1202,9 @@ const OrderList: React.FC = () => {
     {
       key: 'total_amount' as const,
       title: 'Total',
+      width: 110,
+      align: 'right' as const,
+      className: 'tabular-nums font-medium',
       sortable: true,
       render: (value: any, record: Order) => (
         <span className="font-medium">{formatCurrency(value)}</span>
@@ -1183,6 +1213,8 @@ const OrderList: React.FC = () => {
     {
       key: 'status' as const,
       title: 'Status',
+      width: 120,
+      align: 'center' as const,
       sortable: true,
       render: (value: any, record: Order) => (
         <InlineStatusDropdown
@@ -1194,6 +1226,9 @@ const OrderList: React.FC = () => {
     {
       key: 'paid_amount' as any,
       title: 'Paid',
+      width: 110,
+      align: 'right' as const,
+      className: 'tabular-nums',
       render: (_: any, record: Order) => {
         const paid = record.paid_amount ?? 0;
         const total = record.total_amount ?? 0;
@@ -1210,6 +1245,8 @@ const OrderList: React.FC = () => {
     {
       key: 'payment_method' as any,
       title: 'Payment',
+      width: 88,
+      align: 'center' as const,
       render: (_: any, record: Order) => {
         const isCOD = record.is_cod || record.payment_method === 'cod';
         return isCOD ? (
@@ -1226,6 +1263,8 @@ const OrderList: React.FC = () => {
     {
       key: 'preorder' as const,
       title: 'Type',
+      width: 88,
+      align: 'center' as const,
       render: (_: any, record: Order) => (
         record.is_preorder ? (
           <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800">
@@ -1239,6 +1278,8 @@ const OrderList: React.FC = () => {
     {
       key: 'shipping_method' as any,
       title: 'Delivery',
+      width: 96,
+      align: 'center' as const,
       render: (_: any, record: Order) => (
         isFastDelivery(record) ? renderFastDeliveryBadge() : (
           <span className="text-gray-400 text-xs">Standard</span>
@@ -1248,6 +1289,8 @@ const OrderList: React.FC = () => {
     {
       key: 'order_source' as any,
       title: 'Source',
+      width: 120,
+      align: 'center' as const,
       render: (_: any, record: Order) => {
         const source = record.order_source || 'direct';
         const recoveredFrom = (record as any).recovered_from;
@@ -1291,6 +1334,8 @@ const OrderList: React.FC = () => {
     {
       key: 'payment_status' as const,
       title: 'Pay Status',
+      width: 112,
+      align: 'center' as const,
       sortable: true,
       render: (value: any, record: Order) => getPaymentStatusBadge(value, () =>
         setPaymentStatusModal({
@@ -1303,6 +1348,9 @@ const OrderList: React.FC = () => {
     {
       key: 'created_at' as const,
       title: 'Date',
+      width: 120,
+      align: 'left' as const,
+      className: 'tabular-nums',
       sortable: true,
       render: (value: any) => (
         <div>
@@ -1316,31 +1364,36 @@ const OrderList: React.FC = () => {
     {
       key: 'actions' as const,
       title: 'Actions',
+      width: 320,
+      align: 'right' as const,
+      className: '',
       render: (_: any, record: Order) => {
         // Check if order has a phone number for WhatsApp
         const hasPhone = (record.user as any)?.phone || (record as any).shipping_address?.phone || (record as any).shipping_address?.mobile;
 
         return (
-          <div className="flex space-x-2">
+          <div className="flex items-center justify-end gap-1">
             <Link to={`/orders/${record.id}`}>
-              <Button variant="ghost" size="sm">
+              <Button variant="ghost" size="icon-sm" className="text-gray-600 hover:bg-gray-100" aria-label="View order" title="View order">
                 <EyeIcon className="h-4 w-4" />
               </Button>
             </Link>
             {hasPhone && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setWhatsappSendModal({ isOpen: true, order: record });
-                }}
-                className="text-green-600 hover:text-green-800 hover:bg-green-50"
-                title="Send WhatsApp"
-              >
-                <PaperAirplaneIcon className="h-4 w-4" />
-              </Button>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+          type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setWhatsappSendModal({ isOpen: true, order: record });
+              }}
+              className="text-green-600 hover:text-green-800 hover:bg-green-50"
+              aria-label="Send WhatsApp"
+              title="Send WhatsApp"
+            >
+              <PaperAirplaneIcon className="h-4 w-4" />
+            </Button>
             )}
             <div className="flex space-x-1">
               {getStatusActions(record)}
@@ -1547,10 +1600,17 @@ const OrderList: React.FC = () => {
                   {formatCurrency(order.total_amount)}
                 </div>
               </div>
-              <div className="mt-3 flex items-center justify-between">
-                <span className="text-xs text-gray-500">
-                  Paid: <span className="font-medium text-gray-700">{formatCurrency(order.paid_amount ?? 0)}</span>
-                </span>
+              <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-xs text-gray-600">
+                <div>Pay status: {order.payment_status || '—'}</div>
+                <div>Payment: {order.is_cod || order.payment_method === 'cod' ? 'COD' : 'Prepaid'}</div>
+                <div>Type: {order.is_preorder ? 'Preorder' : 'Regular'}</div>
+                <div>Delivery: {isFastDelivery(order) ? 'Fast' : 'Standard'}</div>
+                <div>Source: {order.order_source || 'direct'}</div>
+                <div>Paid: {formatCurrency(order.paid_amount ?? 0)}</div>
+                {(order as any).affiliate_id ? <div>Affiliate: {(order as any).affiliate_name || `#${(order as any).affiliate_id}`}</div> : null}
+                <div>Time: {order.created_at ? new Date(order.created_at).toLocaleTimeString() : '—'}</div>
+              </div>
+              <div className="mt-3 flex items-center justify-end">
                 <Link
                   to={`/orders/${order.id}`}
                   className="text-sm text-blue-600 hover:text-blue-800 font-medium"
@@ -1606,6 +1666,8 @@ const OrderList: React.FC = () => {
         <Table
           data={(ordersResponse as any)?.orders?.data || []}
           columns={columns}
+          density="compact"
+          minWidth={1824}
           loading={isLoading}
           rowClassName={getRowClassName}
           pagination={{

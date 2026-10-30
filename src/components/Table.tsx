@@ -1,4 +1,5 @@
 import React from 'react';
+import { cn } from '../utils/cn';
 import { ChevronUpIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
 import { TableProps } from '../types';
 import LoadingSpinner from './LoadingSpinner';
@@ -7,6 +8,8 @@ import Button from './Button';
 function Table<T extends Record<string, any>>({
   data,
   columns,
+  density = 'default',
+  minWidth,
   loading = false,
   pagination,
   onSort,
@@ -14,6 +17,8 @@ function Table<T extends Record<string, any>>({
   onRowClick,
   emptyMessage,
 }: TableProps<T>) {
+  const headerPadding = density === 'compact' ? 'px-3 py-2.5' : 'px-6 py-3';
+  const cellPadding = density === 'compact' ? 'px-3 py-2.5' : 'px-6 py-4';
   const [sortConfig, setSortConfig] = React.useState<{
     key: string;
     direction: 'asc' | 'desc';
@@ -54,18 +59,27 @@ function Table<T extends Record<string, any>>({
   return (
     <div className="space-y-4">
       <div className="overflow-x-auto shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
-        <table className="min-w-full divide-y divide-gray-300">
+        <table
+          className="min-w-full divide-y divide-gray-300"
+          style={{ minWidth: typeof minWidth === 'number' ? `${minWidth}px` : minWidth }}
+        >
           <thead className="bg-gray-50">
             <tr>
-              {columns.map((column) => (
+                {columns.map((column) => (
                 <th
                   key={String(column.key)}
                   scope="col"
-                  className={`px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider ${
-                    column.align === 'right' ? 'text-right' : column.align === 'center' ? 'text-center' : 'text-left'
-                  } ${
-                    column.sortable ? 'cursor-pointer hover:bg-gray-100' : ''
-                  }`}
+                  style={{
+                    width: typeof column.width === 'number' ? `${column.width}px` : column.width,
+                    minWidth: typeof column.width === 'number' ? `${column.width}px` : column.width,
+                  }}
+                  className={cn(
+                    headerPadding,
+                    'text-xs font-medium text-gray-500 uppercase tracking-wider',
+                    column.align === 'right' ? 'text-right' : column.align === 'center' ? 'text-center' : 'text-left',
+                    column.sortable ? 'cursor-pointer hover:bg-gray-100' : '',
+                    column.headerClassName
+                  )}
                   onClick={() => column.sortable && handleSort(String(column.key))}
                 >
                   <div className="flex items-center space-x-1">
@@ -87,20 +101,26 @@ function Table<T extends Record<string, any>>({
                 </td>
               </tr>
             ) : (
-              data.map((row, index) => (
+                data.map((row, index) => (
                 <tr
                   key={index}
-                  className={`hover:bg-gray-50 ${onRowClick ? 'cursor-pointer' : ''} ${rowClassName ? rowClassName(row, index) : ''}`}
+                  className={cn('group hover:bg-gray-50', onRowClick ? 'cursor-pointer' : '', rowClassName ? rowClassName(row, index) : '')}
                   onClick={onRowClick ? () => onRowClick(row) : undefined}
                 >
-                  {columns.map((column) => (
+                    {columns.map((column) => (
                     <td
                       key={String(column.key)}
-                      className={`px-6 py-4 text-sm text-gray-900 ${
-                        column.wrap ? '' : 'whitespace-nowrap'
-                      } ${
-                        column.align === 'right' ? 'text-right' : column.align === 'center' ? 'text-center' : 'text-left'
-                      }`}
+                      style={{
+                        width: typeof column.width === 'number' ? `${column.width}px` : column.width,
+                        minWidth: typeof column.width === 'number' ? `${column.width}px` : column.width,
+                      }}
+                      className={cn(
+                        cellPadding,
+                        'text-sm text-gray-900',
+                        column.wrap ? '' : 'whitespace-nowrap',
+                        column.align === 'right' ? 'text-right' : column.align === 'center' ? 'text-center' : 'text-left',
+                        column.className
+                      )}
                     >
                       {column.render
                         ? column.render(row[column.key], row)

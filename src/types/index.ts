@@ -406,6 +406,8 @@ export interface TableColumn<T = any> {
 export interface TableProps<T = any> {
   data: T[];
   columns: TableColumn<T>[];
+  density?: 'default' | 'compact';
+  minWidth?: number | string;
   loading?: boolean;
   pagination?: {
     current: number;
