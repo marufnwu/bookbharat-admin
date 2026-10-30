@@ -10,6 +10,7 @@ interface RecentSearch {
 interface OrderSearchWithSuggestionsProps {
   value: string;
   onChange: (value: string) => void;
+  onQuickFilter?: (quickFilter: 'today' | 'cod' | 'high_value') => void;
   placeholder?: string;
 }
 
@@ -25,12 +26,30 @@ const quickFilters = [
 export const OrderSearchWithSuggestions: React.FC<OrderSearchWithSuggestionsProps> = ({
   value,
   onChange,
+  onQuickFilter,
   placeholder = 'Search orders by #, customer, email...',
 }) => {
   const [isFocused, setIsFocused] = useState(false);
   const [recentSearches, setRecentSearches] = useState<RecentSearch[]>([]);
+  const [localValue, setLocalValue] = useState(value);
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    setLocalValue(value);
+  }, [value]);
+
+  React.useEffect(() => {
+    if (localValue === value) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      onChange(localValue);
+    }, 300);
+
+    return () => window.clearTimeout(timer);
+  }, [localValue, value, onChange]);
 
   // Load recent searches from localStorage
   useEffect(() => {
@@ -68,8 +87,9 @@ export const OrderSearchWithSuggestions: React.FC<OrderSearchWithSuggestionsProp
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (value.trim()) {
-      saveRecentSearch(value);
+    if (localValue.trim()) {
+      saveRecentSearch(localValue);
+      onChange(localValue);
     }
     setIsFocused(false);
     inputRef.current?.blur();
@@ -87,7 +107,7 @@ export const OrderSearchWithSuggestions: React.FC<OrderSearchWithSuggestionsProp
     } catch {}
   };
 
-  const showDropdown = isFocused && !value;
+  const showDropdown = isFocused && !localValue;
 
   return (
     <div ref={containerRef} className="relative flex-1 max-w-md">
@@ -99,14 +119,17 @@ export const OrderSearchWithSuggestions: React.FC<OrderSearchWithSuggestionsProp
             type="text"
             placeholder={placeholder}
             className="pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-full"
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
+            value={localValue}
+            onChange={(e) => setLocalValue(e.target.value)}
             onFocus={() => setIsFocused(true)}
           />
-          {value && (
+          {localValue && (
             <button
               type="button"
-              onClick={() => onChange('')}
+              onClick={() => {
+                setLocalValue('');
+                onChange('');
+              }}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
             >
               <XMarkIcon className="h-4 w-4" />
@@ -126,7 +149,11 @@ export const OrderSearchWithSuggestions: React.FC<OrderSearchWithSuggestionsProp
                 <button
                   key={filter.value}
                   onClick={() => {
-                    onChange(filter.value);
+                    if (onQuickFilter) {
+                      onQuickFilter(filter.value as 'today' | 'cod' | 'high_value');
+                    } else {
+                      onChange(filter.value);
+                    }
                     setIsFocused(false);
                   }}
                   className="px-3 py-1.5 text-xs font-medium bg-blue-50 text-blue-700 rounded-full hover:bg-blue-100 transition-colors"

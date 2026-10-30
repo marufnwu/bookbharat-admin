@@ -160,6 +160,7 @@ export const ordersApiExtended = {
         params.append(key, String(value));
       }
     });
+    params.append('format', 'csv');
     return api.get(`/orders/export?${params.toString()}`, {
       responseType: 'blob'
     }).then(res => res.data);

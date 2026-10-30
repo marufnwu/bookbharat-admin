@@ -508,34 +508,33 @@ const defaultFilters: FilterOptions = {
 const OrderList: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // Determine which special tab is active (unshipped_prepaid / unshipped_cod)
-  const activeTab: string = searchParams.get('tab') || searchParams.get('status') || '';
+  // A single primary order classification is derived from URL state. `tab`
+  // takes precedence over a stale `status` so conflicting manual URLs resolve
+  // deterministically without broadening the result set.
+  const primaryClassification: string = searchParams.get('tab') || searchParams.get('status') || '';
 
   // Read filters from URL, falling back to defaults
   const filters: FilterOptions & Record<string, any> = {
     page: Number(searchParams.get('page')) || defaultFilters.page!,
     per_page: Number(searchParams.get('per_page')) || defaultFilters.per_page!,
     search: searchParams.get('search') || defaultFilters.search!,
-    status: (() => {
-      // If a special tab is active, don't set status filter
-      const tab = searchParams.get('tab');
-      if (tab && (SPECIAL_TABS as readonly string[]).includes(tab)) return '';
-      return searchParams.get('status') || defaultFilters.status!;
-    })(),
+    status: (SPECIAL_TABS as readonly string[]).includes(primaryClassification) ? '' : primaryClassification,
     payment_status: searchParams.get('payment_status') || defaultFilters.payment_status!,
     date_from: searchParams.get('date_from') || defaultFilters.date_from!,
     date_to: searchParams.get('date_to') || defaultFilters.date_to!,
     sort_by: searchParams.get('sort_by') || defaultFilters.sort_by!,
     sort_direction: (searchParams.get('sort_direction') as 'asc' | 'desc') || defaultFilters.sort_direction!,
     // Special filter flags for backend
-    unshipped_prepaid: searchParams.get('tab') === 'unshipped_prepaid' ? '1' : '',
-    unshipped_cod: searchParams.get('tab') === 'unshipped_cod' ? '1' : '',
-    is_preorder: searchParams.get('tab') === 'preorder' ? '1' : '',
-    preorder_payment_status: searchParams.get('tab') === 'preorder' ? 'paid,partially_paid' : '',
+    unshipped_prepaid: primaryClassification === 'unshipped_prepaid' ? '1' : '',
+    unshipped_cod: primaryClassification === 'unshipped_cod' ? '1' : '',
+    is_preorder: primaryClassification === 'preorder' ? '1' : '',
+    preorder_payment_status: primaryClassification === 'preorder' ? 'paid,partially_paid' : '',
+    is_cod: searchParams.get('is_cod') || '',
+    high_value: searchParams.get('high_value') || '',
   };
 
   // Active status for OrderStatusTabs (combines status + special tabs)
-  const activeStatus = searchParams.get('tab') || searchParams.get('status') || '';
+  const activeStatus = primaryClassification;
 
   // Update a single filter and sync to URL
   const setFilter = (updates: Record<string, any>) => {
@@ -564,12 +563,24 @@ const OrderList: React.FC = () => {
       // Handle page reset on filter change
       if (updates.page !== undefined) {
         next.set('page', String(updates.page));
-      } else if ('status' in updates || 'tab' in updates || 'search' in updates) {
+      } else if (
+        'status' in updates ||
+        'tab' in updates ||
+        'search' in updates ||
+        'payment_status' in updates ||
+        'date_from' in updates ||
+        'date_to' in updates ||
+        'per_page' in updates ||
+        'sort_by' in updates ||
+        'sort_direction' in updates ||
+        'is_cod' in updates ||
+        'high_value' in updates
+      ) {
         next.delete('page'); // reset page on filter change
       }
 
       // Handle other filter fields
-      const simpleKeys = ['search', 'payment_status', 'date_from', 'date_to', 'sort_by', 'sort_direction', 'per_page'] as const;
+      const simpleKeys = ['search', 'payment_status', 'date_from', 'date_to', 'sort_by', 'sort_direction', 'per_page', 'is_cod', 'high_value'] as const;
       for (const key of simpleKeys) {
         if (key in updates) {
           const val = updates[key];
@@ -630,6 +641,7 @@ const OrderList: React.FC = () => {
   const { data: ordersResponse, isLoading } = useQuery({
     queryKey: ['orders', filters],
     queryFn: () => ordersApi.getOrders(filters),
+    staleTime: 15000,
     refetchInterval: 30000,
     refetchIntervalInBackground: false,
   });
@@ -706,6 +718,32 @@ const OrderList: React.FC = () => {
     } else {
       setFilter({ [key]: value });
     }
+  };
+
+  const handleQuickFilter = (quickFilter: 'today' | 'cod' | 'high_value') => {
+    if (quickFilter === 'today') {
+      const today = new Date().toISOString().slice(0, 10);
+      setFilter({ date_from: today, date_to: today });
+    } else if (quickFilter === 'cod') {
+      setFilter({ is_cod: '1' });
+    } else if (quickFilter === 'high_value') {
+      setFilter({ high_value: '1' });
+    }
+  };
+
+  const handleClearFilters = () => {
+    setFilter({
+      status: '',
+      tab: '',
+      search: '',
+      payment_status: '',
+      date_from: '',
+      date_to: '',
+      is_cod: '',
+      high_value: '',
+      sort_by: defaultFilters.sort_by,
+      sort_direction: defaultFilters.sort_direction,
+    });
   };
 
   const handleSort = (key: string, direction: 'asc' | 'desc') => {
@@ -1351,6 +1389,7 @@ const OrderList: React.FC = () => {
               <OrderSearchWithSuggestions
                 value={filters.search || ''}
                 onChange={(value) => handleFilterChange('search', value)}
+                onQuickFilter={handleQuickFilter}
               />
             </div>
             <Button
@@ -1359,6 +1398,13 @@ const OrderList: React.FC = () => {
             >
               <FunnelIcon className="h-4 w-4 mr-2" />
               Filters
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={handleClearFilters}
+            >
+              <XMarkIcon className="h-4 w-4 mr-2" />
+              Clear Filters
             </Button>
           </div>
         </div>
@@ -1384,6 +1430,7 @@ const OrderList: React.FC = () => {
                 <option value="cancelled">Cancelled</option>
                 <option value="refunded">Refunded</option>
                 <option disabled>──────────</option>
+                <option value="preorder">Preorders</option>
                 <option value="unshipped_prepaid">Prepaid Unshipped</option>
                 <option value="unshipped_cod">COD Unshipped</option>
               </select>

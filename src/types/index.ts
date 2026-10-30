@@ -443,6 +443,8 @@ export interface FilterOptions {
   sort_direction?: 'asc' | 'desc';
   page?: number;
   per_page?: number;
+  is_cod?: string;
+  high_value?: string;
 }
 
 // Notification Types
