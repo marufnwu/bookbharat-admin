@@ -45,6 +45,12 @@ interface CarrierConfig {
   account_label?: string;
   is_default?: boolean;
   inherit_env_credentials?: boolean;
+  rate_source?: string;
+  supports_manual_rates?: boolean;
+  has_account_rate_card?: boolean;
+  account_rate_card?: any;
+  effective_rate_card?: any;
+  rate_card_source?: string;
   name: string;
   display_name?: string;
   logo_url?: string;
@@ -88,6 +94,49 @@ interface CarrierGroup {
   logo_url?: string;
   accounts: CarrierConfig[];
 }
+
+const buildRateFormData = (carrier: CarrierConfig) => {
+  const effective = (carrier as any).effective_rate_card || {};
+  const account = (carrier as any).account_rate_card || {};
+  const zoneRates = effective.zone_rates || account.zone_rates || {};
+  const pricingMode = effective.pricing_mode || account.pricing_mode || 'flat';
+
+  const zones: Record<string, string> = {};
+  ['A', 'B', 'C', 'D', 'E'].forEach((zone) => {
+    zones[zone] = zoneRates[zone] != null ? String(zoneRates[zone]) : '';
+  });
+
+  const slabs = (effective.weight_slabs || account.weight_slabs || []).map((slab: any) => {
+    const slabZones: Record<string, string> = {};
+    ['A', 'B', 'C', 'D', 'E'].forEach((zone) => {
+      slabZones[zone] = slab.zone_rates?.[zone] != null ? String(slab.zone_rates[zone]) : '';
+    });
+    return { up_to_kg: String(slab.up_to_kg ?? ''), zone_rates: slabZones };
+  });
+
+  const overweight = effective.overweight || account.overweight || {};
+  const extraPerKg: Record<string, string> = {};
+  ['A', 'B', 'C', 'D', 'E'].forEach((zone) => {
+    extraPerKg[zone] = overweight.extra_per_kg?.[zone] != null
+      ? String(overweight.extra_per_kg[zone])
+      : '';
+  });
+
+  return {
+    enabled: effective.enabled ?? account.enabled ?? true,
+    service_code: effective.service_code || account.service_code || 'STANDARD',
+    pricing_mode: pricingMode === 'slabs' ? 'slabs' : 'flat',
+    weight_limit_kg: String(effective.weight_limit_kg ?? account.weight_limit_kg ?? 10),
+    cod_charge: String(effective.cod_charge ?? account.cod_charge ?? 0),
+    zone_rates: zones,
+    weight_slabs: slabs.length > 0 ? slabs : [{ up_to_kg: '', zone_rates: { A: '', B: '', C: '', D: '', E: '' } }],
+    overweight: {
+      policy: overweight.policy === 'per_kg_extra' ? 'per_kg_extra' : 'reject',
+      max_weight_kg: overweight.max_weight_kg != null ? String(overweight.max_weight_kg) : '',
+      extra_per_kg: extraPerKg,
+    },
+  };
+};
 
 interface TestResult {
   carrierId: number;
@@ -478,6 +527,61 @@ const CarrierConfiguration: React.FC = () => {
     },
   });
 
+  // Fixed rate-card mutations for accounts without a rate API
+  const updateRateCardMutation = useMutation({
+    mutationFn: async ({ carrierId, payload }: { carrierId: number; payload: any }) => {
+      return api.put(`/shipping/multi-carrier/carriers/${carrierId}/rate-card`, payload);
+    },
+    onSuccess: (response, variables) => {
+      const data = response.data?.data;
+      if (data) {
+        setEditingCarrier((prev) =>
+          prev && prev.id === variables.carrierId
+            ? {
+                ...prev,
+                has_account_rate_card: data.has_account_rate_card,
+                account_rate_card: data.account_rate_card,
+                effective_rate_card: data.effective_rate_card,
+                rate_card_source: data.rate_card_source,
+              }
+            : prev
+        );
+      }
+      queryClient.invalidateQueries({ queryKey: ['carriers'] });
+      toast.success('Rate card saved');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to save rate card');
+    },
+  });
+
+  const deleteRateCardMutation = useMutation({
+    mutationFn: async (carrierId: number) => {
+      return api.delete(`/shipping/multi-carrier/carriers/${carrierId}/rate-card`);
+    },
+    onSuccess: (response) => {
+      const data = response.data?.data;
+      if (data) {
+        setEditingCarrier((prev) =>
+          prev && prev.id === data.account_id
+            ? {
+                ...prev,
+                has_account_rate_card: data.has_account_rate_card,
+                account_rate_card: data.account_rate_card,
+                effective_rate_card: data.effective_rate_card,
+                rate_card_source: data.rate_card_source,
+              }
+            : prev
+        );
+      }
+      queryClient.invalidateQueries({ queryKey: ['carriers'] });
+      toast.success('Account rate card removed; carrier default will be used');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to remove rate card');
+    },
+  });
+
   // Validate carrier credentials
   const validateCredentialsMutation = useMutation({
     mutationFn: async ({ carrierId, credentials }: { carrierId: number; credentials: any }) => {
@@ -625,6 +729,18 @@ const CarrierConfiguration: React.FC = () => {
   const handleSaveCredentials = (credentials: any) => {
     if (editingCarrier && editingCarrier.id !== null) {
       updateCredentialsMutation.mutate({ carrierId: editingCarrier.id, credentials });
+    }
+  };
+
+  const handleSaveRates = (payload: any) => {
+    if (editingCarrier && editingCarrier.id !== null) {
+      updateRateCardMutation.mutate({ carrierId: editingCarrier.id, payload });
+    }
+  };
+
+  const handleRemoveRates = () => {
+    if (editingCarrier && editingCarrier.id !== null) {
+      deleteRateCardMutation.mutate(editingCarrier.id);
     }
   };
 
@@ -900,6 +1016,11 @@ const CarrierConfiguration: React.FC = () => {
                               >
                                 {account.is_active ? 'Active' : 'Inactive'}
                               </span>
+                              {account.supports_manual_rates && (
+                                <span className="inline-flex items-center gap-1 rounded bg-indigo-50 px-2 py-0.5 text-[11px] font-medium text-indigo-700">
+                                  <TrendingUp className="h-3 w-3" /> Fixed rates
+                                </span>
+                              )}
                               {account.total_shipments != null && account.total_shipments > 0 && (
                                 <span className="text-[11px] text-gray-500">
                                   {account.total_shipments} shipments
@@ -1322,6 +1443,10 @@ const CarrierConfiguration: React.FC = () => {
               fields={getCredentialFields(editingCarrier)}
               onSave={handleSaveCredentials}
               onValidate={handleValidateCredentials}
+              onSaveRates={handleSaveRates}
+              onRemoveRates={handleRemoveRates}
+              isSavingRates={updateRateCardMutation.isPending}
+              isRemovingRates={deleteRateCardMutation.isPending}
               onCancel={() => setEditingCarrier(null)}
               showPassword={showPassword}
               onTogglePassword={togglePasswordVisibility}
@@ -1345,6 +1470,10 @@ interface EnhancedCarrierConfigFormProps {
   fields: Array<{ key: string; label: string; type: string; required: boolean }>;
   onSave: (config: any) => void;
   onValidate: (credentials: any) => void;
+  onSaveRates: (payload: any) => void;
+  onRemoveRates: () => void;
+  isSavingRates: boolean;
+  isRemovingRates: boolean;
   onCancel: () => void;
   showPassword: Record<string, boolean>;
   onTogglePassword: (field: string) => void;
@@ -1358,6 +1487,10 @@ const EnhancedCarrierConfigForm: React.FC<EnhancedCarrierConfigFormProps> = ({
   fields,
   onSave,
   onValidate,
+  onSaveRates,
+  onRemoveRates,
+  isSavingRates,
+  isRemovingRates,
   onCancel,
   showPassword,
   onTogglePassword,
@@ -1365,7 +1498,14 @@ const EnhancedCarrierConfigForm: React.FC<EnhancedCarrierConfigFormProps> = ({
   isValidating,
   validationResult,
 }) => {
-  const [activeTab, setActiveTab] = useState<'credentials' | 'warehouse'>('credentials');
+  const [activeTab, setActiveTab] = useState<'credentials' | 'warehouse' | 'rates'>('credentials');
+  const [rateFormData, setRateFormData] = useState<Record<string, any>>(() => buildRateFormData(carrier));
+  const [previewPickup, setPreviewPickup] = useState('');
+  const [previewDelivery, setPreviewDelivery] = useState('');
+  const [previewWeight, setPreviewWeight] = useState('500');
+  const [previewPayment, setPreviewPayment] = useState<'prepaid' | 'cod'>('prepaid');
+  const [previewResult, setPreviewResult] = useState<any>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
   const [formData, setFormData] = useState<Record<string, any>>(() => {
     const initialData: Record<string, any> = {};
     fields.forEach((field) => {
@@ -1388,10 +1528,13 @@ const EnhancedCarrierConfigForm: React.FC<EnhancedCarrierConfigFormProps> = ({
     updatedData.account_label = carrier.account_label || '';
     updatedData.inherit_env_credentials = carrier.inherit_env_credentials ?? false;
     setFormData(updatedData);
+    setRateFormData(buildRateFormData(carrier));
+    setPreviewResult(null);
   }, [carrier, fields]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (activeTab !== 'credentials') return;
     onSave(formData);
   };
 
@@ -1415,10 +1558,168 @@ const EnhancedCarrierConfigForm: React.FC<EnhancedCarrierConfigFormProps> = ({
     onValidate(credentialData);
   };
 
+  const handleRateFieldChange = (field: string, value: any) => {
+    setRateFormData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleZoneRateChange = (zone: string, value: string) => {
+    setRateFormData((prev) => ({
+      ...prev,
+      zone_rates: { ...(prev.zone_rates || {}), [zone]: value },
+    }));
+  };
+
+  const handleSlabChange = (index: number, field: string, value: string) => {
+    setRateFormData((prev) => {
+      const slabs = [...(prev.weight_slabs || [])];
+      slabs[index] = { ...slabs[index], [field]: value };
+      return { ...prev, weight_slabs: slabs };
+    });
+  };
+
+  const handleSlabZoneRateChange = (index: number, zone: string, value: string) => {
+    setRateFormData((prev) => {
+      const slabs = [...(prev.weight_slabs || [])];
+      slabs[index] = {
+        ...slabs[index],
+        zone_rates: { ...(slabs[index]?.zone_rates || {}), [zone]: value },
+      };
+      return { ...prev, weight_slabs: slabs };
+    });
+  };
+
+  const addSlab = () => {
+    setRateFormData((prev) => {
+      const slabs = [...(prev.weight_slabs || [])];
+      const last = slabs[slabs.length - 1];
+      const next = last?.up_to_kg ? Number(last.up_to_kg) + 1 : 0.5;
+      slabs.push({
+        up_to_kg: String(next),
+        zone_rates: { A: '', B: '', C: '', D: '', E: '' },
+      });
+      return { ...prev, weight_slabs: slabs };
+    });
+  };
+
+  const removeSlab = (index: number) => {
+    setRateFormData((prev) => ({
+      ...prev,
+      weight_slabs: (prev.weight_slabs || []).filter((_: any, i: number) => i !== index),
+    }));
+  };
+
+  const handleOverweightChange = (field: string, value: any) => {
+    setRateFormData((prev) => ({
+      ...prev,
+      overweight: { ...(prev.overweight || {}), [field]: value },
+    }));
+  };
+
+  const handleOverweightExtraChange = (zone: string, value: string) => {
+    setRateFormData((prev) => ({
+      ...prev,
+      overweight: {
+        ...(prev.overweight || {}),
+        extra_per_kg: { ...(prev.overweight?.extra_per_kg || {}), [zone]: value },
+      },
+    }));
+  };
+
+  const buildRateCardPayload = () => {
+    const mode = rateFormData.pricing_mode === 'slabs' ? 'slabs' : 'flat';
+    const card: Record<string, any> = {
+      enabled: Boolean(rateFormData.enabled),
+      service_code: rateFormData.service_code || 'STANDARD',
+      pricing_mode: mode,
+      cod_charge: Number(rateFormData.cod_charge || 0),
+    };
+
+    if (mode === 'slabs') {
+      card.weight_slabs = (rateFormData.weight_slabs || []).map((slab: any) => {
+        const zoneRates: Record<string, number> = {};
+        ['A', 'B', 'C', 'D', 'E'].forEach((zone) => {
+          zoneRates[zone] = Number(slab.zone_rates?.[zone] ?? 0);
+        });
+        return {
+          up_to_kg: Number(slab.up_to_kg || 0),
+          zone_rates: zoneRates,
+        };
+      });
+
+      const extraPerKg: Record<string, number> = {};
+      ['A', 'B', 'C', 'D', 'E'].forEach((zone) => {
+        extraPerKg[zone] = Number(rateFormData.overweight?.extra_per_kg?.[zone] ?? 0);
+      });
+
+      card.overweight = {
+        policy: rateFormData.overweight?.policy === 'per_kg_extra' ? 'per_kg_extra' : 'reject',
+        max_weight_kg: rateFormData.overweight?.max_weight_kg
+          ? Number(rateFormData.overweight.max_weight_kg)
+          : null,
+        extra_per_kg: extraPerKg,
+      };
+    } else {
+      const zoneRates: Record<string, number> = {};
+      ['A', 'B', 'C', 'D', 'E'].forEach((zone) => {
+        zoneRates[zone] = Number(rateFormData.zone_rates?.[zone] ?? 0);
+      });
+      card.weight_limit_kg = Number(rateFormData.weight_limit_kg || 10);
+      card.zone_rates = zoneRates;
+    }
+
+    return card;
+  };
+
+  const handleSaveRates = () => {
+    onSaveRates(buildRateCardPayload());
+  };
+
+  const handlePreviewRates = async () => {
+    if (!carrier.id) return;
+    setPreviewLoading(true);
+    setPreviewResult(null);
+
+    try {
+      const response = await api.post(
+        `/shipping/multi-carrier/carriers/${carrier.id}/rate-card/preview`,
+        {
+          pickup_pincode: previewPickup,
+          delivery_pincode: previewDelivery,
+          weight_grams: Number(previewWeight || 0),
+          payment_mode: previewPayment,
+          rate_card: buildRateCardPayload(),
+        }
+      );
+      setPreviewResult(response.data?.data || response.data);
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to preview rate');
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
   const tabs = [
     { id: 'credentials', label: 'Credentials', icon: Key },
+    ...(carrier.supports_manual_rates
+      ? [{ id: 'rates', label: 'Fixed rates', icon: TrendingUp }]
+      : []),
     { id: 'warehouse', label: 'Warehouse', icon: Warehouse },
   ];
+
+  const rateZones = [
+    { code: 'A', label: 'Same city' },
+    { code: 'B', label: 'Same state / region' },
+    { code: 'C', label: 'Metro to metro' },
+    { code: 'D', label: 'Rest of India' },
+    { code: 'E', label: 'Northeast / J&K' },
+  ];
+
+  const rateSourceLabel =
+    carrier.rate_card_source === 'account'
+      ? 'Account-specific rate card'
+      : carrier.rate_card_source === 'carrier_config'
+        ? 'Carrier default rate card'
+        : 'No rate card configured';
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -1588,6 +1889,320 @@ const EnhancedCarrierConfigForm: React.FC<EnhancedCarrierConfigFormProps> = ({
           </div>
         )}
 
+        {/* Rates Tab */}
+        {activeTab === 'rates' && (
+          <div className="space-y-4">
+            <div className="rounded-lg border border-blue-100 bg-blue-50/50 p-4">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h4 className="text-sm font-medium text-gray-900">Fixed zone rate card</h4>
+                  <p className="mt-1 text-xs text-gray-600">
+                    {carrier.supports_manual_rates
+                      ? 'This carrier has no live rate API. Each account can use its own fixed A–E zone rates.'
+                      : 'This carrier uses live API rates.'}
+                  </p>
+                </div>
+                <span className="rounded bg-white px-2 py-1 text-[11px] font-medium text-gray-600 border border-gray-200">
+                  {rateSourceLabel}
+                </span>
+              </div>
+            </div>
+
+            <label className="flex items-start gap-2 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                checked={Boolean(rateFormData.enabled)}
+                onChange={(e) => handleRateFieldChange('enabled', e.target.checked)}
+                className="mt-0.5"
+              />
+              <span>
+                Enable fixed rates for this account
+                <span className="block text-xs text-gray-500">
+                  Disabled accounts keep the carrier services but quote no fare.
+                </span>
+              </span>
+            </label>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-sm font-medium text-gray-700">Pricing</span>
+              <button
+                type="button"
+                onClick={() => handleRateFieldChange('pricing_mode', 'flat')}
+                className={`rounded-md px-3 py-1.5 text-sm font-medium ${
+                  rateFormData.pricing_mode !== 'slabs'
+                    ? 'bg-blue-600 text-white'
+                    : 'border border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                Flat per zone
+              </button>
+              <button
+                type="button"
+                onClick={() => handleRateFieldChange('pricing_mode', 'slabs')}
+                className={`rounded-md px-3 py-1.5 text-sm font-medium ${
+                  rateFormData.pricing_mode === 'slabs'
+                    ? 'bg-blue-600 text-white'
+                    : 'border border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                Weight slabs
+              </button>
+            </div>
+
+            {rateFormData.pricing_mode === 'flat' && (
+              <>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Weight limit (kg)</label>
+                <input
+                  type="number"
+                  min="0.1"
+                  max="50"
+                  step="0.1"
+                  value={rateFormData.weight_limit_kg}
+                  onChange={(e) => handleRateFieldChange('weight_limit_kg', e.target.value)}
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">COD charge (₹)</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={rateFormData.cod_charge}
+                  onChange={(e) => handleRateFieldChange('cod_charge', e.target.value)}
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+                />
+              </div>
+            </div>
+
+            <div className="overflow-hidden rounded-lg border border-gray-200">
+              <div className="grid grid-cols-[1fr_150px] bg-gray-50 px-4 py-2 text-xs font-medium uppercase tracking-wide text-gray-500">
+                <span>Zone</span>
+                <span className="text-right">Rate (₹)</span>
+              </div>
+              {rateZones.map((zone) => (
+                <div key={zone.code} className="grid grid-cols-[1fr_150px] items-center gap-3 border-t border-gray-100 px-4 py-2">
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="flex h-6 w-6 items-center justify-center rounded bg-gray-100 font-mono text-xs font-semibold text-gray-600">
+                      {zone.code}
+                    </span>
+                    <span className="text-gray-700">{zone.label}</span>
+                  </div>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={rateFormData.zone_rates?.[zone.code] ?? ''}
+                    onChange={(e) => handleZoneRateChange(zone.code, e.target.value)}
+                    className="w-full rounded-md border border-gray-300 px-3 py-1.5 text-right text-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+                  />
+                </div>
+              ))}
+            </div>
+              </>
+            )}
+
+            {rateFormData.pricing_mode === 'slabs' && (
+              <div className="space-y-4">
+                <div className="overflow-hidden rounded-lg border border-gray-200">
+                  <div className="grid grid-cols-[100px_repeat(5,1fr)_40px] gap-2 bg-gray-50 px-3 py-2 text-[11px] font-medium uppercase tracking-wide text-gray-500">
+                    <span>Up to kg</span>
+                    {rateZones.map((zone) => <span key={zone.code} className="text-right">{zone.code}</span>)}
+                    <span />
+                  </div>
+                  {(rateFormData.weight_slabs || []).map((slab: any, index: number) => (
+                    <div key={index} className="grid grid-cols-[100px_repeat(5,1fr)_40px] items-center gap-2 border-t border-gray-100 px-3 py-2">
+                      <input
+                        type="number"
+                        min="0.1"
+                        step="0.1"
+                        value={slab.up_to_kg ?? ''}
+                        onChange={(e) => handleSlabChange(index, 'up_to_kg', e.target.value)}
+                        className="w-full rounded-md border border-gray-300 px-2 py-1.5 text-sm"
+                      />
+                      {rateZones.map((zone) => (
+                        <input
+                          key={zone.code}
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={slab.zone_rates?.[zone.code] ?? ''}
+                          onChange={(e) => handleSlabZoneRateChange(index, zone.code, e.target.value)}
+                          className="w-full rounded-md border border-gray-300 px-2 py-1.5 text-right text-sm"
+                        />
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => removeSlab(index)}
+                        disabled={(rateFormData.weight_slabs || []).length <= 1}
+                        className="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-30"
+                        title="Remove slab"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={addSlab}
+                  className="inline-flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  <PlusCircle className="h-4 w-4" /> Add slab
+                </button>
+
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">COD charge (₹)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={rateFormData.cod_charge}
+                    onChange={(e) => handleRateFieldChange('cod_charge', e.target.value)}
+                    className="w-full max-w-xs rounded-md border border-gray-300 px-3 py-2 text-sm"
+                  />
+                </div>
+
+                <div className="rounded-lg border border-gray-200 p-4 space-y-3">
+                  <h4 className="text-sm font-medium text-gray-900">Above the last slab</h4>
+                  <div className="flex flex-wrap items-center gap-4">
+                    <label className="flex items-center gap-2 text-sm text-gray-700">
+                      <input
+                        type="radio"
+                        checked={rateFormData.overweight?.policy !== 'per_kg_extra'}
+                        onChange={() => handleOverweightChange('policy', 'reject')}
+                      />
+                      Reject
+                    </label>
+                    <label className="flex items-center gap-2 text-sm text-gray-700">
+                      <input
+                        type="radio"
+                        checked={rateFormData.overweight?.policy === 'per_kg_extra'}
+                        onChange={() => handleOverweightChange('policy', 'per_kg_extra')}
+                      />
+                      Per-kg extra
+                    </label>
+                    {rateFormData.overweight?.policy === 'per_kg_extra' && (
+                      <label className="flex items-center gap-2 text-sm text-gray-700">
+                        Max weight (kg)
+                        <input
+                          type="number"
+                          min="0.1"
+                          step="0.1"
+                          value={rateFormData.overweight?.max_weight_kg ?? ''}
+                          onChange={(e) => handleOverweightChange('max_weight_kg', e.target.value)}
+                          className="w-24 rounded-md border border-gray-300 px-2 py-1.5 text-sm"
+                        />
+                      </label>
+                    )}
+                  </div>
+
+                  {rateFormData.overweight?.policy === 'per_kg_extra' && (
+                    <div className="overflow-hidden rounded-lg border border-gray-200">
+                      <div className="grid grid-cols-[1fr_repeat(5,1fr)] gap-2 bg-gray-50 px-3 py-2 text-[11px] font-medium uppercase tracking-wide text-gray-500">
+                        <span>Extra per kg</span>
+                        {rateZones.map((zone) => <span key={zone.code} className="text-right">{zone.code}</span>)}
+                      </div>
+                      <div className="grid grid-cols-[1fr_repeat(5,1fr)] items-center gap-2 border-t border-gray-100 px-3 py-2">
+                        <span className="text-sm text-gray-600">₹ / kg</span>
+                        {rateZones.map((zone) => (
+                          <input
+                            key={zone.code}
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={rateFormData.overweight?.extra_per_kg?.[zone.code] ?? ''}
+                            onChange={(e) => handleOverweightExtraChange(zone.code, e.target.value)}
+                            className="w-full rounded-md border border-gray-300 px-2 py-1.5 text-right text-sm"
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div className="rounded-lg border border-gray-200 p-4">
+              <h4 className="text-sm font-medium text-gray-900">Preview</h4>
+              <p className="mt-1 text-xs text-gray-500">
+                Preview uses the values currently in this form.
+              </p>
+              <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={6}
+                  placeholder="Pickup 700001"
+                  value={previewPickup}
+                  onChange={(e) => setPreviewPickup(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  className="rounded-md border border-gray-300 px-3 py-2 text-sm"
+                />
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={6}
+                  placeholder="Delivery 560001"
+                  value={previewDelivery}
+                  onChange={(e) => setPreviewDelivery(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  className="rounded-md border border-gray-300 px-3 py-2 text-sm"
+                />
+                <input
+                  type="number"
+                  min="0"
+                  placeholder="Weight (g)"
+                  value={previewWeight}
+                  onChange={(e) => setPreviewWeight(e.target.value)}
+                  className="rounded-md border border-gray-300 px-3 py-2 text-sm"
+                />
+                <select
+                  value={previewPayment}
+                  onChange={(e) => setPreviewPayment(e.target.value as 'prepaid' | 'cod')}
+                  className="rounded-md border border-gray-300 px-3 py-2 text-sm"
+                >
+                  <option value="prepaid">Prepaid</option>
+                  <option value="cod">COD</option>
+                </select>
+              </div>
+              <div className="mt-3 flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  onClick={handlePreviewRates}
+                  disabled={previewLoading || previewPickup.length !== 6 || previewDelivery.length !== 6}
+                  className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                >
+                  {previewLoading ? 'Checking…' : 'Preview quote'}
+                </button>
+                {previewResult && (
+                  <span className={`text-sm ${previewResult.success ? 'text-gray-700' : 'text-red-600'}`}>
+                    {previewResult.success
+                      ? `Zone ${previewResult.zone} · ${previewResult.zone_name} · ₹${previewResult.total_charge}${
+                          previewResult.extra_charge > 0
+                            ? ` (incl. ₹${previewResult.extra_charge} for ${previewResult.extra_kg} kg extra)`
+                            : ''
+                        }`
+                      : previewResult.note}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {carrier.has_account_rate_card && (
+              <button
+                type="button"
+                onClick={onRemoveRates}
+                disabled={isRemovingRates}
+                className="text-sm font-medium text-red-600 hover:text-red-700 disabled:opacity-50"
+              >
+                {isRemovingRates ? 'Removing…' : 'Reset to carrier default rates'}
+              </button>
+            )}
+          </div>
+        )}
+
         {/* Warehouse Tab */}
         {activeTab === 'warehouse' && <WarehouseMappingPanel carrier={carrier} />}
       </div>
@@ -1639,6 +2254,24 @@ const EnhancedCarrierConfigForm: React.FC<EnhancedCarrierConfigFormProps> = ({
               <>
                 Save Configuration
               </>
+            )}
+          </button>
+        )}
+
+        {activeTab === 'rates' && (
+          <button
+            type="button"
+            onClick={handleSaveRates}
+            disabled={isSavingRates}
+            className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
+          >
+            {isSavingRates ? (
+              <>
+                <RefreshCw className="h-4 w-4 mr-2 animate-spin inline" />
+                Saving rates...
+              </>
+            ) : (
+              'Save fixed rates'
             )}
           </button>
         )}
