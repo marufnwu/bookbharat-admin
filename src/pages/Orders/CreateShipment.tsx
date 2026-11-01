@@ -53,7 +53,11 @@ interface WarehouseOption {
 }
 
 interface CarrierRate {
-  carrier_id: number | null;          // null for config-only carriers without a DB row
+  carrier_id: number | null;          // account id; null only for config-only carriers
+  carrier_account_id?: number | null;
+  carrier_account_key?: string;
+  carrier_account_label?: string;
+  carrier_display_name?: string;
   carrier_code: string;
   carrier_name: string;
   carrier_logo: string;
@@ -252,10 +256,15 @@ const CreateShipment: React.FC = () => {
     mutationFn: async (data: any) => {
       return api.post("/shipping/multi-carrier/create", data);
     },
-    onSuccess: () => {
+    onSuccess: (response) => {
       queryClient.invalidateQueries({ queryKey: ['order', orderId] });
       queryClient.invalidateQueries({ queryKey: ['orders'] });
-      toast.success("Shipment created successfully!");
+      const accountLabel = response?.data?.data?.carrier_account_label;
+      toast.success(
+        accountLabel
+          ? `Shipment created successfully via ${accountLabel}`
+          : 'Shipment created successfully!'
+      );
       navigate(`/orders/${orderId}`);
     },
     onError: (error: any) => {
@@ -510,10 +519,10 @@ const CreateShipment: React.FC = () => {
 
     const payload = {
       order_id: orderId,
-      // Send the carrier_code so the backend can resolve via the registry
-      // even if no DB row exists yet (e.g., a newly added provider before
-      // its first admin save). Falls back to carrier_id if available.
-      carrier_id: selectedCarrier.carrier_id ?? selectedCarrier.carrier_code,
+      // Always send the exact account id when the rate came from a
+      // materialized account. The code is only a fallback for config-only
+      // carriers; sending a bare code would pick the default account.
+      carrier_id: selectedCarrier.carrier_account_id ?? selectedCarrier.carrier_id ?? selectedCarrier.carrier_code,
       service_code: selectedCarrier.service_code,
       warehouse_id: selectedWarehouse,
       // Send null explicitly when the carrier has no live rate — backend
@@ -1209,6 +1218,9 @@ const CreateShipment: React.FC = () => {
 
                       <p className="mt-0.5 truncate text-xs text-gray-500">
                         {provider && <span>{provider}</span>}
+                        {carrier.carrier_account_id != null && carrier.carrier_account_label && (
+                          <span className="text-gray-400"> · {carrier.carrier_account_label}</span>
+                        )}
                         {provider && carrier.delivery_days != null && <span aria-hidden> · </span>}
                         {carrier.delivery_days != null && (
                           <span>

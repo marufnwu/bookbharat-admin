@@ -49,6 +49,10 @@ interface Carrier {
   id: number;
   code: string;
   name: string;
+  account_id?: number;
+  account_key?: string;
+  account_label?: string;
+  is_default?: boolean;
   logo?: string;
   is_active: boolean;
   supports_cod: boolean;
@@ -206,7 +210,7 @@ const ManualShipment: React.FC = () => {
   const { data: carriersResponse, isLoading: carriersLoading } = useQuery({
     queryKey: ['shipping-carriers'],
     queryFn: async () => {
-      const response = await api.get('/shipping/carriers');
+      const response = await api.get('/shipping/multi-carrier/carriers');
       return response.data;
     },
   });
@@ -235,13 +239,13 @@ const ManualShipment: React.FC = () => {
 
   // Fetch carrier warehouses when carrier is selected
   const { data: carrierWarehousesResponse, isLoading: carrierWarehousesLoading } = useQuery({
-    queryKey: ['carrier-warehouses', formData.carrier_code],
+    queryKey: ['carrier-warehouses', formData.carrier_id],
     queryFn: async () => {
-      if (!formData.carrier_code) return { data: [] };
-      const response = await api.get(`/shipping/multi-carrier/carriers/${formData.carrier_code}/warehouses`);
+      if (!formData.carrier_id) return { data: [] };
+      const response = await api.get(`/shipping/multi-carrier/carriers/${formData.carrier_id}/warehouses`);
       return response.data;
     },
-    enabled: !!formData.carrier_code,
+    enabled: !!formData.carrier_id,
   });
 
   const carrierWarehouses = Array.isArray(carrierWarehousesResponse?.warehouses) 
@@ -353,13 +357,13 @@ const ManualShipment: React.FC = () => {
 
   // Handle carrier selection
   const handleCarrierChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const carrierCode = e.target.value;
-    const carrier = carriers.find((c: Carrier) => c.code === carrierCode);
-    
+    const carrierId = e.target.value;
+    const carrier = carriers.find((c: Carrier) => String(c.id) === carrierId);
+
     setFormData(prev => ({
       ...prev,
-      carrier_code: carrierCode,
-      carrier_id: carrier?.id || '',
+      carrier_code: carrier?.code || '',
+      carrier_id: carrierId,
       warehouse_id: '', // Reset warehouse when carrier changes
     }));
   };
@@ -445,8 +449,8 @@ const ManualShipment: React.FC = () => {
     e.preventDefault();
     
     // Validation
-    if (!formData.carrier_code) {
-      toast.error('Please select a carrier');
+    if (!formData.carrier_id) {
+      toast.error('Please select a carrier account');
       return;
     }
     if (!formData.delivery_pincode) {
@@ -654,16 +658,17 @@ const ManualShipment: React.FC = () => {
                   Preferred Carrier <span className="text-red-500">*</span>
                 </label>
                 <select
-                  name="carrier_code"
-                  value={formData.carrier_code}
+                  name="carrier_id"
+                  value={formData.carrier_id}
                   onChange={handleCarrierChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   required
                 >
-                  <option value="">Select a carrier</option>
-                  {carriers.filter((c: Carrier) => c.is_active).map((carrier: Carrier) => (
-                    <option key={carrier.code} value={carrier.code}>
+                  <option value="">Select a carrier account</option>
+                  {carriers.filter((c: Carrier) => c.is_active && c.id != null).map((carrier: Carrier) => (
+                    <option key={carrier.id} value={carrier.id}>
                       {carrier.name}
+                      {carrier.account_label ? ` — ${carrier.account_label}` : ''}
                     </option>
                   ))}
                 </select>

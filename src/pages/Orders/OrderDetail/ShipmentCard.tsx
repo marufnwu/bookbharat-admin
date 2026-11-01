@@ -244,6 +244,21 @@ export const ShipmentCard: React.FC<Props> = ({
             label="Courier"
             value={shipment.carrier?.name || 'N/A'}
           />
+          {shipment.carrier?.account_label && (
+            <MetaItem
+              label="Account"
+              value={
+                <span className="inline-flex flex-wrap items-center gap-1.5">
+                  <span>{shipment.carrier.account_label}</span>
+                  {shipment.carrier.is_default_account && (
+                    <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700">
+                      Default
+                    </span>
+                  )}
+                </span>
+              }
+            />
+          )}
           {(shipment.service_name || shipment.service_code) && (
             <MetaItem
               label="Service"

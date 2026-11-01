@@ -194,9 +194,9 @@ export const StatusUpdateModal: React.FC<Props> = ({
               value={carrierId}
               onChange={(e) => setCarrierId(e.target.value)}
               placeholder="Select carrier"
-              options={carriers.map((c: any) => ({
+              options={carriers.filter((c: any) => c.id != null).map((c: any) => ({
                 value: String(c.id),
-                label: c.name || c.display_name,
+                label: `${c.name || c.display_name}${c.account_label ? ` — ${c.account_label}` : ''}`,
               }))}
             />
             <Input
