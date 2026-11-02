@@ -722,7 +722,14 @@ const OrderList: React.FC = () => {
 
   const handleQuickFilter = (quickFilter: 'today' | 'cod' | 'high_value') => {
     if (quickFilter === 'today') {
-      const today = new Date().toISOString().slice(0, 10);
+      // Backend interprets date-only filters as Asia/Kolkata calendar days,
+      // so derive the business-date string in the same timezone.
+      const today = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Kolkata',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      }).format(new Date());
       setFilter({ date_from: today, date_to: today });
     } else if (quickFilter === 'cod') {
       setFilter({ is_cod: '1' });
