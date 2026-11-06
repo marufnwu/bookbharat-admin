@@ -40,9 +40,9 @@ import { toast } from '../../utils/toast';
 type WhatsAppNotificationType = 'order_placed' | 'order_shipped' | 'order_delivered';
 
 const WHATSAPP_NOTIFICATIONS: { type: WhatsAppNotificationType; label: string; description: string; icon: string }[] = [
-  { type: 'order_placed', label: 'Order Confirmation', description: 'Send order placed notification', icon: 'ðŸ“¦' },
-  { type: 'order_shipped', label: 'Shipping Update', description: 'Send shipment notification with tracking', icon: 'ðŸšš' },
-  { type: 'order_delivered', label: 'Delivery Confirmation', description: 'Send delivery confirmation', icon: 'âœ…' },
+  { type: 'order_placed', label: 'Order Confirmation', description: 'Send order placed notification', icon: '📦' },
+  { type: 'order_shipped', label: 'Shipping Update', description: 'Send shipment notification with tracking', icon: '🚚' },
+  { type: 'order_delivered', label: 'Delivery Confirmation', description: 'Send delivery confirmation', icon: '✅' },
 ];
 
 // Column visibility options for the "Columns" picker. Keys must match the
@@ -224,7 +224,7 @@ const WhatsAppSendModal: React.FC<WhatsAppSendModalProps> = ({ isOpen, onClose, 
 
         {!customerPhone && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-            <p className="text-sm text-red-800">âš ï¸ No phone number available for this order. Cannot send WhatsApp message.</p>
+            <p className="text-sm text-red-800">⚠️ No phone number available for this order. Cannot send WhatsApp message.</p>
           </div>
         )}
 
@@ -351,7 +351,7 @@ const OrderStatsWidget: React.FC<OrderStatsWidgetProps> = ({ stats, isLoading })
     },
     {
       label: 'Revenue',
-      value: `â‚¹${((stats?.total_revenue || 0) / 1000).toFixed(1)}K`,
+      value: `₹${((stats?.total_revenue || 0) / 1000).toFixed(1)}K`,
       icon: CurrencyDollarIcon,
       color: 'text-emerald-600 bg-emerald-50'
     },
@@ -885,7 +885,7 @@ const OrderList: React.FC = () => {
     }
   };
 
-  // Fast Delivery helpers â€” "Fast Delivery" is the literal courier name written
+  // Fast Delivery helpers — "Fast Delivery" is the literal courier name written
   // to `Order.metadata.shipping_method` by ShippingService when the customer
   // picks the faster shipping option at checkout. It is also promoted to the
   // top-level `shipping_method` field on the order detail endpoint.
@@ -1308,7 +1308,7 @@ const OrderList: React.FC = () => {
       align: 'left' as const,
       render: (_: any, record: Order) => {
         if (!(record as any).affiliate_id) {
-          return <span className="text-gray-300">â€”</span>;
+          return <span className="text-gray-300">—</span>;
         }
         return (
           <span className="inline-flex items-center gap-1.5">
@@ -1325,9 +1325,9 @@ const OrderList: React.FC = () => {
             {!!(record as any).is_self_referral_blocked && (
               <span
                 className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-red-100 text-[10px] font-bold text-red-600 cursor-help"
-                title="Self-referral blocked â€” commission withheld"
+                title="Self-referral blocked — commission withheld"
               >
-                âš 
+                ⚠
               </span>
             )}
           </span>
@@ -1476,7 +1476,7 @@ const OrderList: React.FC = () => {
                 <option value="completed">Completed</option>
                 <option value="cancelled">Cancelled</option>
                 <option value="refunded">Refunded</option>
-                <option disabled>â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€</option>
+                <option disabled>──────────</option>
                 <option value="preorder">Preorders</option>
                 <option value="unshipped_prepaid">Prepaid Unshipped</option>
                 <option value="unshipped_cod">COD Unshipped</option>
@@ -1548,7 +1548,7 @@ const OrderList: React.FC = () => {
       <div className="block md:hidden space-y-3">
         {isLoading ? (
           <div className="bg-white rounded-lg shadow p-8 text-center text-gray-500">
-            Loading ordersâ€¦
+            Loading orders…
           </div>
         ) : (ordersResponse as any)?.orders?.data?.length ? (
           ((ordersResponse as any).orders.data as Order[]).map((order, index) => (
@@ -1602,21 +1602,21 @@ const OrderList: React.FC = () => {
                 </div>
               </div>
               <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-xs text-gray-600">
-                <div>Pay status: {order.payment_status || 'â€”'}</div>
+                <div>Pay status: {order.payment_status || '—'}</div>
                 <div>Payment: {order.is_cod || order.payment_method === 'cod' ? 'COD' : 'Prepaid'}</div>
                 <div>Type: {order.is_preorder ? 'Preorder' : 'Regular'}</div>
                 <div>Delivery: {isFastDelivery(order) ? 'Fast' : 'Standard'}</div>
                 <div>Source: {order.order_source || 'direct'}</div>
                 <div>Paid: {formatCurrency(order.paid_amount ?? 0)}</div>
                 {(order as any).affiliate_id ? <div>Affiliate: {(order as any).affiliate_name || `#${(order as any).affiliate_id}`}</div> : null}
-                <div>Time: {order.created_at ? new Date(order.created_at).toLocaleTimeString() : 'â€”'}</div>
+                <div>Time: {order.created_at ? new Date(order.created_at).toLocaleTimeString() : '—'}</div>
               </div>
               <div className="mt-3 flex items-center justify-end">
                 <Link
                   to={`/orders/${order.id}`}
                   className="text-sm text-blue-600 hover:text-blue-800 font-medium"
                 >
-                  View details â†’
+                  View details →
                 </Link>
               </div>
             </div>
@@ -1626,7 +1626,7 @@ const OrderList: React.FC = () => {
             No orders found for the current filters.
           </div>
         )}
-        {/* Mobile pagination controls â€” re-use the same handler as desktop */}
+        {/* Mobile pagination controls — re-use the same handler as desktop */}
         {((ordersResponse as any)?.orders?.total || 0) > (filters.per_page || 10) && (
           <div className="flex items-center justify-between bg-white rounded-lg shadow px-4 py-3">
             <button
@@ -1635,7 +1635,7 @@ const OrderList: React.FC = () => {
               disabled={(filters.page || 1) <= 1}
               className="px-3 py-1 text-sm border rounded disabled:opacity-50"
             >
-              â† Prev
+              ← Prev
             </button>
             <span className="text-sm text-gray-600">
               Page {filters.page || 1} of {Math.max(1, Math.ceil(((ordersResponse as any)?.orders?.total || 0) / (filters.per_page || 10)))}
@@ -1656,7 +1656,7 @@ const OrderList: React.FC = () => {
               }
               className="px-3 py-1 text-sm border rounded disabled:opacity-50"
             >
-              Next â†’
+              Next →
             </button>
           </div>
         )}
