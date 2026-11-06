@@ -1,10 +1,9 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
   MagnifyingGlassIcon,
   FunnelIcon,
-  EyeIcon,
   ArrowDownTrayIcon,
   CheckIcon,
   XMarkIcon,
@@ -27,6 +26,9 @@ import { Order, FilterOptions, TableColumn } from '../../types';
 import { format } from 'date-fns';
 import { OrderStatusTabs } from '../../components/Orders/OrderStatusTabs';
 import { InlineStatusDropdown } from '../../components/Orders/InlineStatusDropdown';
+import { OrderActionsMenu } from '../../components/Orders/OrderActionsMenu';
+import { TableColumnPicker } from '../../components/TableColumnPicker';
+import type { TableColumnOption } from '../../components/TableColumnPicker';
 import { OrderQuickView } from '../../components/Orders/OrderQuickView';
 import { OrderSearchWithSuggestions } from '../../components/Orders/OrderSearchWithSuggestions';
 import { KeyboardShortcutsHelp } from '../../components/Orders/KeyboardShortcutsHelp';
@@ -38,10 +40,58 @@ import { toast } from '../../utils/toast';
 type WhatsAppNotificationType = 'order_placed' | 'order_shipped' | 'order_delivered';
 
 const WHATSAPP_NOTIFICATIONS: { type: WhatsAppNotificationType; label: string; description: string; icon: string }[] = [
-  { type: 'order_placed', label: 'Order Confirmation', description: 'Send order placed notification', icon: '📦' },
-  { type: 'order_shipped', label: 'Shipping Update', description: 'Send shipment notification with tracking', icon: '🚚' },
-  { type: 'order_delivered', label: 'Delivery Confirmation', description: 'Send delivery confirmation', icon: '✅' },
+  { type: 'order_placed', label: 'Order Confirmation', description: 'Send order placed notification', icon: 'ðŸ“¦' },
+  { type: 'order_shipped', label: 'Shipping Update', description: 'Send shipment notification with tracking', icon: 'ðŸšš' },
+  { type: 'order_delivered', label: 'Delivery Confirmation', description: 'Send delivery confirmation', icon: 'âœ…' },
 ];
+
+// Column visibility options for the "Columns" picker. Keys must match the
+// `columns` useMemo below. Locked columns (identity + actions) can't be hidden
+// because the table would lose its row anchor and controls.
+const ORDERS_COLUMNS_STORAGE_KEY = 'orders.columns.v1';
+
+const ORDER_COLUMN_OPTIONS: TableColumnOption[] = [
+  { key: 'select', label: 'Select', locked: true },
+  { key: 'product', label: 'Product' },
+  { key: 'order_number', label: 'Order #', locked: true },
+  { key: 'user', label: 'Customer' },
+  { key: 'status', label: 'Status' },
+  { key: 'payment_status', label: 'Pay Status' },
+  { key: 'total_amount', label: 'Total' },
+  { key: 'paid_amount', label: 'Paid' },
+  { key: 'payment_method', label: 'Payment' },
+  { key: 'created_at', label: 'Date' },
+  { key: 'shipping_method', label: 'Delivery' },
+  { key: 'preorder', label: 'Type' },
+  { key: 'order_source', label: 'Source' },
+  { key: 'affiliate', label: 'Affiliate' },
+  { key: 'actions', label: 'Actions', locked: true },
+];
+
+const DEFAULT_VISIBLE_ORDER_COLUMNS = ORDER_COLUMN_OPTIONS.map((option) => option.key);
+const LOCKED_ORDER_COLUMNS = ORDER_COLUMN_OPTIONS.filter((option) => option.locked).map((option) => option.key);
+
+const loadVisibleOrderColumns = (): string[] => {
+  try {
+    const raw = localStorage.getItem(ORDERS_COLUMNS_STORAGE_KEY);
+    if (!raw) return DEFAULT_VISIBLE_ORDER_COLUMNS;
+
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return DEFAULT_VISIBLE_ORDER_COLUMNS;
+
+    const known = new Set(DEFAULT_VISIBLE_ORDER_COLUMNS);
+    const stored = new Set(
+      parsed.filter((key): key is string => typeof key === 'string' && known.has(key))
+    );
+    LOCKED_ORDER_COLUMNS.forEach((key) => stored.add(key));
+
+    // Persisted order may drift from the canonical order — always re-read it.
+    const ordered = DEFAULT_VISIBLE_ORDER_COLUMNS.filter((key) => stored.has(key));
+    return ordered.length ? ordered : DEFAULT_VISIBLE_ORDER_COLUMNS;
+  } catch {
+    return DEFAULT_VISIBLE_ORDER_COLUMNS;
+  }
+};
 
 // Single source of truth for the customer display name shown in the order list.
 // Always derives from the billing_address (first_name + last_name). If the
@@ -174,7 +224,7 @@ const WhatsAppSendModal: React.FC<WhatsAppSendModalProps> = ({ isOpen, onClose, 
 
         {!customerPhone && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-            <p className="text-sm text-red-800">⚠️ No phone number available for this order. Cannot send WhatsApp message.</p>
+            <p className="text-sm text-red-800">âš ï¸ No phone number available for this order. Cannot send WhatsApp message.</p>
           </div>
         )}
 
@@ -301,7 +351,7 @@ const OrderStatsWidget: React.FC<OrderStatsWidgetProps> = ({ stats, isLoading })
     },
     {
       label: 'Revenue',
-      value: `₹${((stats?.total_revenue || 0) / 1000).toFixed(1)}K`,
+      value: `â‚¹${((stats?.total_revenue || 0) / 1000).toFixed(1)}K`,
       icon: CurrencyDollarIcon,
       color: 'text-emerald-600 bg-emerald-50'
     },
@@ -598,6 +648,7 @@ const OrderList: React.FC = () => {
   };
 
   const [showFilters, setShowFilters] = useState(false);
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(loadVisibleOrderColumns);
   const [selectedOrders, setSelectedOrders] = useState<Set<number>>(new Set());
   const [quickViewOrderId, setQuickViewOrderId] = useState<number | null>(null);
   const [highlightedRowIndex, setHighlightedRowIndex] = useState<number>(-1);
@@ -834,7 +885,7 @@ const OrderList: React.FC = () => {
     }
   };
 
-  // Fast Delivery helpers — "Fast Delivery" is the literal courier name written
+  // Fast Delivery helpers â€” "Fast Delivery" is the literal courier name written
   // to `Order.metadata.shipping_method` by ShippingService when the customer
   // picks the faster shipping option at checkout. It is also promoted to the
   // top-level `shipping_method` field on the order detail endpoint.
@@ -926,104 +977,6 @@ const OrderList: React.FC = () => {
     }
 
     return classes.join(' ');
-  };
-
-  const getStatusActions = (order: Order) => {
-    const actions = [];
-
-    // Quick action buttons based on current status
-    if (order.status === 'pending') {
-      actions.push(
-        <Button
-          key="approve"
-          size="icon-sm"
-          type="button"
-          variant="ghost"
-          className="text-gray-600 hover:bg-gray-100"
-          onClick={() => handleStatusUpdate(order.id, 'processing')}
-          aria-label="Process order"
-          title="Process order"
-        >
-          <CheckIcon className="h-4 w-4" />
-        </Button>
-      );
-    }
-
-    // Create Shipment button for processing orders
-    if (order.status === 'processing') {
-      actions.push(
-        <Link key="create-shipment" to={`/orders/${order.id}/create-shipment`}>
-          <Button
-            size="icon-sm"
-          type="button"
-            variant="ghost"
-            className="text-gray-600 hover:bg-gray-100"
-            aria-label="Create shipment"
-            title="Create shipment"
-          >
-            <TruckIcon className="h-4 w-4" />
-          </Button>
-        </Link>
-      );
-    }
-
-    if (order.status === 'shipped') {
-      actions.push(
-        <Button
-          key="deliver"
-          size="icon-sm"
-          type="button"
-          variant="ghost"
-          className="text-green-600 hover:bg-green-50"
-          onClick={() => handleStatusUpdate(order.id, 'delivered')}
-          aria-label="Mark delivered"
-          title="Mark delivered"
-        >
-          <CheckCircleIcon className="h-4 w-4" />
-        </Button>
-      );
-    }
-
-    if (['pending', 'processing'].includes(order.status)) {
-      actions.push(
-        <Button
-          key="cancel"
-          size="icon-sm"
-          type="button"
-          variant="ghost"
-          className="text-red-600 hover:bg-red-50"
-          onClick={() => handleStatusUpdate(order.id, 'cancelled')}
-          aria-label="Cancel order"
-          title="Cancel order"
-        >
-          <XMarkIcon className="h-4 w-4" />
-        </Button>
-      );
-    }
-
-    // Always add "Change Status" button for any-to-any status change
-    actions.push(
-      <Button
-        key="change-status"
-        size="icon-sm"
-        variant="ghost"
-        className="text-gray-600 hover:bg-gray-100"
-        onClick={() => setStatusModal({
-          isOpen: true,
-          orderId: order.id,
-          currentStatus: order.status,
-          selectedStatus: order.status,
-          note: '',
-          overrideWorkflow: false,
-        })}
-        title="Change to any status"
-        aria-label="Change status"
-      >
-        <ArrowPathIcon className="h-4 w-4" />
-      </Button>
-    );
-
-    return actions;
   };
 
   // Handle status update with optional override
@@ -1144,12 +1097,13 @@ const OrderList: React.FC = () => {
     {
       key: 'order_number' as const,
       title: 'Order #',
-      width: 120,
+      width: 190,
       align: 'left' as const,
       sortable: true,
       render: (value: any, record: Order) => (
         <button
-          className="font-medium text-blue-600 hover:text-blue-800 hover:underline"
+          className="block max-w-full truncate text-left font-medium text-blue-600 hover:text-blue-800 hover:underline"
+          title={`#${value}`}
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -1170,66 +1124,59 @@ const OrderList: React.FC = () => {
       width: 150,
       align: 'left' as const,
       render: (_: any, record: Order) => (
-        <span className="font-medium text-gray-900">{getCustomerName(record)}</span>
+        <span className="block max-w-full truncate font-medium text-gray-900" title={getCustomerName(record)}>
+          {getCustomerName(record)}
+        </span>
       ),
     },
-    {
-      key: 'affiliate' as any,
-      title: 'Affiliate',
-      width: 150,
-      align: 'left' as const,
-      render: (_: any, record: Order) => {
-        if (!(record as any).affiliate_id) {
-          return <span className="text-gray-300">—</span>;
-        }
-        return (
-          <span className="inline-flex items-center gap-1.5">
-            <Link
-              to={`/affiliates/${(record as any).affiliate_id}`}
-              className="inline-flex items-center gap-1 rounded-full bg-purple-50 border border-purple-200 px-2 py-0.5 text-xs font-medium text-purple-700 hover:bg-purple-100"
-              title={`Referred via ${((record as any).attribution_source || 'affiliate')}${
-                (record as any).attribution_ref_code ? ` (${(record as any).attribution_ref_code})` : ''
-              }`}
-              onClick={(e) => e.stopPropagation()}
-            >
-              {(record as any).affiliate_name || `#${(record as any).affiliate_id}`}
-            </Link>
-            {!!(record as any).is_self_referral_blocked && (
-              <span
-                className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-red-100 text-[10px] font-bold text-red-600 cursor-help"
-                title="Self-referral blocked — commission withheld"
-              >
-                ⚠
-              </span>
-            )}
-          </span>
-        );
-      },
+  {
+    key: 'status' as const,
+    title: 'Status',
+    width: 140,
+    align: 'center' as const,
+    sortable: true,
+    render: (value: any, record: Order) => {
+      const dateTime = orderStatusDateTime(record);
+      return (
+        <div className="flex flex-col items-center">
+          <InlineStatusDropdown
+            currentStatus={value}
+            onStatusChange={(newStatus) => handleStatusUpdate(record.id, newStatus)}
+          />
+          {dateTime && (
+            <span className="text-[11px] leading-tight text-gray-500 tabular-nums">
+              {dateTime}
+            </span>
+          )}
+        </div>
+      );
     },
-    {
-      key: 'total_amount' as const,
-      title: 'Total',
-      width: 110,
-      align: 'right' as const,
-      className: 'tabular-nums font-medium',
-      sortable: true,
-      render: (value: any, record: Order) => (
-        <span className="font-medium">{formatCurrency(value)}</span>
-      ),
-    },
-    {
-      key: 'status' as const,
-      title: 'Status',
-      width: 120,
-      align: 'center' as const,
-      sortable: true,
-      render: (value: any, record: Order) => (
-        <InlineStatusDropdown
-          currentStatus={value}
-          onStatusChange={(newStatus) => handleStatusUpdate(record.id, newStatus)}
-        />
-      ),
-    },
+  },
+  {
+    key: 'payment_status' as const,
+    title: 'Pay Status',
+    width: 112,
+    align: 'center' as const,
+    sortable: true,
+    render: (value: any, record: Order) => getPaymentStatusBadge(value, () =>
+      setPaymentStatusModal({
+        isOpen: true,
+        orderId: record.id,
+        currentStatus: value,
+      })
+    ),
+  },
+  {
+    key: 'total_amount' as const,
+    title: 'Total',
+    width: 110,
+    align: 'right' as const,
+    className: 'tabular-nums font-medium',
+    sortable: true,
+    render: (value: any, record: Order) => (
+      <span className="font-medium">{formatCurrency(value)}</span>
+    ),
+  },
     {
       key: 'paid_amount' as any,
       title: 'Paid',
@@ -1266,6 +1213,22 @@ const OrderList: React.FC = () => {
           </span>
         );
       },
+    },
+    {
+      key: 'created_at' as const,
+      title: 'Date',
+      width: 130,
+      align: 'left' as const,
+      className: 'tabular-nums',
+      sortable: true,
+      render: (value: any) => (
+        <div>
+          <div>{format(new Date(value), 'MMM dd, yyyy')}</div>
+          <div className="text-sm text-gray-500">
+            {format(new Date(value), 'HH:mm')}
+          </div>
+        </div>
+      ),
     },
     {
       key: 'preorder' as const,
@@ -1339,77 +1302,95 @@ const OrderList: React.FC = () => {
       },
     },
     {
-      key: 'payment_status' as const,
-      title: 'Pay Status',
-      width: 112,
-      align: 'center' as const,
-      sortable: true,
-      render: (value: any, record: Order) => getPaymentStatusBadge(value, () =>
-        setPaymentStatusModal({
-          isOpen: true,
-          orderId: record.id,
-          currentStatus: value,
-        })
-      ),
-    },
-    {
-      key: 'created_at' as const,
-      title: 'Date',
-      width: 120,
+      key: 'affiliate' as any,
+      title: 'Affiliate',
+      width: 150,
       align: 'left' as const,
-      className: 'tabular-nums',
-      sortable: true,
-      render: (value: any) => (
-        <div>
-          <div>{format(new Date(value), 'MMM dd, yyyy')}</div>
-          <div className="text-sm text-gray-500">
-            {format(new Date(value), 'HH:mm')}
-          </div>
-        </div>
-      ),
+      render: (_: any, record: Order) => {
+        if (!(record as any).affiliate_id) {
+          return <span className="text-gray-300">â€”</span>;
+        }
+        return (
+          <span className="inline-flex items-center gap-1.5">
+            <Link
+              to={`/affiliates/${(record as any).affiliate_id}`}
+              className="inline-flex items-center gap-1 rounded-full bg-purple-50 border border-purple-200 px-2 py-0.5 text-xs font-medium text-purple-700 hover:bg-purple-100"
+              title={`Referred via ${((record as any).attribution_source || 'affiliate')}${
+                (record as any).attribution_ref_code ? ` (${(record as any).attribution_ref_code})` : ''
+              }`}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {(record as any).affiliate_name || `#${(record as any).affiliate_id}`}
+            </Link>
+            {!!(record as any).is_self_referral_blocked && (
+              <span
+                className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-red-100 text-[10px] font-bold text-red-600 cursor-help"
+                title="Self-referral blocked â€” commission withheld"
+              >
+                âš 
+              </span>
+            )}
+          </span>
+        );
+      },
     },
     {
       key: 'actions' as const,
       title: 'Actions',
-      width: 320,
-      align: 'right' as const,
+      width: 72,
+      align: 'center' as const,
+      sticky: 'right' as const,
       className: '',
       render: (_: any, record: Order) => {
-        // Check if order has a phone number for WhatsApp
-        const hasPhone = (record.user as any)?.phone || (record as any).shipping_address?.phone || (record as any).shipping_address?.mobile;
+        const hasPhone = Boolean(
+          (record.user as any)?.phone ||
+            (record as any).shipping_address?.phone ||
+            (record as any).shipping_address?.mobile
+        );
 
         return (
-          <div className="flex items-center justify-end gap-1">
-            <Link to={`/orders/${record.id}`}>
-              <Button variant="ghost" size="icon-sm" className="text-gray-600 hover:bg-gray-100" aria-label="View order" title="View order">
-                <EyeIcon className="h-4 w-4" />
-              </Button>
-            </Link>
-            {hasPhone && (
-            <Button
-              variant="ghost"
-              size="icon-sm"
-          type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setWhatsappSendModal({ isOpen: true, order: record });
-              }}
-              className="text-green-600 hover:text-green-800 hover:bg-green-50"
-              aria-label="Send WhatsApp"
-              title="Send WhatsApp"
-            >
-              <PaperAirplaneIcon className="h-4 w-4" />
-            </Button>
-            )}
-            <div className="flex space-x-1">
-              {getStatusActions(record)}
-            </div>
-          </div>
+          <OrderActionsMenu
+            order={record}
+            hasPhone={hasPhone}
+            onWhatsApp={() => setWhatsappSendModal({ isOpen: true, order: record })}
+            onStatusChange={(status) => handleStatusUpdate(record.id, status)}
+            onChangeStatus={() =>
+              setStatusModal({
+                isOpen: true,
+                orderId: record.id,
+                currentStatus: record.status,
+                selectedStatus: record.status,
+                note: '',
+                overrideWorkflow: false,
+              })
+            }
+          />
         );
       },
     },
   ], [selectedOrders, ordersResponse]);
+
+  const displayedColumns = useMemo(() => {
+    const visible = new Set(visibleColumns);
+    return columns.filter((column) => visible.has(String(column.key)));
+  }, [columns, visibleColumns]);
+
+  const tableMinWidth = useMemo(
+    () =>
+      displayedColumns.reduce(
+        (sum, column) => sum + (typeof column.width === 'number' ? column.width : 0),
+        0
+      ),
+    [displayedColumns]
+  );
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(ORDERS_COLUMNS_STORAGE_KEY, JSON.stringify(visibleColumns));
+    } catch {
+      // Storage unavailable (private mode / quota) — visibility still works per session.
+    }
+  }, [visibleColumns]);
 
   return (
     <div className="space-y-6">
@@ -1467,6 +1448,12 @@ const OrderList: React.FC = () => {
               Clear Filters
             </Button>
           </div>
+          <TableColumnPicker
+            columns={ORDER_COLUMN_OPTIONS}
+            visible={visibleColumns}
+            onChange={setVisibleColumns}
+            onReset={() => setVisibleColumns(DEFAULT_VISIBLE_ORDER_COLUMNS)}
+          />
         </div>
 
         {showFilters && (
@@ -1489,7 +1476,7 @@ const OrderList: React.FC = () => {
                 <option value="completed">Completed</option>
                 <option value="cancelled">Cancelled</option>
                 <option value="refunded">Refunded</option>
-                <option disabled>──────────</option>
+                <option disabled>â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€</option>
                 <option value="preorder">Preorders</option>
                 <option value="unshipped_prepaid">Prepaid Unshipped</option>
                 <option value="unshipped_cod">COD Unshipped</option>
@@ -1561,7 +1548,7 @@ const OrderList: React.FC = () => {
       <div className="block md:hidden space-y-3">
         {isLoading ? (
           <div className="bg-white rounded-lg shadow p-8 text-center text-gray-500">
-            Loading orders…
+            Loading ordersâ€¦
           </div>
         ) : (ordersResponse as any)?.orders?.data?.length ? (
           ((ordersResponse as any).orders.data as Order[]).map((order, index) => (
@@ -1592,10 +1579,17 @@ const OrderList: React.FC = () => {
                     </div>
                   </div>
                 </div>
-                <InlineStatusDropdown
-                  currentStatus={order.status}
-                  onStatusChange={(newStatus) => handleStatusUpdate(order.id, newStatus)}
-                />
+                <div className="flex flex-col items-end gap-0.5">
+                  <InlineStatusDropdown
+                    currentStatus={order.status}
+                    onStatusChange={(newStatus) => handleStatusUpdate(order.id, newStatus)}
+                  />
+                  {orderStatusDateTime(order) && (
+                    <span className="text-[11px] leading-tight text-gray-500 whitespace-nowrap tabular-nums">
+                      {orderStatusDateTime(order)}
+                    </span>
+                  )}
+                </div>
               </div>
               <div className="flex items-center justify-between text-sm">
                 <div className="text-gray-500">
@@ -1608,21 +1602,21 @@ const OrderList: React.FC = () => {
                 </div>
               </div>
               <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-xs text-gray-600">
-                <div>Pay status: {order.payment_status || '—'}</div>
+                <div>Pay status: {order.payment_status || 'â€”'}</div>
                 <div>Payment: {order.is_cod || order.payment_method === 'cod' ? 'COD' : 'Prepaid'}</div>
                 <div>Type: {order.is_preorder ? 'Preorder' : 'Regular'}</div>
                 <div>Delivery: {isFastDelivery(order) ? 'Fast' : 'Standard'}</div>
                 <div>Source: {order.order_source || 'direct'}</div>
                 <div>Paid: {formatCurrency(order.paid_amount ?? 0)}</div>
                 {(order as any).affiliate_id ? <div>Affiliate: {(order as any).affiliate_name || `#${(order as any).affiliate_id}`}</div> : null}
-                <div>Time: {order.created_at ? new Date(order.created_at).toLocaleTimeString() : '—'}</div>
+                <div>Time: {order.created_at ? new Date(order.created_at).toLocaleTimeString() : 'â€”'}</div>
               </div>
               <div className="mt-3 flex items-center justify-end">
                 <Link
                   to={`/orders/${order.id}`}
                   className="text-sm text-blue-600 hover:text-blue-800 font-medium"
                 >
-                  View details →
+                  View details â†’
                 </Link>
               </div>
             </div>
@@ -1632,7 +1626,7 @@ const OrderList: React.FC = () => {
             No orders found for the current filters.
           </div>
         )}
-        {/* Mobile pagination controls — re-use the same handler as desktop */}
+        {/* Mobile pagination controls â€” re-use the same handler as desktop */}
         {((ordersResponse as any)?.orders?.total || 0) > (filters.per_page || 10) && (
           <div className="flex items-center justify-between bg-white rounded-lg shadow px-4 py-3">
             <button
@@ -1641,7 +1635,7 @@ const OrderList: React.FC = () => {
               disabled={(filters.page || 1) <= 1}
               className="px-3 py-1 text-sm border rounded disabled:opacity-50"
             >
-              ← Prev
+              â† Prev
             </button>
             <span className="text-sm text-gray-600">
               Page {filters.page || 1} of {Math.max(1, Math.ceil(((ordersResponse as any)?.orders?.total || 0) / (filters.per_page || 10)))}
@@ -1662,7 +1656,7 @@ const OrderList: React.FC = () => {
               }
               className="px-3 py-1 text-sm border rounded disabled:opacity-50"
             >
-              Next →
+              Next â†’
             </button>
           </div>
         )}
@@ -1672,9 +1666,10 @@ const OrderList: React.FC = () => {
       <div className="hidden md:block bg-white rounded-lg shadow">
         <Table
           data={(ordersResponse as any)?.orders?.data || []}
-          columns={columns}
+          columns={displayedColumns}
           density="compact"
-          minWidth={1824}
+          fixedLayout
+          minWidth={tableMinWidth}
           loading={isLoading}
           rowClassName={getRowClassName}
           pagination={{
@@ -1884,6 +1879,19 @@ const OrderList: React.FC = () => {
 };
 
 // Helper function for valid transitions (simplified)
+const orderStatusDateTime = (order: Order): string | null => {
+  const raw: Record<string, string | null | undefined> = {
+    confirmed: (order as any).confirmed_at,
+    shipped: order.shipped_at,
+    delivered: order.delivered_at,
+  };
+  const value = raw[order.status];
+  if (!value) return null;
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return null;
+  return `${format(d, 'MMM dd, yyyy')} ${format(d, 'HH:mm')}`;
+};
+
 const getValidTransitions = (currentStatus: string): string[] => {
   const transitions: Record<string, string[]> = {
     pending: ['processing', 'cancelled'],

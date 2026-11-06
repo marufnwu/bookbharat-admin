@@ -5,11 +5,19 @@ import { TableProps } from '../types';
 import LoadingSpinner from './LoadingSpinner';
 import Button from './Button';
 
+/**
+ * True when a row class string sets its own background colour.
+ * `hover:bg-*` / `focus:bg-*` don't count — only a static `bg-*` token.
+ */
+const hasRowBackground = (rowClass: string): boolean =>
+  /(^|\s)bg-[^\s]+/.test(rowClass);
+
 function Table<T extends Record<string, any>>({
   data,
   columns,
   density = 'default',
   minWidth,
+  fixedLayout = false,
   loading = false,
   pagination,
   onSort,
@@ -59,10 +67,13 @@ function Table<T extends Record<string, any>>({
   return (
     <div className="space-y-4">
       <div className="overflow-x-auto shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
-        <table
-          className="min-w-full divide-y divide-gray-300"
-          style={{ minWidth: typeof minWidth === 'number' ? `${minWidth}px` : minWidth }}
-        >
+        {/* Wrapper carries the minimum content width so the table can still fill
+            the container (and the sticky Actions column sits at its right edge)
+            after columns are hidden in the column picker. */}
+        <div style={{ minWidth: typeof minWidth === 'number' ? `${minWidth}px` : minWidth }}>
+          <table
+            className={cn('min-w-full w-full divide-y divide-gray-300', fixedLayout && 'table-fixed')}
+          >
           <thead className="bg-gray-50">
             <tr>
                 {columns.map((column) => (
@@ -78,11 +89,18 @@ function Table<T extends Record<string, any>>({
                     'text-xs font-medium text-gray-500 uppercase tracking-wider',
                     column.align === 'right' ? 'text-right' : column.align === 'center' ? 'text-center' : 'text-left',
                     column.sortable ? 'cursor-pointer hover:bg-gray-100' : '',
+                    column.sticky === 'right' &&
+                      'sticky right-0 z-20 border-l border-gray-200 bg-gray-50 shadow-[-6px_0_6px_-6px_rgba(0,0,0,0.18)]',
                     column.headerClassName
                   )}
                   onClick={() => column.sortable && handleSort(String(column.key))}
                 >
-                  <div className="flex items-center space-x-1">
+                  <div
+                    className={cn(
+                      'flex items-center space-x-1',
+                      column.align === 'right' ? 'justify-end' : column.align === 'center' ? 'justify-center' : 'justify-start'
+                    )}
+                  >
                     <span>{column.title}</span>
                     {column.sortable && getSortIcon(String(column.key))}
                   </div>
@@ -104,7 +122,15 @@ function Table<T extends Record<string, any>>({
                 data.map((row, index) => (
                 <tr
                   key={index}
-                  className={cn('group hover:bg-gray-50', onRowClick ? 'cursor-pointer' : '', rowClassName ? rowClassName(row, index) : '')}
+                  className={cn(
+                    'group hover:bg-gray-50',
+                    // Sticky cells paint with `bg-inherit`, so the row must always
+                    // resolve to an opaque colour. A custom row tint (e.g. the
+                    // green "fast delivery" row) already provides one.
+                    hasRowBackground(rowClassName ? rowClassName(row, index) : '') ? '' : 'bg-white',
+                    onRowClick ? 'cursor-pointer' : '',
+                    rowClassName ? rowClassName(row, index) : ''
+                  )}
                   onClick={onRowClick ? () => onRowClick(row) : undefined}
                 >
                     {columns.map((column) => (
@@ -119,6 +145,8 @@ function Table<T extends Record<string, any>>({
                         'text-sm text-gray-900',
                         column.wrap ? '' : 'whitespace-nowrap',
                         column.align === 'right' ? 'text-right' : column.align === 'center' ? 'text-center' : 'text-left',
+                        column.sticky === 'right' &&
+                          'sticky right-0 z-10 border-l border-gray-200 bg-inherit shadow-[-6px_0_6px_-6px_rgba(0,0,0,0.18)]',
                         column.className
                       )}
                     >
@@ -132,6 +160,7 @@ function Table<T extends Record<string, any>>({
             )}
           </tbody>
         </table>
+        </div>
       </div>
 
       {pagination && (

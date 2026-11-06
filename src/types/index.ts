@@ -398,17 +398,21 @@ export interface TableColumn<T = any> {
   render?: (value: any, record: T) => React.ReactNode;
   wrap?: boolean; // Allow text wrapping in this column
   align?: 'left' | 'right' | 'center';
-  width?: string | number;
-  className?: string;
-  headerClassName?: string;
-}
+    width?: string | number;
+    className?: string;
+    headerClassName?: string;
+    /** Pin this column to the right edge while the table scrolls horizontally. */
+    sticky?: 'right';
+  }
 
-export interface TableProps<T = any> {
-  data: T[];
-  columns: TableColumn<T>[];
-  density?: 'default' | 'compact';
-  minWidth?: number | string;
-  loading?: boolean;
+  export interface TableProps<T = any> {
+    data: T[];
+    columns: TableColumn<T>[];
+    density?: 'default' | 'compact';
+    minWidth?: number | string;
+    /** Use `table-layout: fixed` so header and body columns share the declared widths. */
+    fixedLayout?: boolean;
+    loading?: boolean;
   pagination?: {
     current: number;
     total: number;
