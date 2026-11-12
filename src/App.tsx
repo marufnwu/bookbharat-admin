@@ -31,6 +31,13 @@ import CustomerCreate from "./pages/Customers/CustomerCreate";
 import CustomerEdit from "./pages/Customers/CustomerEdit";
 import Settings from "./pages/Settings";
 import SiteSettings from "./pages/Settings/SiteSettings";
+import SeoAgentDashboard from "./pages/SeoAgent/Dashboard";
+import SeoAgentIssues from "./pages/SeoAgent/Issues";
+import SeoAgentMerchant from "./pages/SeoAgent/Merchant";
+import SeoAgentProposals from "./pages/SeoAgent/Proposals";
+import SeoAgentChanges from "./pages/SeoAgent/Changes";
+import SeoAgentIntegrations from "./pages/SeoAgent/Integrations";
+import SeoAgentSettings from "./pages/SeoAgent/Settings";
 import Categories from "./pages/Categories";
 import PublishersList from "./pages/Publishers/PublishersList";
 import AuthorsList from "./pages/Authors/AuthorsList";
@@ -289,6 +296,15 @@ const App: React.FC = () => {
               <Route path="settings" element={<Settings />} />
               <Route path="settings/roles" element={<RolesPermissions />} />
               <Route path="settings/:settingsType" element={<Settings />} />
+
+              {/* AI SEO Agent control plane */}
+              <Route path="seo-agent" element={<SeoAgentDashboard />} />
+              <Route path="seo-agent/issues" element={<SeoAgentIssues />} />
+              <Route path="seo-agent/merchant" element={<SeoAgentMerchant />} />
+              <Route path="seo-agent/proposals" element={<SeoAgentProposals />} />
+              <Route path="seo-agent/changes" element={<SeoAgentChanges />} />
+              <Route path="seo-agent/integrations" element={<SeoAgentIntegrations />} />
+              <Route path="seo-agent/settings" element={<SeoAgentSettings />} />
 
               {/* Legacy Settings Pages */}
               <Route path="settings/site" element={<SiteSettings />} />
