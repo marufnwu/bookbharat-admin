@@ -207,6 +207,26 @@ const Dashboard: React.FC = () => {
         </div>
       </div>
 
+      {data.preflight && !data.preflight.ready && (
+        <div className="rounded-xl border border-red-200 bg-red-50 p-5">
+          <h2 className="font-semibold text-red-900">Live runs are blocked</h2>
+          <p className="mt-1 text-sm text-red-800">
+            Fix these before enabling automatic fixes:
+          </p>
+          <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-red-800">
+            {data.preflight.blockers.map((blocker) => (
+              <li key={blocker}>{blocker}</li>
+            ))}
+          </ul>
+          <p className="mt-3 text-xs text-red-700">
+            Environment: {data.preflight.facts.environment} · Products:{' '}
+            {data.preflight.facts.products} · Auto-fix issues:{' '}
+            {data.preflight.facts.auto_fix_issues} · Mapped:{' '}
+            {data.preflight.facts.mapped_auto_fix_issues}
+          </p>
+        </div>
+      )}
+
       <div className="rounded-xl border border-gray-200 bg-white p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>

@@ -19,6 +19,7 @@ import {
   Receipt,
   Wallet,
   BarChart3,
+  TrendingUp,
   Navigation,
   Layout,
   Shield,
@@ -38,6 +39,7 @@ import {
   Wrench,
   Book,
   AlertTriangle,
+  FlaskConical,
   Bell,
   Mail,
   MessageSquare,
@@ -213,6 +215,18 @@ export const navigation: NavigationItem[] = [
       { name: 'Notification Events', href: '/settings/notification-events', icon: Bell },
       { name: 'Message Templates', href: '/settings/message-templates', icon: FileText },
       { name: 'AI Providers', href: '/settings/ai-providers', icon: Sparkles },
+    ],
+  },
+
+  // Growth Center
+  {
+    name: 'Growth',
+    href: '/growth',
+    icon: TrendingUp,
+    children: [
+      { name: 'Dashboard', href: '/growth', icon: TrendingUp },
+      { name: 'Findings', href: '/growth/findings', icon: AlertTriangle },
+      { name: 'Experiments', href: '/growth/experiments', icon: FlaskConical },
     ],
   },
 

@@ -59,6 +59,21 @@ const MerchantGroup: React.FC<{
   const [open, setOpen] = useState(false);
   const [preview, setPreview] = useState<SeoIssue[]>([]);
   const [loading, setLoading] = useState(false);
+  const queryClient = useQueryClient();
+  const batchMutation = useMutation({
+    mutationFn: () =>
+      seoAgentApi.runMerchantBatch(
+        group?.group_key === 'merchant_titles' ? 'titles' : 'images',
+        100
+      ),
+    onSuccess: () => {
+      toast.success('Batch proposals created. Review them in Proposals.');
+      queryClient.invalidateQueries({ queryKey: ['seo-agent-proposals'] });
+      queryClient.invalidateQueries({ queryKey: ['seo-agent-dashboard'] });
+    },
+    onError: (error: any) =>
+      toast.error(error?.response?.data?.message || 'Could not create batch proposals'),
+  });
 
   const load = async () => {
     if (preview.length > 0) {
@@ -106,6 +121,16 @@ const MerchantGroup: React.FC<{
               className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
             >
               Preview
+            </button>
+          )}
+          {(group?.group_key === 'merchant_titles' || group?.group_key === 'merchant_images') && (
+            <button
+              type="button"
+              onClick={() => batchMutation.mutate()}
+              disabled={batchMutation.isPending}
+              className="rounded-lg bg-primary-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-primary-700 disabled:opacity-50"
+            >
+              {batchMutation.isPending ? 'Preparing…' : 'Prepare fix batch'}
             </button>
           )}
           <a

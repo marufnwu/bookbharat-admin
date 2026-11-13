@@ -123,6 +123,129 @@ export interface SeoIntegrationHealth {
   pagespeed: { configured: boolean };
 }
 
+export interface GrowthExperiment {
+  id: number;
+  name: string;
+  hypothesis: string;
+  metric: string;
+  variant_key: string;
+  control_key: string;
+  traffic_split: number;
+  status: 'draft' | 'running' | 'paused' | 'stopped';
+  started_at: string | null;
+  ended_at: string | null;
+  minimum_sample: number;
+  baseline_rate: number | null;
+  variant_rate: number | null;
+  control_rate: number | null;
+  lift: number | null;
+  verdict: string | null;
+  analysis_json: Record<string, unknown> | null;
+}
+
+export interface GrowthFinding {
+  id: number;
+  type: string;
+  group_key: string;
+  actionability: 'auto_fix' | 'needs_approval' | 'manual' | 'false_positive';
+  entity_type: string;
+  entity_id: number | null;
+  url: string | null;
+  severity: string;
+  status: 'open' | 'ignored' | 'fixed' | 'regressed';
+  occurrences: number;
+  evidence_json: Record<string, unknown> | null;
+  priority_score: number;
+  impact_score: number | null;
+  first_seen: string | null;
+  last_seen: string | null;
+}
+
+export interface GrowthFindingGroup {
+  group_key: string;
+  actionability: string;
+  findings: number;
+  entities: number;
+  severity: string;
+}
+
+export interface GrowthHealth {
+  healthy: boolean;
+  blockers: string[];
+  warnings: string[];
+  facts: {
+    environment?: string;
+    database?: string;
+    database_host?: string;
+    is_production?: boolean;
+    last_event_at: string | null;
+    last_order_at: string | null;
+    events_24h: number;
+    orders_24h: number;
+    paid_orders_24h: number;
+    missing_events: string[];
+    event_counts_7d: Record<string, number>;
+  };
+  ga4?: {
+    configured: boolean;
+    property_id: string;
+    measurement_id: string | null;
+    events: Record<string, number>;
+    missing_events: string[];
+    platforms: Record<string, number>;
+    likely_app_property: boolean;
+    blockers: string[];
+    warnings: string[];
+  };
+}
+
+export interface GrowthTrendPoint {
+  date: string;
+  sessions: number;
+  product_views: number;
+  add_to_cart: number;
+  checkout_started: number;
+  purchases: number;
+  revenue: number;
+}
+
+export interface GrowthProductRow {
+  product_id: number;
+  views: number;
+  cart_adds: number;
+  purchases: number;
+  revenue: number;
+  add_to_cart_rate: number | null;
+}
+
+export interface SearchGap {
+  query: string;
+  searches: number;
+  zero_results: number;
+  zero_result_rate: number | null;
+  click_rate: number | null;
+  last_seen: string | null;
+}
+
+export interface GrowthSummary {
+  days: number;
+  totals: {
+    sessions: number;
+    product_views: number;
+    add_to_cart: number;
+    checkout_started: number;
+    purchases: number;
+    revenue: number;
+    conversion_rate: number | null;
+    add_to_cart_rate: number | null;
+    checkout_completion_rate: number | null;
+    revenue_per_session: number | null;
+  };
+  daily: Array<Record<string, unknown>>;
+  data_quality: GrowthHealth;
+  conversion_metrics_trusted: boolean;
+}
+
 export interface SeoAgentIntegrations {
   values: {
     site_url: string;
@@ -212,6 +335,21 @@ export interface SeoAgentDashboard {
     dry_run: boolean;
     kill_switch: boolean;
     tier_1_enabled: boolean;
+  };
+  preflight?: {
+    ready: boolean;
+    blockers: string[];
+    warnings: string[];
+    facts: {
+      environment: string;
+      products: number;
+      auto_fix_issues: number;
+      mapped_auto_fix_issues: number;
+      enabled: boolean;
+      dry_run: boolean;
+      tier_1_enabled: boolean;
+      kill_switch: boolean;
+    };
   };
   alerts?: Array<{
     id: number;

@@ -1,6 +1,14 @@
 import api from './axios';
 import type {
   ApiResponse,
+  GrowthExperiment,
+  GrowthFinding,
+  GrowthFindingGroup,
+  GrowthHealth,
+  GrowthProductRow,
+  GrowthSummary,
+  GrowthTrendPoint,
+  SearchGap,
   PaginatedResponse,
   SeoAgentIntegrationTestResult,
   SeoIssueGroup,
@@ -88,6 +96,122 @@ export const seoAgentApi = {
 
   runMerchantDiagnostics: async () => {
     const response = await api.post<ApiResponse<{ output: string }>>(`${BASE}/run/merchant-diagnostics`);
+    return response.data.data;
+  },
+
+  growthHealth: async (): Promise<GrowthHealth> => {
+    const response = await api.get<ApiResponse<GrowthHealth>>(`${BASE}/growth/health`);
+    return response.data.data;
+  },
+
+  growthSummary: async (days = 28): Promise<GrowthSummary> => {
+    const response = await api.get<ApiResponse<GrowthSummary>>(`${BASE}/growth/summary`, {
+      params: { days },
+    });
+    return response.data.data;
+  },
+
+  aggregateGrowth: async () => {
+    const response = await api.post<ApiResponse<{ output: string }>>(`${BASE}/growth/aggregate`);
+    return response.data.data;
+  },
+
+  growthTrend: async (days = 28): Promise<GrowthTrendPoint[]> => {
+    const response = await api.get<ApiResponse<GrowthTrendPoint[]>>(`${BASE}/growth/trend`, {
+      params: { days },
+    });
+    return response.data.data;
+  },
+
+  growthProducts: async (days = 28, sort: 'views' | 'revenue' = 'views'): Promise<GrowthProductRow[]> => {
+    const response = await api.get<ApiResponse<GrowthProductRow[]>>(`${BASE}/growth/products`, {
+      params: { days, sort },
+    });
+    return response.data.data;
+  },
+
+  checkoutFunnel: async (days = 28): Promise<{
+    checkout_started: number;
+    steps: Array<{ step: string; sessions: number; drop_off_from_previous: number | null }>;
+  }> => {
+    const response = await api.get<ApiResponse<any>>(`${BASE}/growth/checkout-funnel`, {
+      params: { days },
+    });
+    return response.data.data;
+  },
+
+  growthExperiments: async (): Promise<GrowthExperiment[]> => {
+    const response = await api.get<ApiResponse<GrowthExperiment[]>>(`${BASE}/growth/experiments`);
+    return response.data.data;
+  },
+
+  createGrowthExperiment: async (payload: {
+    name: string;
+    hypothesis: string;
+    minimum_sample?: number;
+    traffic_split?: number;
+  }): Promise<GrowthExperiment> => {
+    const response = await api.post<ApiResponse<GrowthExperiment>>(`${BASE}/growth/experiments`, payload);
+    return response.data.data;
+  },
+
+  startGrowthExperiment: async (id: number): Promise<GrowthExperiment> => {
+    const response = await api.post<ApiResponse<GrowthExperiment>>(`${BASE}/growth/experiments/${id}/start`);
+    return response.data.data;
+  },
+
+  stopGrowthExperiment: async (id: number): Promise<GrowthExperiment> => {
+    const response = await api.post<ApiResponse<GrowthExperiment>>(`${BASE}/growth/experiments/${id}/stop`);
+    return response.data.data;
+  },
+
+  analyzeGrowthExperiment: async (id: number): Promise<Record<string, unknown>> => {
+    const response = await api.post<ApiResponse<Record<string, unknown>>>(`${BASE}/growth/experiments/${id}/analyze`);
+    return response.data.data;
+  },
+
+  growthFindings: async (params: {
+    status?: string;
+    group?: string;
+    actionability?: string;
+    page?: number;
+    per_page?: number;
+  } = {}): Promise<{ data: GrowthFinding[]; meta: any }> => {
+    const response = await api.get<{ data: GrowthFinding[]; meta: any }>(`${BASE}/growth/findings`, {
+      params,
+    });
+    return response.data;
+  },
+
+  growthFindingGroups: async (): Promise<GrowthFindingGroup[]> => {
+    const response = await api.get<ApiResponse<GrowthFindingGroup[]>>(`${BASE}/growth/findings/groups`);
+    return response.data.data;
+  },
+
+  updateGrowthFinding: async (id: number, status: 'open' | 'ignored' | 'fixed'): Promise<GrowthFinding> => {
+    const response = await api.patch<ApiResponse<GrowthFinding>>(`${BASE}/growth/findings/${id}`, { status });
+    return response.data.data;
+  },
+
+  detectGrowthFindings: async (dryRun = true) => {
+    const response = await api.post<ApiResponse<{ output: string }>>(`${BASE}/growth/detect`, {
+      dry_run: dryRun,
+    });
+    return response.data.data;
+  },
+
+  searchGaps: async (days = 90, limit = 20): Promise<SearchGap[]> => {
+    const response = await api.get<ApiResponse<SearchGap[]>>(`${BASE}/growth/search-gaps`, {
+      params: { days, limit },
+    });
+    return response.data.data;
+  },
+
+  runMerchantBatch: async (kind: 'titles' | 'images', limit = 100) => {
+    const response = await api.post<ApiResponse<{ output: string }>>(`${BASE}/run/merchant-batch`, {
+      kind,
+      limit,
+    });
     return response.data.data;
   },
 

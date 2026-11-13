@@ -31,6 +31,9 @@ import CustomerCreate from "./pages/Customers/CustomerCreate";
 import CustomerEdit from "./pages/Customers/CustomerEdit";
 import Settings from "./pages/Settings";
 import SiteSettings from "./pages/Settings/SiteSettings";
+import GrowthDashboard from "./pages/Growth/Dashboard";
+import GrowthFindings from "./pages/Growth/Findings";
+import GrowthExperiments from "./pages/Growth/Experiments";
 import SeoAgentDashboard from "./pages/SeoAgent/Dashboard";
 import SeoAgentIssues from "./pages/SeoAgent/Issues";
 import SeoAgentMerchant from "./pages/SeoAgent/Merchant";
@@ -296,6 +299,11 @@ const App: React.FC = () => {
               <Route path="settings" element={<Settings />} />
               <Route path="settings/roles" element={<RolesPermissions />} />
               <Route path="settings/:settingsType" element={<Settings />} />
+
+              {/* Growth Center */}
+              <Route path="growth" element={<GrowthDashboard />} />
+              <Route path="growth/findings" element={<GrowthFindings />} />
+              <Route path="growth/experiments" element={<GrowthExperiments />} />
 
               {/* AI SEO Agent control plane */}
               <Route path="seo-agent" element={<SeoAgentDashboard />} />
