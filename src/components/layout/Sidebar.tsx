@@ -80,6 +80,20 @@ const hasActiveDescendant = (
 export const navigation: NavigationItem[] = [
   { name: 'Dashboard', href: '/dashboard', icon: Home },
 
+  // Growth Center — the business home. It sits directly under Dashboard
+  // because the plan makes it the operator's primary entry point, ahead of
+  // the technical SEO and Merchant screens that support it.
+  {
+    name: 'Growth',
+    href: '/growth',
+    icon: TrendingUp,
+    children: [
+      { name: 'Dashboard', href: '/growth', icon: TrendingUp },
+      { name: 'Findings', href: '/growth/findings', icon: AlertTriangle },
+      { name: 'Experiments', href: '/growth/experiments', icon: FlaskConical },
+    ],
+  },
+
   // Sales & Orders
   {
     name: 'Sales',
@@ -220,17 +234,7 @@ export const navigation: NavigationItem[] = [
     ],
   },
 
-  // Growth Center
-  {
-    name: 'Growth',
-    href: '/growth',
-    icon: TrendingUp,
-    children: [
-      { name: 'Dashboard', href: '/growth', icon: TrendingUp },
-      { name: 'Findings', href: '/growth/findings', icon: AlertTriangle },
-      { name: 'Experiments', href: '/growth/experiments', icon: FlaskConical },
-    ],
-  },
+  // Growth Center now lives at the top of the navigation; see above.
 
   // AI SEO Agent
   {
