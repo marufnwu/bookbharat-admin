@@ -365,12 +365,91 @@ export interface PaginationMeta {
   last_page: number;
   per_page: number;
   total: number;
-}
-
-export interface PaginatedResponse<T> {
+}export interface PaginatedResponse<T> {
   success: boolean;
   data: T[];
   meta: PaginationMeta;
+}
+
+export interface SeoCohortSummary {
+  id: number;
+  name: string;
+  status: 'draft' | 'approved' | 'retired';
+  window_from: string | null;
+  window_to: string | null;
+  target_size: number | null;
+  members_count: number;
+  approved_at: string | null;
+}
+
+export interface SeoCohortMember {
+  entity_id: number;
+  url: string;
+  product_type: string;
+  bucket: string;
+  impressions: number;
+  clicks: number;
+  position: number;
+  upside_clicks: number;
+  rationale: string;
+}
+
+export interface SeoCohortDetail {
+  cohort: SeoCohortSummary & {
+    criteria: Record<string, unknown> | null;
+    notes: string | null;
+  };
+  members: SeoCohortMember[];
+}
+
+export interface SeoCohortSideTotals {
+  baseline_impressions: number;
+  baseline_clicks: number;
+  baseline_ctr: number;
+  current_impressions: number;
+  current_clicks: number;
+  current_ctr: number;
+  ctr_change: number;
+}
+
+export interface SeoCohortMeasurement {
+  change_type: string;
+  page_type: string;
+  window_days: number;
+  members: number;
+  treated: SeoCohortSideTotals;
+  control: SeoCohortSideTotals;
+  net_effect: number;
+  verdict: 'improved' | 'neutral' | 'worse' | 'insufficient_data';
+  sufficient_volume: boolean;
+  minimum_volume_impressions: number;
+  effect_threshold: number;
+  seasonality_note: string;
+  member_sample: Array<{
+    change_id: string;
+    entity_id: number;
+    field: string;
+    baseline_impressions: number;
+    current_impressions: number;
+    control_entity_ids: number[];
+  }>;
+}
+
+export interface SeoRolloutGate {
+  gate: string;
+  open: boolean;
+  reasons: string[];
+  [key: string]: unknown;
+}
+
+export interface SeoRolloutGates {
+  gates: {
+    drafts: SeoRolloutGate;
+    automation: SeoRolloutGate;
+    widen: SeoRolloutGate;
+    stop: SeoRolloutGate;
+  };
+  must_halt: boolean;
 }
 
 export interface ApiResponse<T> {

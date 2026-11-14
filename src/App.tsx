@@ -39,6 +39,7 @@ import SeoAgentIssues from "./pages/SeoAgent/Issues";
 import SeoAgentMerchant from "./pages/SeoAgent/Merchant";
 import SeoAgentProposals from "./pages/SeoAgent/Proposals";
 import SeoAgentChanges from "./pages/SeoAgent/Changes";
+import SeoAgentCohorts from "./pages/SeoAgent/Cohorts";
 import SeoAgentIntegrations from "./pages/SeoAgent/Integrations";
 import SeoAgentSettings from "./pages/SeoAgent/Settings";
 import Categories from "./pages/Categories";
@@ -134,6 +135,7 @@ import OrderSettings from "./pages/Orders/OrderSettings";
 
 // Components
 import { ProtectedRoute } from "./components";
+import RequireSeoAgentAccess from "./components/RequireSeoAgentAccess";
 
 // Create query client
 const queryClient = new QueryClient({
@@ -301,18 +303,19 @@ const App: React.FC = () => {
               <Route path="settings/:settingsType" element={<Settings />} />
 
               {/* Growth Center */}
-              <Route path="growth" element={<GrowthDashboard />} />
-              <Route path="growth/findings" element={<GrowthFindings />} />
-              <Route path="growth/experiments" element={<GrowthExperiments />} />
+              <Route path="growth" element={<RequireSeoAgentAccess><GrowthDashboard /></RequireSeoAgentAccess>} />
+              <Route path="growth/findings" element={<RequireSeoAgentAccess><GrowthFindings /></RequireSeoAgentAccess>} />
+              <Route path="growth/experiments" element={<RequireSeoAgentAccess><GrowthExperiments /></RequireSeoAgentAccess>} />
 
               {/* AI SEO Agent control plane */}
-              <Route path="seo-agent" element={<SeoAgentDashboard />} />
-              <Route path="seo-agent/issues" element={<SeoAgentIssues />} />
-              <Route path="seo-agent/merchant" element={<SeoAgentMerchant />} />
-              <Route path="seo-agent/proposals" element={<SeoAgentProposals />} />
-              <Route path="seo-agent/changes" element={<SeoAgentChanges />} />
-              <Route path="seo-agent/integrations" element={<SeoAgentIntegrations />} />
-              <Route path="seo-agent/settings" element={<SeoAgentSettings />} />
+              <Route path="seo-agent" element={<RequireSeoAgentAccess><SeoAgentDashboard /></RequireSeoAgentAccess>} />
+              <Route path="seo-agent/issues" element={<RequireSeoAgentAccess><SeoAgentIssues /></RequireSeoAgentAccess>} />
+              <Route path="seo-agent/merchant" element={<RequireSeoAgentAccess><SeoAgentMerchant /></RequireSeoAgentAccess>} />
+              <Route path="seo-agent/proposals" element={<RequireSeoAgentAccess><SeoAgentProposals /></RequireSeoAgentAccess>} />
+              <Route path="seo-agent/changes" element={<RequireSeoAgentAccess><SeoAgentChanges /></RequireSeoAgentAccess>} />
+              <Route path="seo-agent/cohorts" element={<RequireSeoAgentAccess><SeoAgentCohorts /></RequireSeoAgentAccess>} />
+              <Route path="seo-agent/integrations" element={<RequireSeoAgentAccess><SeoAgentIntegrations /></RequireSeoAgentAccess>} />
+              <Route path="seo-agent/settings" element={<RequireSeoAgentAccess><SeoAgentSettings /></RequireSeoAgentAccess>} />
 
               {/* Legacy Settings Pages */}
               <Route path="settings/site" element={<SiteSettings />} />

@@ -22,6 +22,10 @@ import type {
   SeoProposal,
   SeoProtectedEntity,
   SeoRun,
+  SeoCohortSummary,
+  SeoCohortDetail,
+  SeoCohortMeasurement,
+  SeoRolloutGates,
 } from '../types/seoAgent';
 
 const BASE = '/seo-agent';
@@ -316,6 +320,50 @@ export const seoAgentApi = {
     const response = await api.post<ApiResponse<{ url: string; redirect_uri: string }>>(
       `${BASE}/integrations/google/authorize`
     );
+    return response.data.data;
+  },
+
+  // R1.3 / R7.1 / R8.1 — Tier A cohort, its measured performance, and the
+  // rollout gates that decide whether automation may run.
+  cohorts: async (): Promise<SeoCohortSummary[]> => {
+    const response = await api.get<ApiResponse<SeoCohortSummary[]>>(`${BASE}/cohorts`);
+    return response.data.data;
+  },
+
+  cohort: async (id: number): Promise<SeoCohortDetail> => {
+    const response = await api.get<ApiResponse<SeoCohortDetail>>(`${BASE}/cohorts/${id}`);
+    return response.data.data;
+  },
+
+  approveCohort: async (id: number, notes?: string): Promise<SeoCohortSummary> => {
+    const response = await api.post<ApiResponse<SeoCohortSummary>>(
+      `${BASE}/cohorts/${id}/approve`,
+      { notes }
+    );
+    return response.data.data;
+  },
+
+  retireCohort: async (id: number, notes?: string): Promise<SeoCohortSummary> => {
+    const response = await api.post<ApiResponse<SeoCohortSummary>>(
+      `${BASE}/cohorts/${id}/retire`,
+      { notes }
+    );
+    return response.data.data;
+  },
+
+  cohortMeasurement: async (days: 14 | 28 | 42 = 28): Promise<{
+    window_days: number;
+    cohorts: SeoCohortMeasurement[];
+  }> => {
+    const response = await api.get<ApiResponse<{ window_days: number; cohorts: SeoCohortMeasurement[] }>>(
+      `${BASE}/cohort-measurement`,
+      { params: { days } }
+    );
+    return response.data.data;
+  },
+
+  gates: async (): Promise<SeoRolloutGates> => {
+    const response = await api.get<ApiResponse<SeoRolloutGates>>(`${BASE}/gates`);
     return response.data.data;
   },
 };

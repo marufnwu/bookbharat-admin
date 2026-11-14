@@ -29,6 +29,13 @@ const TEXT_FIELDS = [
   { key: 'pilot_product_ids', label: 'Pilot product IDs', placeholder: '101,102,103' },
 ];
 
+/** Keys rendered by the curated groups above. */
+const curatedKeys = new Set([
+  ...TOGGLES.map((f) => f.key),
+  ...NUMBERS.map((f) => f.key),
+  ...TEXT_FIELDS.map((f) => f.key),
+]);
+
 const Settings: React.FC = () => {
   const queryClient = useQueryClient();
   const [form, setForm] = useState<Record<string, FormValue>>({});
@@ -116,6 +123,70 @@ const Settings: React.FC = () => {
   }
 
   const fields = settingsQuery.data.fields;
+
+  const advancedFields = Object.entries(fields)
+    .filter(([key, field]) => !curatedKeys.has(key) && field?.is_editable !== false)
+    .sort(([, a], [, b]) => (a?.label || '').localeCompare(b?.label || ''));
+
+  const renderAdvanced = () => {
+    if (advancedFields.length === 0) {
+      return null;
+    }
+
+    return (
+      <div className="rounded-xl border border-gray-200 bg-white p-5">
+        <h2 className="font-semibold text-gray-900">Advanced settings</h2>
+        <p className="mt-1 text-xs text-gray-500">
+          Thresholds, windows, and gate limits defined by the backend. Changes take effect on the
+          next run.
+        </p>
+
+        <div className="mt-4 space-y-4">
+          {advancedFields.map(([key, field]) => {
+            const isBoolean = field?.type === 'boolean' || field?.input_type === 'switch';
+            const isNumber = field?.type === 'number';
+
+            return (
+              <label key={key} className="block">
+                <span className="text-sm font-medium text-gray-800">{field?.label || key}</span>
+
+                {isBoolean ? (
+                  <span className="mt-1 flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(form[key])}
+                      onChange={(event) =>
+                        setForm((previous) => ({ ...previous, [key]: event.target.checked }))
+                      }
+                      className="h-4 w-4 rounded border-gray-300 text-primary-600"
+                    />
+                    <span className="text-xs text-gray-600">
+                      {form[key] ? 'On' : 'Off'}
+                    </span>
+                  </span>
+                ) : (
+                  <input
+                    type={isNumber ? 'number' : 'text'}
+                    step={isNumber ? 'any' : undefined}
+                    value={form[key] === null || form[key] === undefined ? '' : String(form[key])}
+                    onChange={(event) =>
+                      setForm((previous) => ({
+                        ...previous,
+                        [key]: isNumber && event.target.value !== '' ? Number(event.target.value) : event.target.value,
+                      }))
+                    }
+                    className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none"
+                  />
+                )}
+
+                <span className="mt-1 block text-xs text-gray-500">{field?.description || ''}</span>
+              </label>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -269,6 +340,14 @@ const Settings: React.FC = () => {
           ))}
         </div>
       </div>
+
+      {/*
+        Anything the backend defines but the curated groups above do not name is
+        rendered here from the API's own field metadata. Without this, a setting
+        added to config/settings/seo_agent.php would exist and take effect while
+        being impossible to edit from the admin.
+      */}
+      {curatedKeys.size > 0 && renderAdvanced()}
 
       <div className="rounded-xl border border-gray-200 bg-white">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-5 py-4">

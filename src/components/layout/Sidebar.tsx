@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { canReviewSeoAgent as canReviewSeoAgentFor } from '../../auth/seoAgentAccess';
 import {
   Home,
   ShoppingBag,
@@ -52,6 +53,7 @@ import {
   Bot,
   ListChecks,
   History,
+  Flag,
   Plug,
   ClipboardCheck,
   Store,
@@ -241,6 +243,7 @@ export const navigation: NavigationItem[] = [
       { name: 'Merchant', href: '/seo-agent/merchant', icon: Store },
       { name: 'Proposals', href: '/seo-agent/proposals', icon: ClipboardCheck },
       { name: 'Changes', href: '/seo-agent/changes', icon: History },
+      { name: 'Cohorts & gates', href: '/seo-agent/cohorts', icon: Flag },
       { name: 'Integrations', href: '/seo-agent/integrations', icon: Plug },
       { name: 'Settings', href: '/seo-agent/settings', icon: Settings },
     ],
@@ -300,8 +303,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [expandedItems, setExpandedItems] = React.useState<string[]>([]);
   const user = useAuthStore((state) => state.user);
 
-  const canReviewSeoAgent =
-    user?.roles?.some((role) => ['admin', 'super-admin'].includes(role.name)) ?? false;
+  // Same check the route guard uses, so the menu and the routes cannot
+  // disagree about who may see the SEO Agent.
+  const canReviewSeoAgent = canReviewSeoAgentFor(user);
 
   const visibleNavigation = React.useMemo(
     () => (canReviewSeoAgent ? navigation : navigation.filter((item) => item.name !== 'SEO Agent')),

@@ -18,9 +18,14 @@ import {
 } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { navigation, type NavigationItem } from './layout/Sidebar';
+import { useAuthStore } from '../store/authStore';
+import { canReviewSeoAgent } from '../auth/seoAgentAccess';
 
 const RECENT_KEY = 'bb-admin-recent-commands';
 const RECENT_MAX = 5;
+
+/** Route prefixes that require SEO Agent review access. */
+const SEO_AGENT_PREFIXES = ['/seo-agent', '/growth'];
 
 /** A palette entry: a destination plus the words that should find it. */
 interface Command {
@@ -226,7 +231,23 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ open, onClose }) => {
   const [activeIndex, setActiveIndex] = useState(0);
   const [recent, setRecent] = useState<string[]>([]);
 
-  const allCommands = useMemo(() => [...QUICK_ACTIONS, ...PAGE_COMMANDS], []);
+  // The palette indexes the raw navigation tree, so without this filter every
+  // SEO Agent and Growth URL stays keyboard-reachable regardless of the
+  // sidebar gate. Filter here for the same reason the routes are guarded.
+  const user = useAuthStore((state) => state.user);
+  const allowSeoAgent = canReviewSeoAgent(user);
+
+  const allCommands = useMemo(() => {
+    const pageCommands = allowSeoAgent
+      ? PAGE_COMMANDS
+      : PAGE_COMMANDS.filter((command) => !SEO_AGENT_PREFIXES.some((prefix) => command.href?.startsWith(prefix)));
+
+    const quickActions = allowSeoAgent
+      ? QUICK_ACTIONS
+      : QUICK_ACTIONS.filter((command) => !SEO_AGENT_PREFIXES.some((prefix) => command.href?.startsWith(prefix)));
+
+    return [...quickActions, ...pageCommands];
+  }, [allowSeoAgent]);
 
   // Reload recents each time it opens, so an entry used in another tab shows up.
   useEffect(() => {
