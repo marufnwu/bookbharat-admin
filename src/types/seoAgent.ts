@@ -452,6 +452,33 @@ export interface SeoRolloutGates {
   must_halt: boolean;
 }
 
+export interface SeoWeeklyMetric {
+  value: number | null;
+  previous?: number | null;
+  change_pct?: number | null;
+  available: boolean;
+  label?: string;
+  reason?: string;
+  improvement_direction?: 'lower_is_better';
+}
+
+export interface SeoWeeklyReport {
+  window_days: number;
+  from: string;
+  to: string;
+  metrics: {
+    non_brand_clicks: SeoWeeklyMetric;
+    non_brand_impressions: SeoWeeklyMetric;
+    average_position: SeoWeeklyMetric;
+    indexed_pages: SeoWeeklyMetric;
+    revenue_per_organic_session: SeoWeeklyMetric;
+  };
+  data_quality: {
+    has_query_data: boolean;
+    note: string | null;
+  };
+}
+
 export interface ApiResponse<T> {
   success: boolean;
   message: string | null;

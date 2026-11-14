@@ -46,6 +46,11 @@ const Cohorts: React.FC = () => {
     queryFn: () => seoAgentApi.cohortMeasurement(days),
   });
 
+  const weeklyQuery = useQuery({
+    queryKey: ['seo-agent-weekly-report', days],
+    queryFn: () => seoAgentApi.weeklyReport(days),
+  });
+
   const approveMutation = useMutation({
     mutationFn: ({ id, notes }: { id: number; notes?: string }) =>
       seoAgentApi.approveCohort(id, notes),
@@ -229,6 +234,74 @@ const Cohorts: React.FC = () => {
               </tbody>
             </table>
           </div>
+        )}
+      </div>
+
+      <div className="rounded-xl border border-gray-200 bg-white p-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="font-semibold text-gray-900">Organic search</h2>
+            <p className="mt-1 text-xs text-gray-500">
+              Non-brand only, so branded searches do not flatter the trend. Unavailable metrics say
+              why instead of showing a zero.
+            </p>
+          </div>
+          {weeklyQuery.data && (
+            <span className="text-xs text-gray-500">
+              {weeklyQuery.data.from} → {weeklyQuery.data.to}
+            </span>
+          )}
+        </div>
+
+        {weeklyQuery.isLoading ? (
+          <div className="mt-4 flex justify-center py-6">
+            <LoadingSpinner />
+          </div>
+        ) : !weeklyQuery.data ? (
+          <p className="mt-3 text-sm text-gray-600">Could not load the organic search report.</p>
+        ) : (
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+            {Object.entries(weeklyQuery.data.metrics).map(([key, metric]) => (
+              <div key={key} className="rounded-lg border border-gray-200 p-3">
+                <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                  {metric.label || key.replaceAll('_', ' ')}
+                </p>
+
+                {metric.available ? (
+                  <>
+                    <p className="mt-1 text-xl font-semibold text-gray-900">
+                      {metric.value === null ? '—' : metric.value.toLocaleString()}
+                    </p>
+                    {metric.change_pct !== null && metric.change_pct !== undefined ? (
+                      <p
+                        className={`mt-1 text-xs ${
+                          metric.change_pct > 0
+                            ? 'text-green-700'
+                            : metric.change_pct < 0
+                              ? 'text-red-700'
+                              : 'text-gray-600'
+                        }`}
+                      >
+                        {metric.change_pct > 0 ? '+' : ''}
+                        {metric.change_pct}% vs previous
+                        {metric.improvement_direction === 'lower_is_better' && (
+                          <span className="ml-1 text-gray-500">(lower is better)</span>
+                        )}
+                      </p>
+                    ) : (
+                      <p className="mt-1 text-xs text-gray-500">No comparison data</p>
+                    )}
+                  </>
+                ) : (
+                  <p className="mt-1 text-xs text-amber-700">{metric.reason || 'Unavailable'}</p>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {weeklyQuery.data?.data_quality.note && (
+          <p className="mt-3 text-xs text-amber-700">{weeklyQuery.data.data_quality.note}</p>
         )}
       </div>
 

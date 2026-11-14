@@ -26,6 +26,7 @@ import type {
   SeoCohortDetail,
   SeoCohortMeasurement,
   SeoRolloutGates,
+  SeoWeeklyReport,
 } from '../types/seoAgent';
 
 const BASE = '/seo-agent';
@@ -364,6 +365,13 @@ export const seoAgentApi = {
 
   gates: async (): Promise<SeoRolloutGates> => {
     const response = await api.get<ApiResponse<SeoRolloutGates>>(`${BASE}/gates`);
+    return response.data.data;
+  },
+
+  weeklyReport: async (days = 7): Promise<SeoWeeklyReport> => {
+    const response = await api.get<ApiResponse<SeoWeeklyReport>>(`${BASE}/weekly-report`, {
+      params: { days },
+    });
     return response.data.data;
   },
 };
