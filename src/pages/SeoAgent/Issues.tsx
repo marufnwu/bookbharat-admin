@@ -34,6 +34,72 @@ const severityClass: Record<string, string> = {
   low: 'text-blue-700',
 };
 
+/**
+ * The strategist's judgement, shown inline.
+ *
+ * A declined issue suppresses a write, so the reasoning behind that decision has
+ * to be readable. Without this an operator sees "deferred" and a model's
+ * conclusion becomes final and unreviewable.
+ */
+const StrategyAssessment: React.FC<{ strategy: NonNullable<SeoIssue['strategy']> }> = ({
+  strategy,
+}) => {
+  const [open, setOpen] = useState(false);
+
+  const tone =
+    strategy.recommendation === 'no_change' || strategy.recommendation === 'insufficient_evidence'
+      ? 'border-gray-200 bg-gray-50 text-gray-700'
+      : strategy.recommendation === 'build_hub_page'
+        ? 'border-purple-200 bg-purple-50 text-purple-800'
+        : 'border-blue-200 bg-blue-50 text-blue-800';
+
+  return (
+    <div className={`mt-1 rounded border px-2 py-1 text-[11px] ${tone}`}>
+      <button
+        type="button"
+        className="flex w-full items-center gap-1 text-left font-medium"
+        onClick={() => setOpen((value) => !value)}
+      >
+        {open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+        <span>AI: {strategy.recommendation.replace(/_/g, ' ')}</span>
+        <span className="font-normal opacity-70">({strategy.confidence} confidence)</span>
+      </button>
+
+      {open && (
+        <div className="mt-1 space-y-1">
+          {strategy.search_intent && (
+            <p>
+              <span className="font-medium">Intent:</span> {strategy.search_intent}
+            </p>
+          )}
+          {strategy.reason && <p>{strategy.reason}</p>}
+          {strategy.better_target && (
+            <p>
+              <span className="font-medium">Should live on:</span>{' '}
+              <code className="break-all">{strategy.better_target}</code>
+            </p>
+          )}
+          {strategy.content_gaps.length > 0 && (
+            <div>
+              <span className="font-medium">Missing:</span>
+              <ul className="list-inside list-disc">
+                {strategy.content_gaps.map((gap) => (
+                  <li key={gap}>{gap}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {strategy.assessed_at && (
+            <p className="opacity-60">
+              Assessed {new Date(strategy.assessed_at).toLocaleDateString()}
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const IssueRow: React.FC<{ issue: SeoIssue }> = ({ issue }) => (
   <tr className="align-top">
     <td className="px-4 py-2">
@@ -42,6 +108,7 @@ const IssueRow: React.FC<{ issue: SeoIssue }> = ({ issue }) => (
         {issue.entity_type}
         {issue.entity_id ? ` #${issue.entity_id}` : ''}
       </p>
+      {issue.strategy && <StrategyAssessment strategy={issue.strategy} />}
       {issue.evidence_json && (
         <details className="mt-1">
           <summary className="cursor-pointer text-xs font-medium text-primary-600">Evidence</summary>

@@ -20,6 +20,7 @@ import type {
   SeoIntegrationHealth,
   SeoIssue,
   SeoProposal,
+  SeoStrategyAssessmentFeed,
   SeoProtectedEntity,
   SeoRun,
   SeoCohortSummary,
@@ -66,8 +67,29 @@ export const seoAgentApi = {
     return response.data;
   },
 
-  updateIssue: async (id: number, status: 'open' | 'ignored' | 'fixed'): Promise<SeoIssue> => {
+  updateIssue: async (
+    id: number,
+    status: 'open' | 'ignored' | 'fixed' | 'deferred',
+  ): Promise<SeoIssue> => {
     const response = await api.patch<ApiResponse<SeoIssue>>(`${BASE}/issues/${id}`, { status });
+    return response.data.data;
+  },
+
+  /**
+   * What the strategist has been concluding across the catalogue.
+   *
+   * These are recommendations, not actions: a decline suppresses a write, and
+   * `build_hub_page` raises a separate proposal. Reading them is how an operator
+   * checks the model's judgement before trusting it.
+   */
+  strategyAssessments: async (params: {
+    recommendation?: string;
+    limit?: number;
+  } = {}): Promise<SeoStrategyAssessmentFeed> => {
+    const response = await api.get<ApiResponse<SeoStrategyAssessmentFeed>>(
+      `${BASE}/strategy-assessments`,
+      { params },
+    );
     return response.data.data;
   },
 

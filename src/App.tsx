@@ -36,6 +36,7 @@ import GrowthFindings from "./pages/Growth/Findings";
 import GrowthExperiments from "./pages/Growth/Experiments";
 import SeoAgentDashboard from "./pages/SeoAgent/Dashboard";
 import SeoAgentIssues from "./pages/SeoAgent/Issues";
+import SeoAgentStrategy from "./pages/SeoAgent/Strategy";
 import SeoAgentMerchant from "./pages/SeoAgent/Merchant";
 import SeoAgentProposals from "./pages/SeoAgent/Proposals";
 import SeoAgentChanges from "./pages/SeoAgent/Changes";
@@ -310,6 +311,7 @@ const App: React.FC = () => {
               {/* AI SEO Agent control plane */}
               <Route path="seo-agent" element={<RequireSeoAgentAccess><SeoAgentDashboard /></RequireSeoAgentAccess>} />
               <Route path="seo-agent/issues" element={<RequireSeoAgentAccess><SeoAgentIssues /></RequireSeoAgentAccess>} />
+              <Route path="seo-agent/strategy" element={<RequireSeoAgentAccess><SeoAgentStrategy /></RequireSeoAgentAccess>} />
               <Route path="seo-agent/merchant" element={<RequireSeoAgentAccess><SeoAgentMerchant /></RequireSeoAgentAccess>} />
               <Route path="seo-agent/proposals" element={<RequireSeoAgentAccess><SeoAgentProposals /></RequireSeoAgentAccess>} />
               <Route path="seo-agent/changes" element={<RequireSeoAgentAccess><SeoAgentChanges /></RequireSeoAgentAccess>} />

@@ -31,6 +31,58 @@ export interface SeoIssueGroup {
   severity: string;
 }
 
+/**
+ * What the strategist concluded about an issue.
+ *
+ * `no_change` and `insufficient_evidence` mean the page was left alone;
+ * `build_hub_page` means the demand belongs on a different page and a proposal
+ * was raised instead. Anything else is a recommendation the planner still had to
+ * route through the gateway.
+ */
+export interface SeoStrategyAssessment {
+  recommendation:
+    | 'rewrite_snippet'
+    | 'improve_page_content'
+    | 'build_hub_page'
+    | 'strengthen_internal_links'
+    | 'fix_technical'
+    | 'no_change'
+    | 'insufficient_evidence';
+  confidence: 'low' | 'medium' | 'high';
+  search_intent: string;
+  reason: string;
+  better_target: string;
+  content_gaps: string[];
+  suggested_focus: string;
+  assessed_at: string;
+}
+
+export interface SeoStrategyAssessmentRow {
+  issue_id: number;
+  type: string;
+  url: string | null;
+  entity_type: string;
+  entity_id: number | null;
+  status: string;
+  last_seen: string | null;
+  recommendation: SeoStrategyAssessment['recommendation'] | null;
+  confidence: SeoStrategyAssessment['confidence'] | null;
+  search_intent: string | null;
+  reason: string | null;
+  content_gaps: string[];
+  better_target: string | null;
+  suggested_focus: string | null;
+  assessed_at: string | null;
+}
+
+export interface SeoStrategyAssessmentFeed {
+  assessments: SeoStrategyAssessmentRow[];
+  by_recommendation: Array<{
+    recommendation: string;
+    count: number;
+  }>;
+}
+
 export interface SeoIssue {
   id: number;
   fingerprint: string;
@@ -42,12 +94,14 @@ export interface SeoIssue {
   url: string | null;
   severity: SeoSeverity;
   tier: SeoTier;
-  status: 'open' | 'ignored' | 'fixed' | 'regressed';
+  status: 'open' | 'ignored' | 'fixed' | 'regressed' | 'deferred';
   first_seen: string | null;
   last_seen: string | null;
   occurrences: number;
   evidence_json: Record<string, unknown> | null;
   priority_score: number;
+  /** Present when the strategist assessed this issue. */
+  strategy?: SeoStrategyAssessment | null;
 }
 
 export interface SeoChange {

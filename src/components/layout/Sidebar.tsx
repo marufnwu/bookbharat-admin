@@ -52,6 +52,7 @@ import {
   LayoutDashboard,
   Bot,
   ListChecks,
+  Brain,
   History,
   Flag,
   Plug,
@@ -244,6 +245,7 @@ export const navigation: NavigationItem[] = [
     children: [
       { name: 'Dashboard', href: '/seo-agent', icon: LayoutDashboard },
       { name: 'Issues', href: '/seo-agent/issues', icon: ListChecks },
+      { name: 'Strategy', href: '/seo-agent/strategy', icon: Brain },
       { name: 'Merchant', href: '/seo-agent/merchant', icon: Store },
       { name: 'Proposals', href: '/seo-agent/proposals', icon: ClipboardCheck },
       { name: 'Changes', href: '/seo-agent/changes', icon: History },
