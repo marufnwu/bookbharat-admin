@@ -61,7 +61,9 @@ export interface SeoChange {
   new_value: string | null;
   tier: SeoTier;
   reason: string | null;
-  status: 'pending' | 'applied' | 'verified' | 'rolled_back' | 'failed';
+  // needs_review: measured worse, flagged for a human rather than reverted
+  // automatically (automatic rollback is off by default).
+  status: 'pending' | 'applied' | 'needs_review' | 'verified' | 'rolled_back' | 'failed';
   applied_at: string | null;
   verify_14_at: string | null;
   verify_28_at: string | null;

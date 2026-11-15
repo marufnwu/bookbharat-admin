@@ -12,6 +12,9 @@ const statusClass: Record<string, string> = {
   verified: 'border-green-200 bg-green-50 text-green-700',
   rolled_back: 'border-gray-200 bg-gray-50 text-gray-600',
   failed: 'border-red-200 bg-red-50 text-red-700',
+  // A change measured as worse is flagged here rather than reverted
+  // automatically. It needs a human decision.
+  needs_review: 'border-orange-200 bg-orange-50 text-orange-700',
 };
 
 const verdictClass: Record<string, string> = {
@@ -99,6 +102,7 @@ const Changes: React.FC = () => {
           <option value="">All statuses</option>
           <option value="applied">Applied</option>
           <option value="pending">Pending</option>
+          <option value="needs_review">Needs review</option>
           <option value="verified">Verified</option>
           <option value="rolled_back">Rolled back</option>
           <option value="failed">Failed</option>
@@ -217,7 +221,9 @@ const Changes: React.FC = () => {
                     {change.applied_at ? new Date(change.applied_at).toLocaleDateString() : '—'}
                   </td>
                   <td className="px-4 py-3">
-                    {change.status === 'applied' ? (
+                    {/* A change flagged needs_review is still applied to the
+                        product, so a human must be able to roll it back. */}
+                    {change.status === 'applied' || change.status === 'needs_review' ? (
                       <button
                         type="button"
                         onClick={() => rollback(change)}
