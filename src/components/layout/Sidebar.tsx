@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { canReviewSeoAgent as canReviewSeoAgentFor } from '../../auth/seoAgentAccess';
 import {
   Home,
   ShoppingBag,
@@ -19,9 +20,11 @@ import {
   Receipt,
   Wallet,
   BarChart3,
+  TrendingUp,
   Navigation,
   Layout,
   Shield,
+  ShieldQuestion,
   Server,
   CreditCard,
   DollarSign,
@@ -38,6 +41,7 @@ import {
   Wrench,
   Book,
   AlertTriangle,
+  FlaskConical,
   Bell,
   Mail,
   MessageSquare,
@@ -47,8 +51,17 @@ import {
   Calendar,
   Clock,
   LayoutDashboard,
+  Bot,
+  ListChecks,
+  Brain,
+  History,
+  Flag,
+  Plug,
+  ClipboardCheck,
+  Store,
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
+import { useAuthStore } from '../../store/authStore';
 
 export interface NavigationItem {
   name: string;
@@ -68,6 +81,20 @@ const hasActiveDescendant = (
 
 export const navigation: NavigationItem[] = [
   { name: 'Dashboard', href: '/dashboard', icon: Home },
+
+  // Growth Center — the business home. It sits directly under Dashboard
+  // because the plan makes it the operator's primary entry point, ahead of
+  // the technical SEO and Merchant screens that support it.
+  {
+    name: 'Growth',
+    href: '/growth',
+    icon: TrendingUp,
+    children: [
+      { name: 'Dashboard', href: '/growth', icon: TrendingUp },
+      { name: 'Findings', href: '/growth/findings', icon: AlertTriangle },
+      { name: 'Experiments', href: '/growth/experiments', icon: FlaskConical },
+    ],
+  },
 
   // Sales & Orders
   {
@@ -209,6 +236,28 @@ export const navigation: NavigationItem[] = [
     ],
   },
 
+  // Growth Center now lives at the top of the navigation; see above.
+
+  // AI SEO Agent
+  {
+    name: 'SEO Agent',
+    href: '/seo-agent',
+    icon: Bot,
+    children: [
+      { name: 'Dashboard', href: '/seo-agent', icon: LayoutDashboard },
+      { name: 'Issues', href: '/seo-agent/issues', icon: ListChecks },
+      { name: 'Strategy', href: '/seo-agent/strategy', icon: Brain },
+      { name: 'Strategy review', href: '/seo-agent/strategy-review', icon: ShieldQuestion },
+      { name: 'Merchant', href: '/seo-agent/merchant', icon: Store },
+      { name: 'Proposals', href: '/seo-agent/proposals', icon: ClipboardCheck },
+      { name: 'Changes', href: '/seo-agent/changes', icon: History },
+      { name: 'Cohorts & gates', href: '/seo-agent/cohorts', icon: Flag },
+      { name: 'Integrations', href: '/seo-agent/integrations', icon: Plug },
+      { name: 'Settings', href: '/seo-agent/settings', icon: Settings },
+      { name: 'Guide', href: '/seo-agent/docs', icon: BookOpen },
+    ],
+  },
+
   // System
   {
     name: 'System',
@@ -261,6 +310,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const location = useLocation();
   const [expandedItems, setExpandedItems] = React.useState<string[]>([]);
+  const user = useAuthStore((state) => state.user);
+
+  // Same check the route guard uses, so the menu and the routes cannot
+  // disagree about who may see the SEO Agent.
+  const canReviewSeoAgent = canReviewSeoAgentFor(user);
+
+  const visibleNavigation = React.useMemo(
+    () => (canReviewSeoAgent ? navigation : navigation.filter((item) => item.name !== 'SEO Agent')),
+    [canReviewSeoAgent]
+  );
 
   // Pick the single most-specific leaf href that matches the current path.
   // For /affiliates/commissions this returns '/affiliates/commissions'
@@ -272,23 +331,23 @@ export const Sidebar: React.FC<SidebarProps> = ({
         if (i.children) walk(i.children);
         else leaves.push(i.href);
       });
-    walk(navigation);
+    walk(visibleNavigation);
     const matches = leaves
       .filter((h) => location.pathname === h || location.pathname.startsWith(h + '/'))
       .sort((a, b) => b.length - a.length);
     return matches[0] ?? null;
-  }, [location.pathname]);
+  }, [location.pathname, visibleNavigation]);
 
   const isCurrentPath = (href: string) => activeHref === href;
 
   // Auto-expand only the groups that contain the active child;
   // collapse everything else so the menu doesn't grow unbounded.
   React.useEffect(() => {
-    const open = navigation
+    const open = visibleNavigation
       .filter((item) => hasActiveDescendant(item, (href) => activeHref === href))
       .map((item) => item.name);
     setExpandedItems(open);
-  }, [activeHref]);
+  }, [activeHref, visibleNavigation]);
 
   const toggleExpanded = (itemName: string) => {
     setExpandedItems((prev) =>
@@ -321,7 +380,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto py-4 px-3 scrollbar-hide">
         <ul className="space-y-1">
-          {navigation.map((item) => (
+          {visibleNavigation.map((item) => (
             <li key={item.name}>
               {item.children ? (
                 <SidebarNavItemWithChildren

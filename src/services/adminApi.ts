@@ -39,6 +39,8 @@ export const adminApi = {
 
   // Product Collections
   getProductCollections: (params?: any) => axiosInstance.get('/product-collections', { params }),
+  previewProductCollection: (data: any) => axiosInstance.post('/product-collections/preview', data),
+  getCollectionEligibility: (id: number) => axiosInstance.get(`/product-collections/${id}/eligibility`),
   getProductCollection: (id: number) => axiosInstance.get(`/product-collections/${id}`),
   createProductCollection: (data: any) => axiosInstance.post('/product-collections', data),
   updateProductCollection: (id: number, data: any) => axiosInstance.put(`/product-collections/${id}`, data),

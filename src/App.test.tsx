@@ -68,7 +68,7 @@ test('mobile exposes the complete desktop navigation including nested links', as
   const dialog = await screen.findByRole('dialog', { name: 'Menu' });
   expandAll(dialog);
   expect(links(dialog)).toEqual(desktopLinks);
-  expect(within(dialog).getByRole('link', { name: 'Commission Rules' })).toHaveAttribute('href', '/affiliates/commission-rules');
+  expect(within(dialog).getByRole('link', { name: 'Earning Rules' })).toHaveAttribute('href', '/affiliates/commission-rules');
   expect(within(dialog).getByRole('link', { name: 'Roles & Permissions' })).toBeInTheDocument();
 });
 
