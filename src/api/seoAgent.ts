@@ -21,6 +21,9 @@ import type {
   SeoIssue,
   SeoProposal,
   SeoStrategyAssessmentFeed,
+  SeoStrategyReview,
+  SeoStrategyReviewFeed,
+  SeoPreflightReport,
   SeoProtectedEntity,
   SeoRun,
   SeoCohortSummary,
@@ -93,8 +96,49 @@ export const seoAgentApi = {
     return response.data.data;
   },
 
-  issueGroups: async (source?: 'merchant' | 'organic'): Promise<SeoIssueGroup[]> => {
-    const response = await api.get<ApiResponse<SeoIssueGroup[]>>(`${BASE}/issues/groups`, {
+  /**
+   * The human-review queue for strategy decisions.
+   *
+   * Separate from `strategyAssessments`, which shows what the model concluded.
+   * This shows what a person still has to decide, and its summary reports
+   * `pending_human_review` until someone does. An AI pre-score is never
+   * validation, so the two must not be presented as one list.
+   */
+  strategyReviews: async (params: {
+    status?: 'pending' | 'reviewed';
+    verdict?: string;
+    pre_score?: string;
+    limit?: number;
+  } = {}): Promise<SeoStrategyReviewFeed> => {
+    const response = await api.get<ApiResponse<SeoStrategyReviewFeed>>(
+      `${BASE}/strategy-reviews`,
+      { params },
+    );
+    return response.data.data;
+  },
+
+  /**
+   * Record a person's verdict on one strategy decision.
+   *
+   * A disagreement requires a `reason_category`: the analysis groups by
+   * category, so an uncategorised disagreement cannot be used.
+   */
+  recordStrategyReview: async (
+    id: number,
+    payload: {
+      verdict: 'agree' | 'disagree' | 'unsure';
+      reason_category?: string;
+      note?: string;
+    },
+  ): Promise<SeoStrategyReview> => {
+    const response = await api.patch<ApiResponse<SeoStrategyReview>>(
+      `${BASE}/strategy-reviews/${id}`,
+      payload,
+    );
+    return response.data.data;
+  },
+
+  issueGroups: async (source?: 'merchant' | 'organic'): Promise<SeoIssueGroup[]> => {    const response = await api.get<ApiResponse<SeoIssueGroup[]>>(`${BASE}/issues/groups`, {
       params: { source },
     });
     return response.data.data;
@@ -116,8 +160,49 @@ export const seoAgentApi = {
     return `${apiBase}/seo-agent/issues/export?${query.toString()}`;
   },
 
-  runAudit: async (payload: { scope?: string; limit?: number; dry_run?: boolean } = {}) => {
+  /**
+   * Run an audit.
+   *
+   * `dry_run` is omitted when the caller does not decide, so the backend follows
+   * the `seo_agent.dry_run` setting. Passing `true` unconditionally (as the panel
+   * used to) made the setting meaningless and meant no proposal could ever be
+   * created from this screen.
+   *
+   * `opportunities` defaults to true on the backend: recording under-earning
+   * pages is the audit's most valuable output and was previously unreachable.
+   */
+  runAudit: async (payload: {
+    scope?: string;
+    limit?: number;
+    dry_run?: boolean;
+    opportunities?: boolean;
+  } = {}) => {
     const response = await api.post<ApiResponse<{ output: string }>>(`${BASE}/run/audit`, payload);
+    return response.data.data;
+  },
+
+  /**
+   * Run the orchestrator: turn open issues into proposals.
+   *
+   * This is the step between auditing and approving. It had no admin route, so
+   * the approval queue could only be filled from a terminal.
+   */
+  runOrchestrator: async (payload: { limit?: number; mode?: 'dry-run' | 'live' } = {}) => {
+    const response = await api.post<
+      ApiResponse<{
+        output: string;
+        run: {
+          id: number;
+          run_id: string;
+          mode: string;
+          status: string;
+          issues_found: number;
+          proposed: number;
+          fixed: number;
+          cost_usd: string | number;
+        } | null;
+      }>
+    >(`${BASE}/run/orchestrate`, payload);
     return response.data.data;
   },
 
@@ -382,6 +467,18 @@ export const seoAgentApi = {
       `${BASE}/cohort-measurement`,
       { params: { days } }
     );
+    return response.data.data;
+  },
+
+  /**
+   * Is a live run safe and meaningful in this environment?
+   *
+   * Reports blockers separately from warnings: a blocker means live writes would
+   * be refused (catalogue too small, crawler auditing pages this database does
+   * not contain), a warning means it will run but the result may be thin.
+   */
+  preflight: async (): Promise<SeoPreflightReport> => {
+    const response = await api.get<ApiResponse<SeoPreflightReport>>(`${BASE}/preflight`);
     return response.data.data;
   },
 

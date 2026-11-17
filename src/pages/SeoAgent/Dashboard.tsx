@@ -5,6 +5,7 @@ import {
   Activity,
   AlertTriangle,
   Bot,
+  Brain,
   CheckCircle2,
   Clock3,
   Gauge,
@@ -84,13 +85,33 @@ const Dashboard: React.FC = () => {
   });
 
   const runMutation = useMutation({
-    mutationFn: () => seoAgentApi.runAudit({ scope: 'product', limit: 20, dry_run: true }),
+    // No `dry_run` here: the backend follows the seo_agent.dry_run setting. The
+    // panel used to hardcode `dry_run: true`, which made that setting meaningless
+    // from the UI and meant this button could never produce a proposal.
+    mutationFn: () => seoAgentApi.runAudit({ scope: 'product', limit: 20 }),
     onSuccess: () => {
-      toast.success('Dry-run audit finished');
+      toast.success('Audit finished');
       queryClient.invalidateQueries({ queryKey: ['seo-agent-dashboard'] });
       queryClient.invalidateQueries({ queryKey: ['seo-agent-issue-groups'] });
     },
     onError: (err: any) => toast.error(err?.response?.data?.message || 'Audit failed'),
+  });
+
+  const orchestrateMutation = useMutation({
+    mutationFn: () => seoAgentApi.runOrchestrator({ limit: 20 }),
+    onSuccess: (result) => {
+      const run = result.run;
+      toast.success(
+        run
+          ? `Orchestrator finished: ${run.proposed} proposed, ${run.fixed} fixed (${run.mode}).`
+          : 'Orchestrator finished.',
+      );
+      queryClient.invalidateQueries({ queryKey: ['seo-agent-dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['seo-agent-issue-groups'] });
+      queryClient.invalidateQueries({ queryKey: ['seo-agent-proposals'] });
+      queryClient.invalidateQueries({ queryKey: ['seo-agent-runs'] });
+    },
+    onError: (err: any) => toast.error(err?.response?.data?.message || 'Orchestrator failed'),
   });
 
   const merchantMutation = useMutation({
@@ -239,16 +260,25 @@ const Dashboard: React.FC = () => {
             <button
               type="button"
               onClick={() => runMutation.mutate()}
-              disabled={runMutation.isPending || merchantMutation.isPending}
+              disabled={runMutation.isPending || merchantMutation.isPending || orchestrateMutation.isPending}
               className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
             >
               <Activity className="h-4 w-4" />
-              {runMutation.isPending ? 'Running audit…' : 'Run dry-run audit'}
+              {runMutation.isPending ? 'Running audit…' : 'Run audit'}
+            </button>
+            <button
+              type="button"
+              onClick={() => orchestrateMutation.mutate()}
+              disabled={runMutation.isPending || merchantMutation.isPending || orchestrateMutation.isPending}
+              className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-3 py-2 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50"
+            >
+              <Brain className="h-4 w-4" />
+              {orchestrateMutation.isPending ? 'Planning…' : 'Run orchestrator'}
             </button>
             <button
               type="button"
               onClick={() => merchantMutation.mutate()}
-              disabled={runMutation.isPending || merchantMutation.isPending}
+              disabled={runMutation.isPending || merchantMutation.isPending || orchestrateMutation.isPending}
               className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
             >
               <ListChecks className="h-4 w-4" />

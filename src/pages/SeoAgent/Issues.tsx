@@ -285,9 +285,10 @@ const Issues: React.FC = () => {
   });
 
   const auditMutation = useMutation({
-    mutationFn: () => seoAgentApi.runAudit({ scope: 'product', limit: 20, dry_run: true }),
+    // dry_run is decided by the seo_agent.dry_run setting, not hardcoded here.
+    mutationFn: () => seoAgentApi.runAudit({ scope: 'product', limit: 20 }),
     onSuccess: () => {
-      toast.success('Dry-run audit finished');
+      toast.success('Audit finished');
       queryClient.invalidateQueries({ queryKey: ['seo-agent-issue-groups'] });
       queryClient.invalidateQueries({ queryKey: ['seo-agent-dashboard'] });
     },

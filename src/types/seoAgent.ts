@@ -83,6 +83,68 @@ export interface SeoStrategyAssessmentFeed {
   }>;
 }
 
+/**
+ * A review of one strategy recommendation.
+ *
+ * `ai_pre_score` and `mapper_verdict` are evidence, not validation. Only
+ * `human_verdict` can make a case count, which is why the three are separate
+ * fields and shown separately.
+ */
+export interface SeoStrategyReview {
+  id: number;
+  issue_id: number;
+  arm: string;
+  recommendation: string;
+  /** What a rule-based baseline would have recommended for the same case. */
+  mapper_verdict: string | null;
+  /** An independent evaluator model's opinion. Never a human verdict. */
+  ai_pre_score: 'agree' | 'disagree' | 'unsure' | null;
+  ai_pre_score_reason: string | null;
+  ai_pre_scored_at: string | null;
+  human_verdict: 'agree' | 'disagree' | 'unsure' | null;
+  human_reason_category: string | null;
+  human_note: string | null;
+  reviewer: string | null;
+  reviewed_at: string | null;
+}
+
+export type SeoStrategyReviewReason =
+  | 'wrong_page_target'
+  | 'wrong_intent'
+  | 'bad_reasoning'
+  | 'ignored_evidence'
+  | 'should_have_acted'
+  | 'should_have_declined'
+  | 'unsupported_claim'
+  | 'other';
+
+export interface SeoStrategyReviewSummary {
+  sample_size: number;
+  target: number;
+  agreement_rate: number | null;
+  agreement_interval_95: { low: number; high: number } | null;
+  agree: number;
+  disagree: number;
+  unsure: number;
+  by_reason: Array<{ reason: string; count: number }>;
+  arms: {
+    ai_strategy: { agree: number; of: number };
+    deterministic_mapper: { agree: number; of: number };
+    /** Positive means the model beat the rule-based baseline. */
+    ai_minus_mapper: number | null;
+  };
+  /**
+   * `pending_human_review` until a person decides. An AI pre-score must never
+   * move this to `human_reviewed`.
+   */
+  status: 'pending_human_review' | 'human_reviewed';
+}
+
+export interface SeoStrategyReviewFeed {
+  reviews: SeoStrategyReview[];
+  summary: SeoStrategyReviewSummary;
+}
+
 export interface SeoIssue {
   id: number;
   fingerprint: string;
@@ -496,6 +558,32 @@ export interface SeoRolloutGate {
   open: boolean;
   reasons: string[];
   [key: string]: unknown;
+}
+
+/**
+ * Result of the environment check that gates live writes.
+ *
+ * `ready` false does not mean the agent is broken — it means a live write here
+ * would be unsafe or meaningless, for example because the audited catalogue is
+ * not the catalogue this database holds.
+ */
+export interface SeoPreflightReport {
+  ready: boolean;
+  blockers: string[];
+  warnings: string[];
+  facts: {
+    environment: string;
+    database: string;
+    database_host: string;
+    expected_environment: string;
+    products: number;
+    auto_fix_issues: number;
+    mapped_auto_fix_issues: number;
+    enabled: boolean;
+    dry_run: boolean;
+    tier_1_enabled: boolean;
+    kill_switch: boolean;
+  };
 }
 
 export interface SeoRolloutGates {
