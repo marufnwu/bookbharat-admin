@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../api/axios";
 import { toKg, toGrams } from "../../utils/weight";
 import { toast } from '../../utils/toast';
@@ -200,6 +200,7 @@ const initialFormData: ShipmentFormData = {
 
 const ManualShipment: React.FC = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [formData, setFormData] = useState<ShipmentFormData>(initialFormData);
   const [orderSearchQuery, setOrderSearchQuery] = useState('');
   const [showOrderSearch, setShowOrderSearch] = useState(false);
@@ -327,9 +328,20 @@ const ManualShipment: React.FC = () => {
       const response = await api.post('/shipping/multi-carrier/shipments', payload);
       return response.data;
     },
-    onSuccess: (data) => {
+    onSuccess: (data, variables) => {
       toast.success('Shipment created successfully!');
-      navigate(`/orders/${data.order_id}`);
+      // The response body nests the shipment under `data`, and its payload has
+      // no `order_id`, so this used to navigate to /orders/undefined. The order
+      // the admin picked is on the submitted form values instead.
+      const orderId = variables.order_id;
+      if (orderId) {
+        queryClient.invalidateQueries({ queryKey: ['order', orderId] });
+        queryClient.invalidateQueries({ queryKey: ['shipment', orderId] });
+        queryClient.invalidateQueries({ queryKey: ['orders'] });
+        navigate(`/orders/${orderId}`);
+      } else {
+        navigate('/orders');
+      }
     },
     onError: (error: any) => {
       // Read 'error' field first (contains actual API error), fallback to 'message' (generic)

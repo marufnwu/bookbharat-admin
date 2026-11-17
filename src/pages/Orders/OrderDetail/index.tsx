@@ -95,6 +95,12 @@ const OrderDetail: React.FC = () => {
       }
     },
     enabled: !!id,
+    // Shipment state is mutated from other routes (create/cancel/regenerate
+    // label). The global 5-minute staleTime made the cached `null` shipment
+    // survive navigation back from /orders/:id/create-shipment, so the card
+    // rendered "No shipment created yet" until a hard reload cleared the
+    // in-memory cache. Always treat it as stale so a route return refetches.
+    staleTime: 0,
   });
   const shipment = shipmentResponse?.shipment;
 

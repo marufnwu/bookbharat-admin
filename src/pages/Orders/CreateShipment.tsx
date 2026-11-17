@@ -259,6 +259,11 @@ const CreateShipment: React.FC = () => {
     onSuccess: (response) => {
       queryClient.invalidateQueries({ queryKey: ['order', orderId] });
       queryClient.invalidateQueries({ queryKey: ['orders'] });
+      // The shipment query is what gates the Download/Generate label buttons.
+      // Without this, navigating back hit the cached "no shipment" response
+      // (30s refetch interval, 5min staleTime) and only a page reload made the
+      // label buttons appear.
+      queryClient.invalidateQueries({ queryKey: ['shipment', orderId] });
       const accountLabel = response?.data?.data?.carrier_account_label;
       toast.success(
         accountLabel
