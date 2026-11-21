@@ -1,4 +1,4 @@
-import { axiosInstance } from '../api/axios';
+﻿import { axiosInstance } from '../api/axios';
 
 export const adminApi = {
   // Marketing Settings
@@ -53,5 +53,5 @@ export const adminApi = {
   getAvailableCategories: () => axiosInstance.get('/product-collections/categories/available'),
 
   // Analytics
-  getMarketingAnalytics: (params?: any) => axiosInstance.get('/debug-analytics', { params }),
+  getMarketingAnalytics: (params?: any) => axiosInstance.get('/marketing/analytics', { params }),
 };
