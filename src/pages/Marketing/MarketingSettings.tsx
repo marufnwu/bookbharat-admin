@@ -5,14 +5,19 @@ interface MarketingSettings {
     google_analytics: { enabled: boolean; measurement_id: string };
     google_tag_manager: { enabled: boolean; container_id: string };
     google_ads: { enabled: boolean; conversion_id: string };
-    meta_pixel: { enabled: boolean; pixel_id: string };
+    meta_pixel: {
+        enabled: boolean;
+        pixel_id: string;
+        access_token: string;
+        test_event_code: string;
+    };
 }
 
 const defaultSettings: MarketingSettings = {
     google_analytics: { enabled: false, measurement_id: '' },
     google_tag_manager: { enabled: false, container_id: '' },
     google_ads: { enabled: false, conversion_id: '' },
-    meta_pixel: { enabled: false, pixel_id: '' },
+    meta_pixel: { enabled: false, pixel_id: '', access_token: '', test_event_code: '' },
 };
 
 export default function MarketingSettings() {
@@ -33,7 +38,7 @@ export default function MarketingSettings() {
                 google_analytics: { enabled: data?.google_analytics?.enabled ?? false, measurement_id: data?.google_analytics?.measurement_id ?? '' },
                 google_tag_manager: { enabled: data?.google_tag_manager?.enabled ?? false, container_id: data?.google_tag_manager?.container_id ?? '' },
                 google_ads: { enabled: data?.google_ads?.enabled ?? false, conversion_id: data?.google_ads?.conversion_id ?? '' },
-                meta_pixel: { enabled: data?.meta_pixel?.enabled ?? false, pixel_id: data?.meta_pixel?.pixel_id ?? '' },
+                meta_pixel: { enabled: data?.meta_pixel?.enabled ?? false, pixel_id: data?.meta_pixel?.pixel_id ?? '', access_token: data?.meta_pixel?.access_token ?? '', test_event_code: data?.meta_pixel?.test_event_code ?? '' },
             });
         } catch (error) {
             console.error('Failed to fetch settings:', error);
@@ -207,17 +212,53 @@ export default function MarketingSettings() {
                             </button>
                         </div>
                         {settings.meta_pixel.enabled && (
-                            <div className="mt-4">
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Pixel ID
-                                </label>
-                                <input
-                                    type="text"
-                                    value={settings.meta_pixel.pixel_id}
-                                    onChange={(e) => handleFieldChange('meta_pixel.pixel_id', e.target.value)}
-                                    className="w-full px-3 py-2 border rounded-md"
-                                    placeholder="123456789"
-                                />
+                            <div className="mt-4 space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Pixel ID
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={settings.meta_pixel.pixel_id}
+                                        onChange={(e) => handleFieldChange('meta_pixel.pixel_id', e.target.value)}
+                                        className="w-full px-3 py-2 border rounded-md"
+                                        placeholder="123456789012345"
+                                    />
+                                    <p className="text-xs text-gray-500 mt-1">
+                                        15 or 16 digits. Used for the browser pixel and the Conversions API.
+                                    </p>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Conversions API Access Token
+                                    </label>
+                                    <input
+                                        type="password"
+                                        value={settings.meta_pixel.access_token}
+                                        onChange={(e) => handleFieldChange('meta_pixel.access_token', e.target.value)}
+                                        className="w-full px-3 py-2 border rounded-md"
+                                        placeholder="EAAxxxxxxxxxxxxx"
+                                        autoComplete="off"
+                                    />
+                                    <p className="text-xs text-gray-500 mt-1">
+                                        Required for server-side Purchase events. Kept server-side and never sent to the storefront.
+                                    </p>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Test Event Code
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={settings.meta_pixel.test_event_code}
+                                        onChange={(e) => handleFieldChange('meta_pixel.test_event_code', e.target.value)}
+                                        className="w-full px-3 py-2 border rounded-md"
+                                        placeholder="TEST12345"
+                                    />
+                                    <p className="text-xs text-gray-500 mt-1">
+                                        Optional. Routes events to Test Events in Meta Events Manager instead of live reporting.
+                                    </p>
+                                </div>
                             </div>
                         )}
                     </div>
