@@ -564,6 +564,15 @@ const OrderList: React.FC = () => {
   const primaryClassification: string = searchParams.get('tab') || searchParams.get('status') || '';
 
   // Read filters from URL, falling back to defaults
+  //
+  // The Shipped tab sorts by dispatch time by default, not creation time.
+  // Orders are often created in batches (imports, re-syncs) and share a nearly
+  // identical `created_at`, so sorting by creation made the list fall back to
+  // id order instead of "most recently shipped first". An explicit `sort_by`
+  // in the URL still wins, so clicking a column header works as before.
+  const explicitSortBy = searchParams.get('sort_by');
+  const shippedDefaultSortBy = primaryClassification === 'shipped' ? 'shipped_at' : defaultFilters.sort_by!;
+
   const filters: FilterOptions & Record<string, any> = {
     page: Number(searchParams.get('page')) || defaultFilters.page!,
     per_page: Number(searchParams.get('per_page')) || defaultFilters.per_page!,
@@ -572,7 +581,7 @@ const OrderList: React.FC = () => {
     payment_status: searchParams.get('payment_status') || defaultFilters.payment_status!,
     date_from: searchParams.get('date_from') || defaultFilters.date_from!,
     date_to: searchParams.get('date_to') || defaultFilters.date_to!,
-    sort_by: searchParams.get('sort_by') || defaultFilters.sort_by!,
+    sort_by: explicitSortBy || shippedDefaultSortBy,
     sort_direction: (searchParams.get('sort_direction') as 'asc' | 'desc') || defaultFilters.sort_direction!,
     // Special filter flags for backend
     unshipped_prepaid: primaryClassification === 'unshipped_prepaid' ? '1' : '',
